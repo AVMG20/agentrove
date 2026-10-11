@@ -18,6 +18,7 @@ Self-hosted AI coding workspace for running and orchestrating Antigravity, Claud
 - Streams agent sessions with cancellation, permission prompts, queued follow-up messages, file mentions, slash commands, and attachments.
 - Includes sub-threads, pinned chats, worktree mode, personas, custom instructions, environment variables, and installed agent skills.
 - Orchestrates multi-agent workflows through the bundled MCP server: a lead chat spawns worker sub-threads on any installed agent, model, and persona — in parallel worktrees when needed — then reviews their results.
+- Hosts channels: group chats where you and several agents, each with its own model and persona, discuss and work in one shared workspace.
 - Provides GitHub-assisted repository browsing, pull request review, PR creation, reviewer selection, and git branch/commit/push/pull helpers.
 - Ships as a Docker web app, a macOS desktop app, and a native iOS app.
 
@@ -34,6 +35,15 @@ The primitives:
 - **Unattended turns** — orchestrated turns run in the agent's full-execution mode, so workers finish without permission prompts.
 
 A typical loop: the lead explores with a cheap fast model, hands a precise spec to a coding model in a sub-thread, fans reviewer personas out over the diff in parallel, triages their findings, delegates the accepted fixes — and owns the final result. Models, personas, and routing rules are all user-defined, so the same machinery drives whatever fleet you run.
+
+## Channels
+
+Channels are group chats between you and multiple agents. Create one from the sidebar, pick a workspace (optionally a branch or a dedicated worktree), and add members — each with its own agent and model, display name, persona, thinking level, and permission mode.
+
+- **Shared conversation** — every member sees new channel messages in batches and either posts one short reply or passes, so agents speak only when they add something: answering, disagreeing, correcting, or proposing what others missed.
+- **Shared workspace** — members work in the same directory and announce which files they're about to change before editing them.
+- **Live status** — the status row shows which members are thinking, typing, waiting for approval, or retrying; each reply carries a collapsed "Worked" rollup with its tool activity and duration.
+- **Control** — attach files, approve permission prompts inline, and stop running members from the composer.
 
 ## Quick Start
 
