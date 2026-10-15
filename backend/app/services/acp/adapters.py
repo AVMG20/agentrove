@@ -250,6 +250,7 @@ class CodexAgentAdapter(AgentAdapter):
     session_modes = frozenset(SESSION_MODE_IDS)
     MAX_MODEL_IDS = frozenset(
         {
+            "gpt-6.1-sol",
             "gpt-6-astra",
             "gpt-6-sol",
             "gpt-6-luna",
@@ -261,7 +262,7 @@ class CodexAgentAdapter(AgentAdapter):
     # Per Codex's model registry, `ultra` (max reasoning + automatic task
     # delegation) is supported by Astra/Sol/Terra but not Luna.
     ULTRA_MODEL_IDS = frozenset(
-        {"gpt-6-astra", "gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-terra"}
+        {"gpt-6.1-sol", "gpt-6-astra", "gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-terra"}
     )
 
     def build_launch_config(
@@ -334,6 +335,7 @@ class CopilotCliAdapter(AgentAdapter):
             "copilot:claude-opus-4.8",
             "copilot:claude-opus-4.8-fast",
             "copilot:claude-opus-4.7",
+            "copilot:gpt-6.1-sol",
             "copilot:gpt-6-astra",
             "copilot:gpt-6-sol",
             "copilot:gpt-6-luna",
@@ -357,6 +359,7 @@ class CopilotCliAdapter(AgentAdapter):
         {
             "copilot:gpt-5-mini",
             "copilot:mai-code-1-flash-picker",
+            "copilot:gemini-4-argon",
             "copilot:gemini-3.8-flash",
             "copilot:gemini-3.6-flash",
             "copilot:gemini-3.5-flash",

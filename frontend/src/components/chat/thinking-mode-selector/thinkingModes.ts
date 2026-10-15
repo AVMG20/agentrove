@@ -47,6 +47,7 @@ const CODEX_MAX_THINKING_MODES: ThinkingModeOption[] = [
   { value: 'max', label: 'Max' },
 ];
 const CODEX_MAX_MODEL_IDS = new Set([
+  'gpt-6.1-sol',
   'gpt-6-astra',
   'gpt-6-sol',
   'gpt-6-luna',
@@ -60,7 +61,13 @@ const CODEX_ULTRA_THINKING_MODES: ThinkingModeOption[] = [
   ...CODEX_MAX_THINKING_MODES,
   { value: 'ultra', label: 'Ultra' },
 ];
-const CODEX_ULTRA_MODEL_IDS = new Set(['gpt-6-astra', 'gpt-6-sol', 'gpt-5.6-sol', 'gpt-5.6-terra']);
+const CODEX_ULTRA_MODEL_IDS = new Set([
+  'gpt-6.1-sol',
+  'gpt-6-astra',
+  'gpt-6-sol',
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+]);
 
 const COPILOT_MAX_THINKING_MODES = CODEX_MAX_THINKING_MODES;
 const COPILOT_MAX_MODEL_IDS = new Set([
@@ -70,6 +77,7 @@ const COPILOT_MAX_MODEL_IDS = new Set([
   'copilot:claude-opus-4.8',
   'copilot:claude-opus-4.8-fast',
   'copilot:claude-opus-4.7',
+  'copilot:gpt-6.1-sol',
   'copilot:gpt-6-astra',
   'copilot:gpt-6-sol',
   'copilot:gpt-6-luna',
@@ -97,6 +105,7 @@ const COPILOT_THINKING_MODES: ThinkingModeOption[] = [
 const COPILOT_REASONING_MODEL_IDS = new Set([
   'copilot:gpt-5-mini',
   'copilot:mai-code-1-flash-picker',
+  'copilot:gemini-4-argon',
   'copilot:gemini-3.8-flash',
   'copilot:gemini-3.6-flash',
   'copilot:gemini-3.5-flash',
