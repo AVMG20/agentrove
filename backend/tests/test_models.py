@@ -83,6 +83,14 @@ async def test_list_models_returns_registered_models(
         "xhigh",
         "max",
     ]
+    assert by_id["gpt-6.1-sol"]["thinking_modes"] == [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra",
+    ]
     assert by_id["gpt-6-astra"]["thinking_modes"] == [
         "low",
         "medium",
@@ -105,6 +113,18 @@ async def test_list_models_returns_registered_models(
         "high",
         "xhigh",
         "max",
+    ]
+    assert by_id["copilot:gpt-6.1-sol"]["thinking_modes"] == [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+    ]
+    assert by_id["copilot:gemini-4-argon"]["thinking_modes"] == [
+        "low",
+        "medium",
+        "high",
     ]
     assert by_id["copilot:gpt-6-astra"]["thinking_modes"] == [
         "low",
@@ -147,6 +167,11 @@ async def test_list_models_returns_registered_models(
         "medium",
         "high",
         "xhigh",
+    ]
+    assert by_id["antigravity:gemini-4-argon"]["thinking_modes"] == [
+        "low",
+        "medium",
+        "high",
     ]
     assert by_id["antigravity:gemini-3.8-flash"]["thinking_modes"] == [
         "low",
