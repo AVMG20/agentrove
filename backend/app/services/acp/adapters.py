@@ -491,6 +491,14 @@ class AntigravityAgentAdapter(AgentAdapter):
             (server_model_id, effort), f"{server_model_id}-{effort}"
         )
 
+    def build_session_meta(
+        self, system_prompt: str | None, system_prompt_is_full_replace: bool
+    ) -> dict[str, Any]:
+        # Antigravity only supports appending, under _meta.antigravity.
+        if not system_prompt:
+            return {}
+        return {"antigravity": {"systemPrompt": {"append": system_prompt}}}
+
 
 class OpencodeAgentAdapter(AgentAdapter):
     # Primary agents map to session modes; no uniform ACP reasoning dial (thinking UI hidden).
