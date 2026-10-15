@@ -179,6 +179,9 @@ class AgentroveClient:
         resp = await self.request("POST", "/chat/chat", data=data)
         return resp.json()
 
+    async def stop_chat(self, chat_id: str) -> None:
+        await self.request("DELETE", f"/chat/chats/{chat_id}/stream", expected=(204,))
+
     async def get_messages(
         self, chat_id: str, limit: int, cursor: str | None
     ) -> dict[str, Any]:

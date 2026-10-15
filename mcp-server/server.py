@@ -266,6 +266,22 @@ async def send_message(
 
 
 @mcp.tool()
+async def stop_chat(chat_id: str) -> dict[str, Any]:
+    """Stop the in-progress agent turn in a chat, e.g. a sub-thread started with send_message.
+
+    Cancels the running turn and waits briefly for it to unwind, so a follow-up
+    send_message to the same chat can start right away. The partial reply is kept with
+    stream_status "interrupted" (see get_messages). Stopping an idle chat is a no-op. The
+    chat this server runs inside (get_current_chat) can't be stopped — that would cancel
+    the turn making this call. Returns {"stopped": true}.
+    """
+    if chat_id == os.environ.get("AGENTROVE_CURRENT_CHAT_ID"):
+        raise AgentroveError("Cannot stop the current chat from within its own turn.")
+    await client.stop_chat(chat_id)
+    return {"stopped": True}
+
+
+@mcp.tool()
 async def get_messages(
     chat_id: str,
     limit: int = 20,
