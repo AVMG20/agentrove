@@ -200,6 +200,37 @@ class AgentroveClient:
             return None
         return resp.json()
 
+    async def list_channels(self, workspace_id: str | None) -> list[dict[str, Any]]:
+        params = {"workspace_id": workspace_id} if workspace_id else None
+        resp = await self.request("GET", "/channels", params=params)
+        return resp.json()
+
+    async def get_channel(self, channel_id: str) -> dict[str, Any]:
+        resp = await self.request("GET", f"/channels/{channel_id}")
+        return resp.json()
+
+    async def get_channel_messages(self, channel_id: str, after_seq: int) -> list[dict[str, Any]]:
+        resp = await self.request(
+            "GET", f"/channels/{channel_id}/messages", params={"after_seq": after_seq}
+        )
+        return resp.json()
+
+    async def create_channel(self, body: dict[str, Any]) -> dict[str, Any]:
+        resp = await self.request("POST", "/channels", json=body, expected=(201,))
+        return resp.json()
+
+    async def post_channel_message(self, channel_id: str, content: str) -> dict[str, Any]:
+        resp = await self.request(
+            "POST",
+            f"/channels/{channel_id}/messages",
+            data={"content": content},
+            expected=(201,),
+        )
+        return resp.json()
+
+    async def stop_channel(self, channel_id: str) -> None:
+        await self.request("POST", f"/channels/{channel_id}/stop", expected=(204,))
+
     async def list_automations(self) -> list[dict[str, Any]]:
         resp = await self.request("GET", "/automations")
         return resp.json()

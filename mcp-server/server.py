@@ -1,7 +1,8 @@
 import os
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from mcp.server.fastmcp import FastMCP
+from pydantic import BaseModel, Field
 
 from client import DEFAULT_API_URL, AgentroveClient, AgentroveError
 
@@ -18,6 +19,36 @@ PERMISSION_MODE_BY_AGENT = {
     "grok": "always-approve",
     "opencode": "build",
 }
+
+
+class ChannelMember(BaseModel):
+    model_id: str
+    display_name: str | None = Field(None, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
+    persona: str | None = None
+    thinking_mode: Literal["low", "medium", "high", "xhigh", "max"] | None = None
+
+
+def _channel_summary(channel: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": channel["id"],
+        "name": channel["name"],
+        "workspace_id": channel["workspace_id"],
+        "worktree": channel["worktree"],
+        "branch": channel["branch"],
+        "created_at": channel["created_at"],
+        "updated_at": channel["updated_at"],
+        "members": [
+            {
+                "id": member["id"],
+                "chat_id": member["chat_id"],
+                "display_name": member["display_name"],
+                "model_id": member["model_id"],
+                "persona": member["persona"],
+                "thinking_mode": member["thinking_mode"],
+            }
+            for member in channel["members"]
+        ],
+    }
 
 
 def _automation_summary(a: dict[str, Any]) -> dict[str, Any]:
@@ -319,6 +350,135 @@ async def get_messages(
         "has_more": page["has_more"],
         "context_usage": context_usage,
     }
+
+
+@mcp.tool()
+async def list_channels(workspace_id: str | None = None) -> dict[str, Any]:
+    """List multi-agent channels, optionally filtered by workspace_id.
+
+    Returns channel settings and members, including each member's chat_id. Use a
+    channel's id with post_channel_message to continue its discussion and with
+    get_channel_messages to read replies. Omit workspace_id to list channels across
+    all workspaces.
+    """
+    channels = await client.list_channels(workspace_id)
+    return {"channels": [_channel_summary(channel) for channel in channels]}
+
+
+@mcp.tool()
+async def create_channel(
+    name: str,
+    members: Annotated[list[ChannelMember], Field(min_length=1)],
+    workspace_id: str | None = None,
+    worktree: bool = False,
+    branch: str | None = None,
+) -> dict[str, Any]:
+    """Create a multi-agent channel for a discussion or debate.
+
+    Supply at least one member, each with a model_id from list_models and optional
+    display_name, persona (a name from list_personas), and thinking_mode (as in
+    send_message). Display names must match [A-Za-z0-9][A-Za-z0-9._-]{0,31}.
+    Members run unattended with their model's full-execution permission mode.
+    Omit workspace_id to use the most recently active workspace. Set worktree=true
+    for an isolated git worktree. branch selects the checkout or worktree base branch.
+
+    Returns the channel summary, including its id and each member's chat_id. Creating
+    the channel does not start the discussion: call post_channel_message with its id.
+    Members reply asynchronously; read the discussion with get_channel_messages.
+    """
+    resolved_workspace = await client.resolve_workspace_id(workspace_id)
+    resolved_members = []
+    for member in members:
+        resolved_model, agent_kind = await client.resolve_model(member.model_id)
+        resolved_members.append(
+            {
+                **member.model_dump(exclude_none=True),
+                "model_id": resolved_model,
+                "permission_mode": PERMISSION_MODE_BY_AGENT[agent_kind],
+            }
+        )
+    body: dict[str, Any] = {
+        "name": name,
+        "members": resolved_members,
+        "workspace_id": resolved_workspace,
+        "worktree": worktree,
+        "branch": branch,
+    }
+    channel = await client.create_channel(body)
+    return {"channel": _channel_summary(channel)}
+
+
+@mcp.tool()
+async def post_channel_message(channel_id: str, content: str) -> dict[str, Any]:
+    """Post a message as the user to a channel, triggering its members' replies.
+
+    Members reply asynchronously; use get_channel_messages with the channel_id to
+    read the discussion and members' replies.
+    Returns the posted message_id, channel_id, seq and status, not the members' replies.
+    """
+    message = await client.post_channel_message(channel_id, content)
+    return {
+        "message_id": message["id"],
+        "channel_id": message["channel_id"],
+        "seq": message["seq"],
+        "status": message["status"],
+    }
+
+
+@mcp.tool()
+async def get_channel_messages(channel_id: str, after_seq: int = 0) -> dict[str, Any]:
+    """Read a channel's conversation oldest-first, ordered by seq.
+
+    Pass the highest seq seen as after_seq to get only newer messages. Each message
+    includes its author's display name (or "user"), member_id, content and status.
+    Status is "streaming" while a member is replying and content is partial, then
+    "completed" when done; "cancelled" and "deleted" also occur.
+
+    Use this to follow a debate in one call instead of reading each member's chat.
+    """
+    channel = await client.get_channel(channel_id)
+    messages = await client.get_channel_messages(channel_id, after_seq)
+    authors = {member["id"]: member["display_name"] for member in channel["members"]}
+    return {
+        "messages": [
+            {
+                "id": message["id"],
+                "seq": message["seq"],
+                "author": (
+                    "user"
+                    if message["member_id"] is None
+                    else authors[message["member_id"]]
+                ),
+                "member_id": message["member_id"],
+                "content": message["content"],
+                "status": message["status"],
+                "created_at": message["created_at"],
+            }
+            for message in messages
+        ]
+    }
+
+
+@mcp.tool()
+async def stop_channel(channel_id: str) -> dict[str, Any]:
+    """Stop a channel's members' in-progress replies and drop queued, undelivered messages.
+
+    Partial replies stay with status "cancelled" in get_channel_messages. Members won't
+    answer the queued messages. The channel stays open; post_channel_message resumes
+    the discussion. Stopping an idle channel is a no-op. A chat cannot stop a channel
+    it belongs to from within its own turn, since that would cancel the calling turn.
+    Returns {"stopped": true}.
+    """
+    channel = await client.get_channel(channel_id)
+    if any(
+        member["chat_id"] == os.environ.get("AGENTROVE_CURRENT_CHAT_ID")
+        for member in channel["members"]
+    ):
+        raise AgentroveError(
+            "Cannot stop a channel this chat is a member of from within its own turn."
+        )
+    await client.stop_channel(channel_id)
+    return {"stopped": True}
 
 
 @mcp.tool()
