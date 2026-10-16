@@ -228,6 +228,9 @@ class AgentroveClient:
         )
         return resp.json()
 
+    async def stop_channel(self, channel_id: str) -> None:
+        await self.request("POST", f"/channels/{channel_id}/stop", expected=(204,))
+
     async def list_automations(self) -> list[dict[str, Any]]:
         resp = await self.request("GET", "/automations")
         return resp.json()

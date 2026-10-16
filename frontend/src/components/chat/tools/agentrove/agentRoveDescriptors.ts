@@ -82,6 +82,7 @@ const DESCRIPTORS: Record<string, AgentRoveDescriptor> = {
     label: 'Get Channel Messages',
     summary: (i) => labeled(i, 'channel_id', 'channel'),
   },
+  stop_channel: { label: 'Stop Channel', summary: (i) => labeled(i, 'channel_id', 'channel') },
   list_automations: { label: 'List Automations' },
   create_automation: {
     label: 'Create Automation',

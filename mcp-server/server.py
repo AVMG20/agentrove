@@ -460,6 +460,28 @@ async def get_channel_messages(channel_id: str, after_seq: int = 0) -> dict[str,
 
 
 @mcp.tool()
+async def stop_channel(channel_id: str) -> dict[str, Any]:
+    """Stop a channel's members' in-progress replies and drop queued, undelivered messages.
+
+    Partial replies stay with status "cancelled" in get_channel_messages. Members won't
+    answer the queued messages. The channel stays open; post_channel_message resumes
+    the discussion. Stopping an idle channel is a no-op. A chat cannot stop a channel
+    it belongs to from within its own turn, since that would cancel the calling turn.
+    Returns {"stopped": true}.
+    """
+    channel = await client.get_channel(channel_id)
+    if any(
+        member["chat_id"] == os.environ.get("AGENTROVE_CURRENT_CHAT_ID")
+        for member in channel["members"]
+    ):
+        raise AgentroveError(
+            "Cannot stop a channel this chat is a member of from within its own turn."
+        )
+    await client.stop_channel(channel_id)
+    return {"stopped": True}
+
+
+@mcp.tool()
 async def list_automations() -> dict[str, Any]:
     """List your scheduled automations.
 
