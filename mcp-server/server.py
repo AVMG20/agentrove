@@ -356,9 +356,10 @@ async def get_messages(
 async def list_channels(workspace_id: str | None = None) -> dict[str, Any]:
     """List multi-agent channels, optionally filtered by workspace_id.
 
-    Returns channel settings and members, including each member's chat_id for reading
-    replies with get_messages. Use a channel's id with post_channel_message to continue
-    its discussion. Omit workspace_id to list channels across all workspaces.
+    Returns channel settings and members, including each member's chat_id. Use a
+    channel's id with post_channel_message to continue its discussion and with
+    get_channel_messages to read replies. Omit workspace_id to list channels across
+    all workspaces.
     """
     channels = await client.list_channels(workspace_id)
     return {"channels": [_channel_summary(channel) for channel in channels]}
@@ -383,7 +384,7 @@ async def create_channel(
 
     Returns the channel summary, including its id and each member's chat_id. Creating
     the channel does not start the discussion: call post_channel_message with its id.
-    Members reply asynchronously; read their chats with get_messages.
+    Members reply asynchronously; read the discussion with get_channel_messages.
     """
     resolved_workspace = await client.resolve_workspace_id(workspace_id)
     resolved_members = []
@@ -411,8 +412,8 @@ async def create_channel(
 async def post_channel_message(channel_id: str, content: str) -> dict[str, Any]:
     """Post a message as the user to a channel, triggering its members' replies.
 
-    Members reply asynchronously. Each member has its own chat_id, returned by
-    list_channels or create_channel; use get_messages on those chats to read replies.
+    Members reply asynchronously; use get_channel_messages with the channel_id to
+    read the discussion and members' replies.
     Returns the posted message_id, channel_id, seq and status, not the members' replies.
     """
     message = await client.post_channel_message(channel_id, content)
@@ -421,6 +422,40 @@ async def post_channel_message(channel_id: str, content: str) -> dict[str, Any]:
         "channel_id": message["channel_id"],
         "seq": message["seq"],
         "status": message["status"],
+    }
+
+
+@mcp.tool()
+async def get_channel_messages(channel_id: str, after_seq: int = 0) -> dict[str, Any]:
+    """Read a channel's conversation oldest-first, ordered by seq.
+
+    Pass the highest seq seen as after_seq to get only newer messages. Each message
+    includes its author's display name (or "user"), member_id, content and status.
+    Status is "streaming" while a member is replying and content is partial, then
+    "completed" when done; "cancelled" and "deleted" also occur.
+
+    Use this to follow a debate in one call instead of reading each member's chat.
+    """
+    channel = await client.get_channel(channel_id)
+    messages = await client.get_channel_messages(channel_id, after_seq)
+    authors = {member["id"]: member["display_name"] for member in channel["members"]}
+    return {
+        "messages": [
+            {
+                "id": message["id"],
+                "seq": message["seq"],
+                "author": (
+                    "user"
+                    if message["member_id"] is None
+                    else authors[message["member_id"]]
+                ),
+                "member_id": message["member_id"],
+                "content": message["content"],
+                "status": message["status"],
+                "created_at": message["created_at"],
+            }
+            for message in messages
+        ]
     }
 
 

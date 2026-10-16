@@ -205,6 +205,16 @@ class AgentroveClient:
         resp = await self.request("GET", "/channels", params=params)
         return resp.json()
 
+    async def get_channel(self, channel_id: str) -> dict[str, Any]:
+        resp = await self.request("GET", f"/channels/{channel_id}")
+        return resp.json()
+
+    async def get_channel_messages(self, channel_id: str, after_seq: int) -> list[dict[str, Any]]:
+        resp = await self.request(
+            "GET", f"/channels/{channel_id}/messages", params={"after_seq": after_seq}
+        )
+        return resp.json()
+
     async def create_channel(self, body: dict[str, Any]) -> dict[str, Any]:
         resp = await self.request("POST", "/channels", json=body, expected=(201,))
         return resp.json()
