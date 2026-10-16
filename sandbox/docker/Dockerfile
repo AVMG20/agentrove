@@ -110,7 +110,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | b
     nvm alias default $NODE_VERSION
 
 RUN . "$NVM_DIR/nvm.sh" && \
-    npm install -g @anthropic-ai/claude-code@2.1.300 @agentclientprotocol/claude-agent-acp@0.90.0 @agentclientprotocol/codex-acp@2.2.2 @openai/codex@0.162.1 @github/copilot@1.0.98
+    npm install -g @anthropic-ai/claude-code@2.1.301 @agentclientprotocol/claude-agent-acp@0.91.0 @agentclientprotocol/codex-acp@2.2.2 @openai/codex@0.163.0 @github/copilot@1.0.98
 
 # Cursor CLI — pinned download replicating cursor.com/install (which always
 # fetches its own latest); cursor-agent lands in ~/.local/bin, already on PATH.
@@ -127,7 +127,7 @@ RUN set -eux; \
 # OpenCode CLI (installs `opencode` to ~/.opencode/bin; symlink into ~/.local/bin
 # so the ACP binary resolves without modifying PATH). Pinned: the unpinned path
 # resolves "latest" via the rate-limited GitHub API.
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --version 1.19.0 && \
+RUN curl -fsSL https://opencode.ai/install | bash -s -- --version 1.19.2 && \
     mkdir -p /home/user/.local/bin && \
     ln -sf /home/user/.opencode/bin/opencode /home/user/.local/bin/opencode
 
