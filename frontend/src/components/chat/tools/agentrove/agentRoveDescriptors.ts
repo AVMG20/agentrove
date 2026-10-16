@@ -66,6 +66,7 @@ const DESCRIPTORS: Record<string, AgentRoveDescriptor> = {
       ),
     longFields: ['prompt'],
   },
+  stop_chat: { label: 'Stop Chat', summary: (i) => labeled(i, 'chat_id', 'chat') },
   get_messages: { label: 'Get Messages', summary: (i) => labeled(i, 'chat_id', 'chat') },
   list_automations: { label: 'List Automations' },
   create_automation: {
