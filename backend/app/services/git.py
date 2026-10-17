@@ -147,11 +147,6 @@ GIT_CHECKPOINT_UNTRACKED_DIFF_TEMPLATE = (
     " | xargs -0 -I{} "
     "git diff --binary --no-index -- /dev/null {} 2>/dev/null"
 )
-# Diff HEAD against the merge-base with the default branch. Default branch is
-# detected via the remote HEAD symref, falling back to main/master/develop/
-# trunk. Exits 2 when no base can be determined so the caller can surface a
-# distinct error. `$$` escapes literal `$` (shell vars and command subs) so
-# `string.Template` only substitutes the `$ctx`/`$detect_base` placeholders.
 GIT_DETECT_BASE_CMD = (
     "base=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/||');"
     # Exact refs in priority order: main wins over develop, and origin/mainline
@@ -161,6 +156,11 @@ GIT_DETECT_BASE_CMD = (
     ' [ -z "$base" ] && for b in main master develop trunk; do'
     " git rev-parse --verify $b >/dev/null 2>&1 && base=$b && break; done;"
 )
+# Diff HEAD against the merge-base with the default branch. Default branch is
+# detected via the remote HEAD symref, falling back to main/master/develop/
+# trunk. Exits 2 when no base can be determined so the caller can surface a
+# distinct error. `$$` escapes literal `$` (shell vars and command subs) so
+# `string.Template` only substitutes the `$ctx`/`$detect_base` placeholders.
 GIT_DIFF_BRANCH_TEMPLATE = Template(
     "$detect_base"
     ' if [ -z "$$base" ]; then exit 2; fi;'
@@ -168,15 +168,10 @@ GIT_DIFF_BRANCH_TEMPLATE = Template(
     ' git diff$ctx "$$merge_base" HEAD 2>/dev/null'
 )
 
-# Line totals for the diff view's two modes, as two marker-separated numstat
-# sections: uncommitted (working tree + untracked vs HEAD, or the empty tree on
-# an unborn branch) and branch (merge-base with the default branch vs HEAD; empty
-# when no base exists). Exit 2 means "not a repo".
-# Untracked files are marked intent-to-add in a throwaway copy of the index so
-# a single `git diff` counts them. The real index is never touched: bail if
-# mktemp fails rather than run `add` with an empty GIT_INDEX_FILE, and drop the
-# copy when there's no index yet so git starts from an empty one instead of
-# rejecting a zero-byte file.
+# Untracked files are marked intent-to-add in a throwaway index copy so one
+# `git diff` counts them without touching the real index. Bail if mktemp fails
+# (an empty GIT_INDEX_FILE would hit the real index); with no index yet, drop
+# the copy so git starts empty instead of rejecting a zero-byte file.
 GIT_DIFF_STATS_CMD = (
     "git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 2; "
     'cd "$(git rev-parse --show-toplevel)"; '
