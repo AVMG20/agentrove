@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.deps import get_agent_service, get_github_service
@@ -39,11 +41,13 @@ async def list_repositories(
 async def list_pull_requests(
     owner: str = Query(..., min_length=1),
     repo: str = Query(..., min_length=1),
+    head: str | None = Query(default=None, min_length=1),
+    state: Literal["open", "closed", "all"] = Query(default="open"),
     _current_user: User = Depends(get_current_user),
     github: GitHubService = Depends(get_github_service),
 ) -> GitHubPRListResponse:
     try:
-        return await github.list_pull_requests(owner, repo)
+        return await github.list_pull_requests(owner, repo, head, state)
     except GitHubException as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 

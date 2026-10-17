@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import Literal
 
 import httpx
 import pytest
@@ -63,7 +64,13 @@ class FakeGitHubService:
             has_more=False,
         )
 
-    async def list_pull_requests(self, owner: str, repo: str) -> GitHubPRListResponse:
+    async def list_pull_requests(
+        self,
+        owner: str,
+        repo: str,
+        head: str | None = None,
+        state: Literal["open", "closed", "all"] = "open",
+    ) -> GitHubPRListResponse:
         if self.error:
             raise self.error
         self.pr_calls.append((owner, repo))
@@ -83,6 +90,7 @@ class FakeGitHubService:
                     },
                     draft=False,
                     review_comments=2,
+                    merged=False,
                 )
             ]
         )
@@ -227,7 +235,11 @@ def github_pr_payload(**overrides: object) -> dict[str, object]:
         "body": "Details",
         "state": "open",
         "html_url": "https://github.com/owner/agentrove/pull/42",
-        "head": {"ref": "feature", "repo": {"full_name": "owner/agentrove"}},
+        "head": {
+            "ref": "feature",
+            "sha": "abc123",
+            "repo": {"full_name": "owner/agentrove"},
+        },
         "base": {"ref": "main"},
         "user": {"login": "octocat", "avatar_url": "https://example.com/a.png"},
         "draft": False,
@@ -547,7 +559,7 @@ async def test_github_service_lists_pull_requests_maps_fields(
                 github_pr_payload(),
                 github_pr_payload(
                     number=43,
-                    head={"ref": "deleted-fork", "repo": None},
+                    head={"ref": "deleted-fork", "sha": "def456", "repo": None},
                 ),
             ],
         ),

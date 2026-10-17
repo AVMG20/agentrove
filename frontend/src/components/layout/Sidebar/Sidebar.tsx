@@ -22,7 +22,7 @@ import { buildRecentChatSections } from './sidebarGrouping';
 import { useSidebarChatActions } from './useSidebarChatActions';
 import { useSidebarWorkspaceActions } from './useSidebarWorkspaceActions';
 import { countActiveSidebarFilters } from '@/store/sidebarFilters';
-import { isCloudChat } from '@/utils/chatOrigin';
+import { useCloudChatIds } from '@/utils/chatOrigin';
 import styles from './Sidebar.module.scss';
 
 export interface SidebarProps {
@@ -105,11 +105,12 @@ export function Sidebar({
   // workspace AND with them. Cloud-ness comes from chatOrigin (marked at fetch
   // time, hydrated at module load) — the workspace badge map lags behind the
   // cloud workspaces query and would misclassify cloud chats as local meanwhile.
+  const cloudChatIds = useCloudChatIds();
   const chatMatchesFilters = useCallback(
     (chat: Chat) => {
       if (filters.workspaceId && chat.workspace_id !== filters.workspaceId) return false;
       if (filters.agentKind && chat.session_agent_kind !== filters.agentKind) return false;
-      if (filters.source !== 'all' && isCloudChat(chat.id) !== (filters.source === 'cloud')) {
+      if (filters.source !== 'all' && cloudChatIds.has(chat.id) !== (filters.source === 'cloud')) {
         return false;
       }
       if (filters.statuses.length === 0) return true;
@@ -120,7 +121,7 @@ export function Sidebar({
         (filters.statuses.includes('needs-you') && blockedChatIdSet.has(chat.id))
       );
     },
-    [filters, streamingChatIdSet, completedChatIds, blockedChatIdSet],
+    [filters, streamingChatIdSet, completedChatIds, blockedChatIdSet, cloudChatIds],
   );
   const visiblePinnedChats = useMemo(
     () => (hasActiveFilters ? pinnedChats.filter(chatMatchesFilters) : pinnedChats),

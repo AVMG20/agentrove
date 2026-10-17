@@ -10,6 +10,7 @@ import type {
   GenerateCommitMessageResponse,
   GeneratePRDescriptionRequest,
   GeneratePRDescriptionResponse,
+  PullRequestFilters,
 } from '@/types/github.types';
 
 export function useGitHubReposQuery(query: string, enabled: boolean) {
@@ -29,10 +30,11 @@ export function useGitHubPullsQuery(
   repo: string,
   enabled: boolean,
   chatId?: string,
+  filters?: PullRequestFilters,
 ) {
   return useQuery({
-    queryKey: queryKeys.github.pulls(owner, repo, chatId),
-    queryFn: () => githubService.listPullRequests(owner, repo, chatId),
+    queryKey: queryKeys.github.pulls(owner, repo, chatId, filters),
+    queryFn: () => githubService.listPullRequests(owner, repo, chatId, filters),
     enabled: enabled && !!owner && !!repo,
     staleTime: 30_000,
   });
@@ -52,7 +54,7 @@ export function useGitHubCollaboratorsQuery(
   });
 }
 
-export function useExistingPullRequest(
+export function useBranchPullRequests(
   sandboxId: string,
   worktreeCwd: string | undefined,
   branch: string,
@@ -61,17 +63,23 @@ export function useExistingPullRequest(
   const { data: remoteUrl } = useGitRemoteUrlQuery(sandboxId, !!sandboxId, worktreeCwd);
   const owner = remoteUrl?.owner ?? '';
   const repo = remoteUrl?.repo ?? '';
-  const { data: pulls } = useGitHubPullsQuery(owner, repo, !!owner && !!repo, chatId);
-  const existingPR = useMemo(
-    () =>
+  const { data: pulls } = useGitHubPullsQuery(owner, repo, !!owner && !!repo && !!branch, chatId, {
+    head: `${owner}:${branch}`,
+    state: 'all',
+  });
+  const { openPR, mergedPR } = useMemo(() => {
+    const branchPulls =
       branch && owner && repo
-        ? pulls?.items.find(
+        ? pulls?.items.filter(
             (pr) => pr.head.ref === branch && pr.head.repo.full_name === `${owner}/${repo}`,
           )
-        : undefined,
-    [pulls?.items, branch, owner, repo],
-  );
-  return { owner, repo, existingPR };
+        : undefined;
+    return {
+      openPR: branchPulls?.find((pr) => pr.state === 'open'),
+      mergedPR: branchPulls?.find((pr) => pr.merged),
+    };
+  }, [pulls?.items, branch, owner, repo]);
+  return { owner, repo, openPR, mergedPR };
 }
 
 export function useCreatePullRequestMutation(chatId?: string) {
@@ -79,7 +87,7 @@ export function useCreatePullRequestMutation(chatId?: string) {
   return useMutation<CreatePRResponse, Error, CreatePRRequest>({
     mutationFn: (request) => githubService.createPullRequest(request, chatId),
     onSuccess: (_data, { owner, repo }) =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.github.pulls(owner, repo, chatId) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.github.pullsAll(owner, repo, chatId) }),
   });
 }
 

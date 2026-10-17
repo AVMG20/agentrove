@@ -15,17 +15,25 @@ export interface GitHubReposResponse {
   has_more: boolean;
 }
 
+export type PullRequestStateFilter = 'open' | 'closed' | 'all';
+
+export interface PullRequestFilters {
+  head?: string;
+  state?: PullRequestStateFilter;
+}
+
 interface GitHubPullRequest {
   number: number;
   title: string;
   body: string | null;
   state: string;
   html_url: string;
-  head: { ref: string; repo: { full_name: string } };
+  head: { ref: string; sha: string; repo: { full_name: string } };
   base: { ref: string };
   user: { login: string; avatar_url: string };
   draft: boolean;
   review_comments: number;
+  merged: boolean;
 }
 
 export interface GitHubPRListResponse {

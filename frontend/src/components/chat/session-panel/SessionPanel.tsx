@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useEffect, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -19,8 +19,12 @@ import { ProviderIcon } from '@/components/ui/icons/ProviderIcon';
 import { AGENTS_WITHOUT_USAGE_UPDATE } from '@/config/constants';
 import { useChatQuery, useSubThreadsQuery } from '@/hooks/queries/useChatQueries';
 import { useModelMap } from '@/hooks/queries/useModelQueries';
-import { useGitBranchesQuery, useGitDiffStatsQuery } from '@/hooks/queries/useSandboxQueries';
-import { useExistingPullRequest } from '@/hooks/queries/useGitHubQueries';
+import {
+  useGitBranchesQuery,
+  useGitDiffStatsQuery,
+  useGitFetchBaseMutation,
+} from '@/hooks/queries/useSandboxQueries';
+import { useBranchPullRequests } from '@/hooks/queries/useGitHubQueries';
 import { useBlockedChatIds } from '@/hooks/useBlockedChatIds';
 import { useChatAgentKind } from '@/hooks/useChatAgentKind';
 import { useChatSessionState } from '@/hooks/useChatSessionContext';
@@ -29,7 +33,7 @@ import { useUIStore } from '@/store/uiStore';
 import { getAgentKindForModelId, type Chat } from '@/types/chat.types';
 import type { DiffMode, GitDiffTotals } from '@/types/sandbox.types';
 import type { Workspace } from '@/types/workspace.types';
-import { isCloudChat } from '@/utils/chatOrigin';
+import { useIsCloudChat } from '@/utils/chatOrigin';
 import { getRelativeTime } from '@/utils/date';
 import { getContextUsageDisplay } from '@/utils/contextUsage';
 import { stripMarkdownTitle } from '@/utils/format';
@@ -106,7 +110,7 @@ function EnvironmentCard({
   workspace: Workspace | undefined;
   branch: string | null;
 }) {
-  const isCloud = isCloudChat(chat.id);
+  const isCloud = useIsCloudChat(chat.id);
   const isDocker = workspace?.sandbox_provider === 'docker';
   const path = chat.worktree_cwd ?? workspace?.workspace_path;
   return (
@@ -301,8 +305,12 @@ function ChangesRow({
       >
         <span className={styles['changes-label']}>{label}</span>
         <span className={styles['changes-numbers']}>
-          <span className={styles['stat-add']}>+{totals.additions}</span>
-          <span className={styles['stat-del']}>−{totals.deletions}</span>
+          {(totals.additions > 0 || totals.deletions > 0) && (
+            <>
+              <span className={styles['stat-add']}>+{totals.additions}</span>
+              <span className={styles['stat-del']}>−{totals.deletions}</span>
+            </>
+          )}
           <span className={styles.secondary}>
             {totals.files_changed} {totals.files_changed === 1 ? 'file' : 'files'}
           </span>
@@ -325,11 +333,17 @@ function ChangesCard({
   branch: string;
 }) {
   const { data: stats } = useGitDiffStatsQuery(sandboxId, worktreeCwd);
-  const { existingPR } = useExistingPullRequest(sandboxId, worktreeCwd, branch, chatId);
+  const { mutate: fetchBase } = useGitFetchBaseMutation();
+  useEffect(() => {
+    fetchBase({ sandboxId, cwd: worktreeCwd });
+  }, [fetchBase, sandboxId, worktreeCwd]);
+  const { openPR, mergedPR } = useBranchPullRequests(sandboxId, worktreeCwd, branch, chatId);
   if (!stats) return null;
   const hasUncommitted = stats.uncommitted.files_changed > 0;
   // A PR only carries committed work, so the PR action belongs to the branch row.
-  const showBranch = stats.branch.files_changed > 0 || !!existingPR;
+  const mergedAtHead = mergedPR && mergedPR.head.sha === stats.head_sha ? mergedPR : undefined;
+  const linkedPR = openPR ?? mergedAtHead;
+  const showBranch = stats.branch.files_changed > 0 || !!linkedPR;
   return (
     <Card title="Changes">
       {hasUncommitted && (
@@ -358,14 +372,15 @@ function ChangesCard({
           totals={stats.branch}
           onOpen={() => openDiff(chatId, 'branch')}
           action={
-            existingPR ? (
+            linkedPR ? (
               <Button
                 variant="unstyled"
                 type="button"
                 className={styles['pr-button']}
-                onClick={() => openExternalUrl(existingPR.html_url)}
+                onClick={() => openExternalUrl(linkedPR.html_url)}
               >
-                PR #{existingPR.number}
+                PR #{linkedPR.number}
+                {!openPR && ' · Merged'}
                 <ExternalLink className={styles['pr-icon']} />
               </Button>
             ) : (

@@ -8,6 +8,7 @@ import type {
   GitCommitResult,
   GitCreateBranchResult,
   GitDiffData,
+  GitFetchBaseData,
   GitFileBaselineData,
   GitPushPullResult,
   SearchParams,
@@ -142,6 +143,21 @@ export const useGitDiffStatsQuery = (sandboxId: string | undefined, cwd?: string
     refetchOnWindowFocus: true,
   });
 };
+
+export const useGitFetchBaseMutation = createMutation<
+  GitFetchBaseData,
+  Error,
+  { sandboxId: string; cwd?: string }
+>(
+  ({ sandboxId, cwd }) => sandboxService.fetchGitBase(sandboxId, cwd),
+  async (queryClient, data, variables) => {
+    if (data.fetched) {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.sandbox.gitDiffStats(variables.sandboxId, variables.cwd),
+      });
+    }
+  },
+);
 
 // Uncommitted paths for change indicators (no full diff).
 export const useGitChangedPathsQuery = (sandboxId: string | undefined, cwd?: string) => {

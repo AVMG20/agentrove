@@ -5,7 +5,7 @@ import type { UserSettings, UserSettingsUpdate } from '@/types/user.types';
 import { createMutation } from './createMutation';
 import { queryKeys } from './queryKeys';
 import { useCloudSettingsQuery } from './useCloudQueries';
-import { isCloudChat } from '@/utils/chatOrigin';
+import { useIsCloudChat } from '@/utils/chatOrigin';
 
 const settingsQuery = () => ({
   queryKey: [queryKeys.settings],
@@ -21,10 +21,10 @@ export const useSettingsQuery = (options?: Partial<UseQueryOptions<UserSettings>
 
 // Settings are per-instance: a cloud chat's personas and stream actions live on
 // the VPS that owns it, not the local backend. Routes to the owning instance the
-// same way resolveChatClient routes per-chat API calls. isCloudChat hydrates
+// same way resolveChatClient routes per-chat API calls. useIsCloudChat hydrates
 // synchronously from localStorage, so deep links resolve before the query fires.
 export const useSettingsForChatQuery = (chatId: string | undefined, enabled = true) => {
-  const chatIsCloud = !!chatId && isCloudChat(chatId);
+  const chatIsCloud = useIsCloudChat(chatId);
   const localQuery = useSettingsQuery({ enabled: enabled && !chatIsCloud });
   const cloudQuery = useCloudSettingsQuery(enabled && chatIsCloud);
   return chatIsCloud ? cloudQuery : localQuery;

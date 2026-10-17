@@ -8,6 +8,7 @@ import type {
   GitBranchesData,
   GitChangedPathsData,
   GitDiffStatsData,
+  GitFetchBaseData,
   GitCheckoutData,
   GitCommitResult,
   GitCreateBranchResult,
@@ -130,6 +131,18 @@ async function getGitDiffStats(sandboxId: string, cwd?: string): Promise<GitDiff
       `/sandbox/${sandboxId}/git/diff-stats${qs}`,
     );
     return ensureResponse(response, 'Failed to get diff stats');
+  });
+}
+
+async function fetchGitBase(sandboxId: string, cwd?: string): Promise<GitFetchBaseData> {
+  validateRequired(sandboxId, 'Sandbox ID');
+
+  return serviceCall(async () => {
+    const qs = buildQueryString({ cwd });
+    const response = await resolveSandboxClient(sandboxId).post<GitFetchBaseData>(
+      `/sandbox/${sandboxId}/git/fetch-base${qs}`,
+    );
+    return ensureResponse(response, 'Failed to fetch base branch');
   });
 }
 
@@ -319,6 +332,7 @@ export const sandboxService = {
   getGitDiff,
   getGitChangedPaths,
   getGitDiffStats,
+  fetchGitBase,
   getGitFileBaseline,
   getGitBranches,
   checkoutGitBranch,

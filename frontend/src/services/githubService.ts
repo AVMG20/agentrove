@@ -9,6 +9,7 @@ import type {
   GitHubReposResponse,
   GitHubPRListResponse,
   GitHubCollaborator,
+  PullRequestFilters,
   CreatePRRequest,
   CreatePRResponse,
   GenerateCommitMessageRequest,
@@ -35,9 +36,10 @@ async function listPullRequests(
   owner: string,
   repo: string,
   chatId?: string,
+  filters?: PullRequestFilters,
 ): Promise<GitHubPRListResponse> {
   return serviceCall(async () => {
-    const qs = buildQueryString({ owner, repo });
+    const qs = buildQueryString({ owner, repo, ...filters });
     const response = await resolveChatClient(chatId).get<GitHubPRListResponse>(
       `/github/pulls${qs}`,
     );

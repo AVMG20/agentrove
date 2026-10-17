@@ -1,3 +1,4 @@
+import type { PullRequestFilters } from '@/types/github.types';
 import type { DiffMode } from '@/types/sandbox.types';
 
 export const queryKeys = {
@@ -99,8 +100,10 @@ export const queryKeys = {
     repos: (query: string) => ['github-repos', query] as const,
     // Keyed by chatId because the response depends on which backend's GitHub
     // credentials served it (local vs the chat-owning cloud VPS).
-    pulls: (owner: string, repo: string, chatId?: string) =>
+    pullsAll: (owner: string, repo: string, chatId?: string) =>
       ['github-pulls', owner, repo, chatId ?? null] as const,
+    pulls: (owner: string, repo: string, chatId?: string, filters?: PullRequestFilters) =>
+      [...queryKeys.github.pullsAll(owner, repo, chatId), filters ?? {}] as const,
     collaborators: (owner: string, repo: string, chatId?: string) =>
       ['github-collaborators', owner, repo, chatId ?? null] as const,
   },

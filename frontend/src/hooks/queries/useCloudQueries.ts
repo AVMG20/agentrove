@@ -1,4 +1,5 @@
 import { useQuery, useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
+import { CLOUD_CHATS_PER_PAGE } from '@/config/constants';
 import { cloudChatService } from '@/services/cloudChatService';
 import { queryKeys } from '@/hooks/queries/queryKeys';
 import { createMutation } from '@/hooks/queries/createMutation';
@@ -11,8 +12,6 @@ import type {
 import type { UserSettings } from '@/types/user.types';
 import type { ActiveStreamSnapshot } from '@/types/stream.types';
 import type { ChatSearchResponse } from '@/types/chat.types';
-
-const CLOUD_CHATS_PER_PAGE = 25;
 
 // Keyed by cloudUrl + connectedEmail so instance/account switches don't serve stale cache.
 export const useCloudWorkspacesQuery = (enabled: boolean) => {
