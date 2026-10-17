@@ -265,21 +265,6 @@ GIT_RESTORE_CHECKPOINT_ALL_TEMPLATE = Template(
 )
 
 
-def _sum_numstat(output: str) -> GitDiffTotals:
-    totals = GitDiffTotals()
-    for line in output.splitlines():
-        parts = line.split("\t", 2)
-        if len(parts) != 3:
-            continue
-        totals.files_changed += 1
-        # Binary files report "-" for both counts.
-        if parts[0].isdigit():
-            totals.additions += int(parts[0])
-        if parts[1].isdigit():
-            totals.deletions += int(parts[1])
-    return totals
-
-
 class GitService:
     def __init__(self, sandbox_service: SandboxService) -> None:
         self.sandbox_service = sandbox_service
@@ -357,8 +342,8 @@ class GitService:
         _, _, rest = result.stdout.partition("__UNCOMMITTED__\n")
         uncommitted, _, branch = rest.partition("__BRANCH__\n")
         return GitDiffStatsResponse(
-            uncommitted=_sum_numstat(uncommitted),
-            branch=_sum_numstat(branch),
+            uncommitted=self._sum_numstat(uncommitted),
+            branch=self._sum_numstat(branch),
             is_git_repo=True,
         )
 
@@ -789,6 +774,21 @@ class GitService:
                 worktree_cwd,
                 (result.stdout or result.stderr).strip(),
             )
+
+    @staticmethod
+    def _sum_numstat(output: str) -> GitDiffTotals:
+        totals = GitDiffTotals()
+        for line in output.splitlines():
+            parts = line.split("\t", 2)
+            if len(parts) != 3:
+                continue
+            totals.files_changed += 1
+            # Binary files report "-" for both counts.
+            if parts[0].isdigit():
+                totals.additions += int(parts[0])
+            if parts[1].isdigit():
+                totals.deletions += int(parts[1])
+        return totals
 
     @staticmethod
     def _validate_branch_name(name: str, label: str = "branch") -> None:
