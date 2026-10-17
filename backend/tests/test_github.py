@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import Literal
 
 import httpx
 import pytest
@@ -63,7 +64,13 @@ class FakeGitHubService:
             has_more=False,
         )
 
-    async def list_pull_requests(self, owner: str, repo: str) -> GitHubPRListResponse:
+    async def list_pull_requests(
+        self,
+        owner: str,
+        repo: str,
+        head: str | None = None,
+        state: Literal["open", "closed", "all"] = "open",
+    ) -> GitHubPRListResponse:
         if self.error:
             raise self.error
         self.pr_calls.append((owner, repo))
@@ -83,6 +90,7 @@ class FakeGitHubService:
                     },
                     draft=False,
                     review_comments=2,
+                    merged=False,
                 )
             ]
         )

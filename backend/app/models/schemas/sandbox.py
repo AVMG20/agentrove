@@ -47,6 +47,10 @@ class GitDiffStatsResponse(BaseModel):
     is_git_repo: bool
 
 
+class GitFetchBaseResponse(BaseModel):
+    fetched: bool
+
+
 class GitFileBaselineResponse(BaseModel):
     path: str
     content: str

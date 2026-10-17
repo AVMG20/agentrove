@@ -14,6 +14,7 @@ from app.models.schemas.sandbox import (
     GitCreateBranchResponse,
     GitDiffResponse,
     GitDiffStatsResponse,
+    GitFetchBaseResponse,
     GitDiffTotals,
     GitFileBaselineResponse,
     GitRemoteUrlResponse,
@@ -156,7 +157,6 @@ GIT_DETECT_BASE_CMD = (
     ' [ -z "$base" ] && for b in main master develop trunk; do'
     " git rev-parse --verify $b >/dev/null 2>&1 && base=$b && break; done;"
 )
-# Refresh only the base branch so totals don't go stale after a remote merge.
 # Prompts are disabled, SSH runs non-interactively, and HTTP stalls hit git's
 # low-speed abort; `timeout` is added when present (stock macOS lacks it).
 GIT_FETCH_BASE_CMD = (
@@ -165,9 +165,22 @@ GIT_FETCH_BASE_CMD = (
     " GIT_TERMINAL_PROMPT=0"
     ' GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=10}"'
     " $t git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10"
-    ' fetch --quiet --no-tags origin "${base#origin/}" >/dev/null 2>&1 || true;;'
+    ' fetch --quiet --no-tags origin "${base#origin/}" >/dev/null 2>&1 && printf fetched;;'
     " esac;"
 )
+
+# Skips when FETCH_HEAD was written in the last minute; prints `fetched` only
+# when a fetch ran and succeeded. `find -mmin` works on GNU and BSD.
+GIT_FETCH_BASE_THROTTLED_CMD = (
+    "git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 2; "
+    'cd "$(git rev-parse --show-toplevel)"; '
+    + GIT_DETECT_BASE_CMD
+    + " fp=$(git rev-parse --git-path FETCH_HEAD);"
+    ' if [ -z "$(find "$fp" -mmin -1 2>/dev/null)" ]; then'
+    + GIT_FETCH_BASE_CMD
+    + " fi; true"
+)
+
 # Diff HEAD against the merge-base with the default branch. Default branch is
 # detected via the remote HEAD symref, falling back to main/master/develop/
 # trunk. Exits 2 when no base can be determined so the caller can surface a
@@ -193,11 +206,8 @@ GIT_DIFF_STATS_CMD = (
     ' GIT_INDEX_FILE="$tmp" git add -A -N >/dev/null 2>&1;'
     " printf '__UNCOMMITTED__\\n';"
     ' GIT_INDEX_FILE="$tmp" git diff --numstat "$head" 2>/dev/null;'
-    " printf '__BRANCH__\\n'; "
-    + GIT_DETECT_BASE_CMD
-    + ' if [ -n "$base" ]; then'
-    + GIT_FETCH_BASE_CMD
-    + ' merge_base=$(git merge-base "$base" HEAD 2>/dev/null || echo "$base");'
+    " printf '__BRANCH__\\n'; " + GIT_DETECT_BASE_CMD + ' if [ -n "$base" ]; then'
+    ' merge_base=$(git merge-base "$base" HEAD 2>/dev/null || echo "$base");'
     ' git diff --numstat "$merge_base" HEAD 2>/dev/null; fi;'
     " true"
 )
@@ -356,6 +366,24 @@ class GitService:
             branch=self._sum_numstat(branch),
             is_git_repo=True,
         )
+
+    async def fetch_base(
+        self, sandbox_id: str, cwd: str | None = None
+    ) -> GitFetchBaseResponse:
+        git_prefix = self.git_command_prefix(cwd)
+        result = await self.sandbox_service.execute_command(
+            sandbox_id, f"{git_prefix}{GIT_FETCH_BASE_THROTTLED_CMD}"
+        )
+        if result.exit_code == 2:
+            return GitFetchBaseResponse(fetched=False)
+        if result.exit_code != 0:
+            detail = (result.stderr or result.stdout).strip()
+            raise ValueError(
+                f"Failed to fetch base branch: {detail}"
+                if detail
+                else "Failed to fetch base branch"
+            )
+        return GitFetchBaseResponse(fetched=result.stdout.strip() == "fetched")
 
     async def get_file_baseline(
         self,

@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useEffect, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -19,8 +19,12 @@ import { ProviderIcon } from '@/components/ui/icons/ProviderIcon';
 import { AGENTS_WITHOUT_USAGE_UPDATE } from '@/config/constants';
 import { useChatQuery, useSubThreadsQuery } from '@/hooks/queries/useChatQueries';
 import { useModelMap } from '@/hooks/queries/useModelQueries';
-import { useGitBranchesQuery, useGitDiffStatsQuery } from '@/hooks/queries/useSandboxQueries';
-import { useExistingPullRequest } from '@/hooks/queries/useGitHubQueries';
+import {
+  useGitBranchesQuery,
+  useGitDiffStatsQuery,
+  useGitFetchBaseMutation,
+} from '@/hooks/queries/useSandboxQueries';
+import { useBranchPullRequests } from '@/hooks/queries/useGitHubQueries';
 import { useBlockedChatIds } from '@/hooks/useBlockedChatIds';
 import { useChatAgentKind } from '@/hooks/useChatAgentKind';
 import { useChatSessionState } from '@/hooks/useChatSessionContext';
@@ -329,7 +333,11 @@ function ChangesCard({
   branch: string;
 }) {
   const { data: stats } = useGitDiffStatsQuery(sandboxId, worktreeCwd);
-  const { openPR, mergedPR } = useExistingPullRequest(sandboxId, worktreeCwd, branch, chatId);
+  const { mutate: fetchBase } = useGitFetchBaseMutation();
+  useEffect(() => {
+    fetchBase({ sandboxId, cwd: worktreeCwd });
+  }, [fetchBase, sandboxId, worktreeCwd]);
+  const { openPR, mergedPR } = useBranchPullRequests(sandboxId, worktreeCwd, branch, chatId);
   if (!stats) return null;
   const hasUncommitted = stats.uncommitted.files_changed > 0;
   // A PR only carries committed work, so the PR action belongs to the branch row.

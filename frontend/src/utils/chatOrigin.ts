@@ -43,7 +43,7 @@ function persist(key: string, ids: Set<string>): void {
   }
 }
 
-function add(ids: string[], set: Set<string>, key: string): void {
+function add(ids: string[], set: Set<string>, key: string): boolean {
   let changed = false;
   for (const id of ids) {
     if (!set.has(id)) {
@@ -51,14 +51,12 @@ function add(ids: string[], set: Set<string>, key: string): void {
       changed = true;
     }
   }
-  if (changed) {
-    persist(key, set);
-    notify();
-  }
+  if (changed) persist(key, set);
+  return changed;
 }
 
 export function markCloudChats(ids: string[]): void {
-  add(ids, cloudChatIds, CHATS_KEY);
+  if (add(ids, cloudChatIds, CHATS_KEY)) notify();
 }
 
 export function isCloudChat(id: string): boolean {

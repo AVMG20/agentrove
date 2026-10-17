@@ -49,6 +49,10 @@ export interface GitDiffStatsData {
   is_git_repo: boolean;
 }
 
+export interface GitFetchBaseData {
+  fetched: boolean;
+}
+
 export interface GitChangedPathsData {
   paths: string[];
   is_git_repo: boolean;

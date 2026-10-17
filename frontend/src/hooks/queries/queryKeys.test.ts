@@ -42,6 +42,7 @@ const CONTRACT: ReadonlyArray<readonly [string, readonly unknown[], readonly unk
     queryKeys.sandbox.gitBranches(SB, '/cwd'),
   ],
   ['sandbox.search', queryKeys.sandbox.searchAll(SB), queryKeys.sandbox.search(SB, 'q', '/cwd')],
+  ['github.pulls', queryKeys.github.pullsAll('o', 'r', 'c'), queryKeys.github.pulls('o', 'r', 'c')],
   ['cloudChats', queryKeys.cloudChatsAll, queryKeys.cloudChats('https://c', 'me@x.com')],
   ['channels', queryKeys.channelsAll, queryKeys.channels('ws1')],
 ];
@@ -76,6 +77,7 @@ describe('queryKeys prefix-invalidation contract', () => {
         'gitChangedPathsAll',
         'gitDiffAll',
         'gitFileBaselineAll',
+        'pullsAll',
         'searchAll',
       ].sort(),
     );

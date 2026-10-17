@@ -54,7 +54,7 @@ export function useGitHubCollaboratorsQuery(
   });
 }
 
-export function useExistingPullRequest(
+export function useBranchPullRequests(
   sandboxId: string,
   worktreeCwd: string | undefined,
   branch: string,

@@ -16,7 +16,7 @@ import { MAX_DIFF_LENGTH } from '@/config/constants';
 import { useGitBranchesQuery, useGitDiffQuery } from '@/hooks/queries/useSandboxQueries';
 import {
   useGitHubCollaboratorsQuery,
-  useExistingPullRequest,
+  useBranchPullRequests,
   useCreatePullRequestMutation,
   useGeneratePRDescriptionMutation,
 } from '@/hooks/queries/useGitHubQueries';
@@ -63,12 +63,7 @@ export function CreatePRDialog({ onClose }: CreatePRDialogProps) {
   // GitHub calls run with the credentials of the backend that owns the chat.
   const chatId = currentChat?.id;
   const headBranch = branchesData?.current_branch ?? '';
-  const { owner, repo, openPR } = useExistingPullRequest(
-    sandboxId,
-    worktreeCwd,
-    headBranch,
-    chatId,
-  );
+  const { owner, repo, openPR } = useBranchPullRequests(sandboxId, worktreeCwd, headBranch, chatId);
   const { data: collaborators } = useGitHubCollaboratorsQuery(
     owner,
     repo,
