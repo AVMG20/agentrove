@@ -20,6 +20,7 @@ function load(key: string): Set<string> {
 const listeners = new Set<() => void>();
 
 function notify(): void {
+  chatIdsSnapshot = new Set(cloudChatIds);
   for (const listener of listeners) listener();
 }
 
@@ -32,6 +33,7 @@ function subscribe(listener: () => void): () => void {
 
 const cloudChatIds = load(CHATS_KEY);
 const cloudSandboxIds = load(SANDBOXES_KEY);
+let chatIdsSnapshot: ReadonlySet<string> = new Set(cloudChatIds);
 
 function persist(key: string, ids: Set<string>): void {
   try {
@@ -65,6 +67,10 @@ export function isCloudChat(id: string): boolean {
 
 export function useIsCloudChat(id: string | undefined): boolean {
   return useSyncExternalStore(subscribe, () => !!id && cloudChatIds.has(id));
+}
+
+export function useCloudChatIds(): ReadonlySet<string> {
+  return useSyncExternalStore(subscribe, () => chatIdsSnapshot);
 }
 
 export function markCloudSandboxes(ids: string[]): void {
