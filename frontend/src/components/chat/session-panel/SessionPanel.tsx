@@ -5,7 +5,6 @@ import {
   Cloud,
   CornerLeftUp,
   ExternalLink,
-  FileDiff,
   Folder,
   GitBranch,
   Monitor,
@@ -32,6 +31,7 @@ import { useChatSessionState } from '@/hooks/useChatSessionContext';
 import { useStreamStore } from '@/store/streamStore';
 import { useUIStore } from '@/store/uiStore';
 import { getAgentKindForModelId, type Chat } from '@/types/chat.types';
+import type { DiffMode, GitDiffTotals } from '@/types/sandbox.types';
 import type { Workspace } from '@/types/workspace.types';
 import { isCloudChat } from '@/utils/chatOrigin';
 import { getRelativeTime } from '@/utils/date';
@@ -281,6 +281,46 @@ function SubThreadsCard({ chatId }: { chatId: string }) {
   );
 }
 
+function openDiff(chatId: string, mode: DiffMode) {
+  focusPrimaryAgent();
+  useUIStore.setState({ pendingDiffMode: { chatId, mode } });
+  useUIStore.getState().toggleView('diff', false);
+}
+
+function ChangesRow({
+  label,
+  totals,
+  onOpen,
+  action,
+}: {
+  label: string;
+  totals: GitDiffTotals;
+  onOpen: () => void;
+  action: ReactNode;
+}) {
+  return (
+    <div className={styles['changes-row']}>
+      <Button
+        variant="unstyled"
+        type="button"
+        className={styles['diff-stats']}
+        onClick={onOpen}
+        aria-label={`Open ${label.toLowerCase()} diff`}
+      >
+        <span className={styles['changes-label']}>{label}</span>
+        <span className={styles['changes-numbers']}>
+          <span className={styles['stat-add']}>+{totals.additions}</span>
+          <span className={styles['stat-del']}>−{totals.deletions}</span>
+          <span className={styles.secondary}>
+            {totals.files_changed} {totals.files_changed === 1 ? 'file' : 'files'}
+          </span>
+        </span>
+      </Button>
+      {action}
+    </div>
+  );
+}
+
 function ChangesCard({
   chatId,
   sandboxId,
@@ -305,56 +345,64 @@ function ChangesCard({
     [pulls?.items, branch, owner, repo],
   );
   if (!stats) return null;
-  const hasChanges = stats.files_changed > 0;
+  const hasUncommitted = stats.uncommitted.files_changed > 0;
+  // A PR only carries committed work, so the PR action belongs to the branch row.
+  const showBranch = stats.branch.files_changed > 0 || !!existingPR;
   return (
     <Card title="Changes">
-      <div className={styles['changes-row']}>
-        {hasChanges ? (
-          <Button
-            variant="unstyled"
-            type="button"
-            className={styles['diff-stats']}
-            onClick={() => {
-              focusPrimaryAgent();
-              useUIStore.getState().toggleView('diff', false);
-            }}
-          >
-            <FileDiff className={styles.glyph} />
-            <span className={styles['stat-add']}>+{stats.additions}</span>
-            <span className={styles['stat-del']}>−{stats.deletions}</span>
-            <span className={styles.secondary}>
-              {stats.files_changed} {stats.files_changed === 1 ? 'file' : 'files'}
-            </span>
-          </Button>
-        ) : (
-          <span className={styles.empty}>No changes</span>
-        )}
-        {existingPR ? (
-          <Button
-            variant="unstyled"
-            type="button"
-            className={styles['pr-button']}
-            onClick={() => openExternalUrl(existingPR.html_url)}
-          >
-            PR #{existingPR.number}
-            <ExternalLink className={styles['pr-icon']} />
-          </Button>
-        ) : (
-          hasChanges && (
+      {hasUncommitted && (
+        <ChangesRow
+          label="Uncommitted"
+          totals={stats.uncommitted}
+          onOpen={() => openDiff(chatId, 'all')}
+          action={
             <Button
               variant="unstyled"
               type="button"
               className={styles['pr-button']}
               onClick={() => {
                 focusPrimaryAgent();
-                useUIStore.getState().setCreatePRDialogOpen(true);
+                useUIStore.getState().setCreateCommitDialogOpen(true);
               }}
             >
-              Create PR
+              Commit
             </Button>
-          )
-        )}
-      </div>
+          }
+        />
+      )}
+      {showBranch && (
+        <ChangesRow
+          label="Branch"
+          totals={stats.branch}
+          onOpen={() => openDiff(chatId, 'branch')}
+          action={
+            existingPR ? (
+              <Button
+                variant="unstyled"
+                type="button"
+                className={styles['pr-button']}
+                onClick={() => openExternalUrl(existingPR.html_url)}
+              >
+                PR #{existingPR.number}
+                <ExternalLink className={styles['pr-icon']} />
+              </Button>
+            ) : (
+              <Button
+                variant="unstyled"
+                type="button"
+                className={styles['pr-button']}
+                onClick={() => {
+                  focusPrimaryAgent();
+                  useUIStore.getState().setCreatePRDialogOpen(true);
+                }}
+              >
+                Create PR
+              </Button>
+            )
+          }
+        />
+      )}
+      {!hasUncommitted && !showBranch && <p className={styles.empty}>No changes</p>}
     </Card>
   );
 }

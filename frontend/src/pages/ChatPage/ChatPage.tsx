@@ -22,6 +22,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useChatQuery, markChatViewed } from '@/hooks/queries/useChatQueries';
 import { useSandboxFiles } from '@/hooks/useSandboxFiles';
 import { useWorkspacesList, useWorkspaceResourcesQuery } from '@/hooks/queries/useWorkspaceQueries';
+import { useCloudWorkspacesQuery } from '@/hooks/queries/useCloudQueries';
+import { isCloudChat } from '@/utils/chatOrigin';
 import { useSettingsForChatQuery } from '@/hooks/queries/useSettingsQueries';
 import { ChatProvider } from '@/contexts/ChatContext';
 import { SessionPanel } from '@/components/chat/session-panel/SessionPanel';
@@ -151,7 +153,12 @@ export function ChatPage() {
   }, [activeViews, currentChat?.sandbox_id, refetchFilesMetadata]);
 
   const workspaces = useWorkspacesList();
-  const currentWorkspace = workspaces.find((w) => w.id === currentChat?.workspace_id);
+  // Cloud chats' workspaces live on the VPS, not in the local list.
+  const isCloud = !!chatId && isCloudChat(chatId);
+  const { data: cloudWorkspaces } = useCloudWorkspacesQuery(isCloud);
+  const currentWorkspace = (isCloud ? cloudWorkspaces : workspaces)?.find(
+    (w) => w.id === currentChat?.workspace_id,
+  );
   // Cloud chats resolve personas against the VPS settings list.
   const { data: settings } = useSettingsForChatQuery(chatId);
 
@@ -175,6 +182,7 @@ export function ChatPage() {
     }
     useUIStore.setState({
       pendingFileOpen: null,
+      pendingDiffMode: null,
       subThreadDialogOpen: false,
       createCommitDialogOpen: false,
       createPRDialogOpen: false,

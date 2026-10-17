@@ -169,18 +169,31 @@
 
 .diff-stats {
   @include anim.transition-colors;
-  @include type.type-default;
   display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-0-5);
   border-radius: var(--radius-lg);
   padding: var(--space-1);
-  font-variant-numeric: tabular-nums;
-  color: var(--theme-text-tertiary);
 
   @include responsive.hover {
     background-color: colors.theme-color('surface-hover', 0.5);
   }
+}
+
+.changes-label {
+  @include type.type-meta;
+  color: var(--theme-text-tertiary);
+}
+
+.changes-numbers {
+  @include type.type-default;
+  display: flex;
+  gap: var(--space-1-5);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-add {

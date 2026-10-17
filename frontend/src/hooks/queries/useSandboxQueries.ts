@@ -132,7 +132,7 @@ export const useGitDiffQuery = (
   });
 };
 
-// Branch + uncommitted line totals vs the default branch's merge-base.
+// Line totals for the diff view's Uncommitted and Branch modes.
 export const useGitDiffStatsQuery = (sandboxId: string | undefined, cwd?: string) => {
   return useQuery({
     queryKey: queryKeys.sandbox.gitDiffStats(sandboxId, cwd),

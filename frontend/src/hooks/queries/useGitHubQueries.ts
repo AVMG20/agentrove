@@ -1,4 +1,4 @@
-import { useMutation, useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { githubService } from '@/services/githubService';
 import { queryKeys } from '@/hooks/queries/queryKeys';
 import type {
@@ -51,8 +51,11 @@ export function useGitHubCollaboratorsQuery(
 }
 
 export function useCreatePullRequestMutation(chatId?: string) {
+  const queryClient = useQueryClient();
   return useMutation<CreatePRResponse, Error, CreatePRRequest>({
     mutationFn: (request) => githubService.createPullRequest(request, chatId),
+    onSuccess: (_data, { owner, repo }) =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.github.pulls(owner, repo, chatId) }),
   });
 }
 

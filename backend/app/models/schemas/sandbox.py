@@ -35,10 +35,15 @@ class GitDiffResponse(BaseModel):
     error: str | None = None
 
 
+class GitDiffTotals(BaseModel):
+    additions: int = 0
+    deletions: int = 0
+    files_changed: int = 0
+
+
 class GitDiffStatsResponse(BaseModel):
-    additions: int
-    deletions: int
-    files_changed: int
+    uncommitted: GitDiffTotals
+    branch: GitDiffTotals
     is_git_repo: bool
 
 

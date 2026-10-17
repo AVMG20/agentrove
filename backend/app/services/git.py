@@ -14,6 +14,7 @@ from app.models.schemas.sandbox import (
     GitCreateBranchResponse,
     GitDiffResponse,
     GitDiffStatsResponse,
+    GitDiffTotals,
     GitFileBaselineResponse,
     GitRemoteUrlResponse,
 )
@@ -153,7 +154,10 @@ GIT_CHECKPOINT_UNTRACKED_DIFF_TEMPLATE = (
 # `string.Template` only substitutes the `$ctx`/`$detect_base` placeholders.
 GIT_DETECT_BASE_CMD = (
     "base=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/||');"
-    " [ -z \"$base\" ] && base=$(git branch -r 2>/dev/null | grep -oE 'origin/(main|master|develop|trunk)' | head -1 | tr -d ' ');"
+    # Exact refs in priority order: main wins over develop, and origin/mainline
+    # never matches origin/main.
+    ' [ -z "$base" ] && for b in main master develop trunk; do'
+    ' git rev-parse --verify -q "refs/remotes/origin/$b" >/dev/null && base=origin/$b && break; done;'
     ' [ -z "$base" ] && for b in main master develop trunk; do'
     " git rev-parse --verify $b >/dev/null 2>&1 && base=$b && break; done;"
 )
@@ -164,19 +168,27 @@ GIT_DIFF_BRANCH_TEMPLATE = Template(
     ' git diff$ctx "$$merge_base" HEAD 2>/dev/null'
 )
 
-# Everything a PR from this worktree would contain: committed branch work plus
-# uncommitted and untracked changes, measured from the merge-base with the
-# default branch (HEAD, or the empty tree on an unborn branch, when no base
-# exists). Exit 2 means "not a repo".
+# Line totals for the diff view's two modes, as two marker-separated numstat
+# sections: uncommitted (working tree + untracked vs HEAD, or the empty tree on
+# an unborn branch) and branch (merge-base with the default branch vs HEAD; empty
+# when no base exists). Exit 2 means "not a repo".
+# Untracked files are marked intent-to-add in a throwaway copy of the index so
+# a single `git diff` counts them. The real index is never touched: bail if
+# mktemp fails rather than run `add` with an empty GIT_INDEX_FILE, and drop the
+# copy when there's no index yet so git starts from an empty one instead of
+# rejecting a zero-byte file.
 GIT_DIFF_STATS_CMD = (
     "git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 2; "
     'cd "$(git rev-parse --show-toplevel)"; '
-    + GIT_DETECT_BASE_CMD
-    + ' ref=""; [ -n "$base" ] && ref=$(git merge-base "$base" HEAD 2>/dev/null);'
-    ' [ -z "$ref" ] && ref=$(git rev-parse --verify -q HEAD || git hash-object -t tree /dev/null);'
-    ' git diff --numstat "$ref" 2>/dev/null;'
-    " git ls-files --others --exclude-standard -z"
-    " | xargs -0 -I{} git diff --numstat --no-index -- /dev/null {} 2>/dev/null;"
+    "head=$(git rev-parse --verify -q HEAD || git hash-object -t tree /dev/null);"
+    " tmp=$(mktemp) || exit 1; trap 'rm -f \"$tmp\"' EXIT;"
+    ' cp "$(git rev-parse --git-path index)" "$tmp" 2>/dev/null || rm -f "$tmp";'
+    ' GIT_INDEX_FILE="$tmp" git add -A -N >/dev/null 2>&1;'
+    " printf '__UNCOMMITTED__\\n';"
+    ' GIT_INDEX_FILE="$tmp" git diff --numstat "$head" 2>/dev/null;'
+    " printf '__BRANCH__\\n'; " + GIT_DETECT_BASE_CMD + ' if [ -n "$base" ]; then'
+    ' merge_base=$(git merge-base "$base" HEAD 2>/dev/null || echo "$base");'
+    ' git diff --numstat "$merge_base" HEAD 2>/dev/null; fi;'
     " true"
 )
 
@@ -253,6 +265,21 @@ GIT_RESTORE_CHECKPOINT_ALL_TEMPLATE = Template(
 )
 
 
+def _sum_numstat(output: str) -> GitDiffTotals:
+    totals = GitDiffTotals()
+    for line in output.splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) != 3:
+            continue
+        totals.files_changed += 1
+        # Binary files report "-" for both counts.
+        if parts[0].isdigit():
+            totals.additions += int(parts[0])
+        if parts[1].isdigit():
+            totals.deletions += int(parts[1])
+    return totals
+
+
 class GitService:
     def __init__(self, sandbox_service: SandboxService) -> None:
         self.sandbox_service = sandbox_service
@@ -316,23 +343,15 @@ class GitService:
         )
         if result.exit_code == 2:
             return GitDiffStatsResponse(
-                additions=0, deletions=0, files_changed=0, is_git_repo=False
+                uncommitted=GitDiffTotals(),
+                branch=GitDiffTotals(),
+                is_git_repo=False,
             )
-        additions = deletions = files_changed = 0
-        for line in result.stdout.splitlines():
-            parts = line.split("\t", 2)
-            if len(parts) != 3:
-                continue
-            files_changed += 1
-            # Binary files report "-" for both counts.
-            if parts[0].isdigit():
-                additions += int(parts[0])
-            if parts[1].isdigit():
-                deletions += int(parts[1])
+        _, _, rest = result.stdout.partition("__UNCOMMITTED__\n")
+        uncommitted, _, branch = rest.partition("__BRANCH__\n")
         return GitDiffStatsResponse(
-            additions=additions,
-            deletions=deletions,
-            files_changed=files_changed,
+            uncommitted=_sum_numstat(uncommitted),
+            branch=_sum_numstat(branch),
             is_git_repo=True,
         )
 
