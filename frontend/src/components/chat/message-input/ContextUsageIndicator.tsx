@@ -2,8 +2,6 @@ import { FloatingTooltip } from '@/components/ui/FloatingTooltip/FloatingTooltip
 import { getContextUsageDisplay, type ContextUsageInfo } from '@/utils/contextUsage';
 import styles from './ContextUsageIndicator.module.scss';
 
-export type { ContextUsageInfo };
-
 const RADIUS = 9;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 

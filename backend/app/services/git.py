@@ -349,7 +349,11 @@ class GitService:
             )
         if result.exit_code != 0:
             detail = (result.stderr or result.stdout).strip()
-            raise ValueError(f"Failed to compute diff stats: {detail}".rstrip(": "))
+            raise ValueError(
+                f"Failed to compute diff stats: {detail}"
+                if detail
+                else "Failed to compute diff stats"
+            )
         _, _, rest = result.stdout.partition("__UNCOMMITTED__\n")
         uncommitted, _, branch = rest.partition("__BRANCH__\n")
         return GitDiffStatsResponse(

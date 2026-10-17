@@ -12,7 +12,7 @@ import { InputSuggestionsPanel } from './InputSuggestionsPanel';
 import { ContextUsageIndicator } from './ContextUsageIndicator';
 import { InputProvider } from './InputProvider';
 import { useInputContext } from '@/hooks/useInputContext';
-import type { ContextUsageInfo } from './ContextUsageIndicator';
+import type { ContextUsageInfo } from '@/utils/contextUsage';
 import styles from './Input.module.scss';
 
 export interface InputProps {

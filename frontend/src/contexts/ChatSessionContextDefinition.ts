@@ -5,7 +5,7 @@ import type {
   Message,
   PermissionRequest,
 } from '@/types/chat.types';
-import type { ContextUsageInfo } from '@/components/chat/message-input/ContextUsageIndicator';
+import type { ContextUsageInfo } from '@/utils/contextUsage';
 
 export interface ChatSessionState {
   messages: Message[];
