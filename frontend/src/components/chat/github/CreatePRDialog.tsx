@@ -63,8 +63,12 @@ export function CreatePRDialog({ onClose }: CreatePRDialogProps) {
   // GitHub calls run with the credentials of the backend that owns the chat.
   const chatId = currentChat?.id;
   const headBranch = branchesData?.current_branch ?? '';
-  const { owner, repo, pr } = useExistingPullRequest(sandboxId, worktreeCwd, headBranch, chatId);
-  const existingPR = pr?.state === 'open' ? pr : undefined;
+  const { owner, repo, openPR } = useExistingPullRequest(
+    sandboxId,
+    worktreeCwd,
+    headBranch,
+    chatId,
+  );
   const { data: collaborators } = useGitHubCollaboratorsQuery(
     owner,
     repo,
@@ -250,7 +254,7 @@ export function CreatePRDialog({ onClose }: CreatePRDialogProps) {
           <p className={styles['no-remote']}>No GitHub remote detected for this workspace.</p>
         ) : (
           <div className={styles.fields}>
-            {existingPR && <CreatePRExistingBanner pr={existingPR} />}
+            {openPR && <CreatePRExistingBanner pr={openPR} />}
             <div>
               <label htmlFor={titleInputId} className={styles.label}>
                 Title
@@ -364,7 +368,7 @@ export function CreatePRDialog({ onClose }: CreatePRDialogProps) {
           variant="primary"
           size="sm"
           onClick={handleSubmit}
-          disabled={createPR.isPending || !owner || !!existingPR}
+          disabled={createPR.isPending || !owner || !!openPR}
         >
           {createPR.isPending ? 'Creating...' : 'Create pull request'}
         </Button>

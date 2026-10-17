@@ -21,7 +21,7 @@ export const useSettingsQuery = (options?: Partial<UseQueryOptions<UserSettings>
 
 // Settings are per-instance: a cloud chat's personas and stream actions live on
 // the VPS that owns it, not the local backend. Routes to the owning instance the
-// same way resolveChatClient routes per-chat API calls. isCloudChat hydrates
+// same way resolveChatClient routes per-chat API calls. useIsCloudChat hydrates
 // synchronously from localStorage, so deep links resolve before the query fires.
 export const useSettingsForChatQuery = (chatId: string | undefined, enabled = true) => {
   const chatIsCloud = useIsCloudChat(chatId);

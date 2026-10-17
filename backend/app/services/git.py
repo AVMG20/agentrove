@@ -156,6 +156,18 @@ GIT_DETECT_BASE_CMD = (
     ' [ -z "$base" ] && for b in main master develop trunk; do'
     " git rev-parse --verify $b >/dev/null 2>&1 && base=$b && break; done;"
 )
+# Refresh only the base branch so totals don't go stale after a remote merge.
+# Prompts are disabled, SSH runs non-interactively, and HTTP stalls hit git's
+# low-speed abort; `timeout` is added when present (stock macOS lacks it).
+GIT_FETCH_BASE_CMD = (
+    ' case "$base" in origin/*)'
+    " t=; command -v timeout >/dev/null 2>&1 && t='timeout 15';"
+    " GIT_TERMINAL_PROMPT=0"
+    ' GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=10}"'
+    " $t git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10"
+    ' fetch --quiet --no-tags origin "${base#origin/}" >/dev/null 2>&1 || true;;'
+    " esac;"
+)
 # Diff HEAD against the merge-base with the default branch. Default branch is
 # detected via the remote HEAD symref, falling back to main/master/develop/
 # trunk. Exits 2 when no base can be determined so the caller can surface a
@@ -181,13 +193,11 @@ GIT_DIFF_STATS_CMD = (
     ' GIT_INDEX_FILE="$tmp" git add -A -N >/dev/null 2>&1;'
     " printf '__UNCOMMITTED__\\n';"
     ' GIT_INDEX_FILE="$tmp" git diff --numstat "$head" 2>/dev/null;'
-    " printf '__BRANCH__\\n'; " + GIT_DETECT_BASE_CMD + ' if [ -n "$base" ]; then'
-    # No `timeout` binary on stock macOS hosts; git's low-speed abort bounds HTTP stalls.
-    ' case "$base" in origin/*)'
-    " git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 fetch --quiet --no-tags"
-    ' origin "${base#origin/}" >/dev/null 2>&1 || true;;'
-    " esac;"
-    ' merge_base=$(git merge-base "$base" HEAD 2>/dev/null || echo "$base");'
+    " printf '__BRANCH__\\n'; "
+    + GIT_DETECT_BASE_CMD
+    + ' if [ -n "$base" ]; then'
+    + GIT_FETCH_BASE_CMD
+    + ' merge_base=$(git merge-base "$base" HEAD 2>/dev/null || echo "$base");'
     ' git diff --numstat "$merge_base" HEAD 2>/dev/null; fi;'
     " true"
 )

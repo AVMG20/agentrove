@@ -329,11 +329,12 @@ function ChangesCard({
   branch: string;
 }) {
   const { data: stats } = useGitDiffStatsQuery(sandboxId, worktreeCwd);
-  const { pr } = useExistingPullRequest(sandboxId, worktreeCwd, branch, chatId);
+  const { openPR, mergedPR } = useExistingPullRequest(sandboxId, worktreeCwd, branch, chatId);
   if (!stats) return null;
   const hasUncommitted = stats.uncommitted.files_changed > 0;
   // A PR only carries committed work, so the PR action belongs to the branch row.
-  const showBranch = stats.branch.files_changed > 0 || pr?.state === 'open';
+  const linkedPR = openPR ?? mergedPR;
+  const showBranch = stats.branch.files_changed > 0 || !!openPR;
   return (
     <Card title="Changes">
       {hasUncommitted && (
@@ -362,15 +363,15 @@ function ChangesCard({
           totals={stats.branch}
           onOpen={() => openDiff(chatId, 'branch')}
           action={
-            pr ? (
+            linkedPR ? (
               <Button
                 variant="unstyled"
                 type="button"
                 className={styles['pr-button']}
-                onClick={() => openExternalUrl(pr.html_url)}
+                onClick={() => openExternalUrl(linkedPR.html_url)}
               >
-                PR #{pr.number}
-                {pr.merged && ' · Merged'}
+                PR #{linkedPR.number}
+                {!openPR && ' · Merged'}
                 <ExternalLink className={styles['pr-icon']} />
               </Button>
             ) : (

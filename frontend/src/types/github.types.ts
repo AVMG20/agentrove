@@ -15,6 +15,13 @@ export interface GitHubReposResponse {
   has_more: boolean;
 }
 
+export type PullRequestStateFilter = 'open' | 'closed' | 'all';
+
+export interface PullRequestFilters {
+  head?: string;
+  state?: PullRequestStateFilter;
+}
+
 interface GitHubPullRequest {
   number: number;
   title: string;
