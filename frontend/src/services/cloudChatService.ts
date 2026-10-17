@@ -1,3 +1,5 @@
+import { CLOUD_CHATS_PER_PAGE } from '@/config/constants';
+import { queryClient } from '@/lib/queryClient';
 import { remoteApiClient, setCloudApiBaseUrl, trimTrailingSlash } from '@/lib/api';
 import { ensureResponse, serviceCall, buildQueryString } from '@/services/base/BaseService';
 import { buildChatFormData } from '@/services/chatService';
@@ -34,7 +36,13 @@ async function connect(url: string, email: string, password: string): Promise<vo
   }
 
   await cloudAuthStorage.setTokens(auth.access_token, auth.refresh_token);
+  // Origins were cleared on disconnect; re-mark them before the UI flips to connected.
+  await Promise.allSettled([
+    listChats({ page: 1, per_page: CLOUD_CHATS_PER_PAGE }),
+    listWorkspaces(),
+  ]);
   useCloudSettingsStore.getState().setCloud(trimmedUrl, email);
+  void queryClient.invalidateQueries({ predicate: (query) => query.state.status === 'error' });
 }
 
 function disconnect(): void {

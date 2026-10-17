@@ -39,3 +39,5 @@ export const EMPTY_BUILTIN_COMMANDS: Record<AgentKind, SlashCommand[]> = {
   grok: [],
   opencode: [],
 };
+
+export const CLOUD_CHATS_PER_PAGE = 25;
