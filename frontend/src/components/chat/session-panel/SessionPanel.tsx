@@ -1,4 +1,4 @@
-import { memo, useMemo, type ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -19,12 +19,8 @@ import { ProviderIcon } from '@/components/ui/icons/ProviderIcon';
 import { AGENTS_WITHOUT_USAGE_UPDATE } from '@/config/constants';
 import { useChatQuery, useSubThreadsQuery } from '@/hooks/queries/useChatQueries';
 import { useModelMap } from '@/hooks/queries/useModelQueries';
-import {
-  useGitBranchesQuery,
-  useGitDiffStatsQuery,
-  useGitRemoteUrlQuery,
-} from '@/hooks/queries/useSandboxQueries';
-import { useGitHubPullsQuery } from '@/hooks/queries/useGitHubQueries';
+import { useGitBranchesQuery, useGitDiffStatsQuery } from '@/hooks/queries/useSandboxQueries';
+import { useExistingPullRequest } from '@/hooks/queries/useGitHubQueries';
 import { useBlockedChatIds } from '@/hooks/useBlockedChatIds';
 import { useChatAgentKind } from '@/hooks/useChatAgentKind';
 import { useChatSessionState } from '@/hooks/useChatSessionContext';
@@ -35,7 +31,8 @@ import type { DiffMode, GitDiffTotals } from '@/types/sandbox.types';
 import type { Workspace } from '@/types/workspace.types';
 import { isCloudChat } from '@/utils/chatOrigin';
 import { getRelativeTime } from '@/utils/date';
-import { formatNumberCompact, stripMarkdownTitle } from '@/utils/format';
+import { getContextUsageDisplay } from '@/utils/contextUsage';
+import { stripMarkdownTitle } from '@/utils/format';
 import { chatStatusTone } from '@/utils/message';
 import { openExternalUrl } from '@/utils/openExternal';
 import styles from './SessionPanel.module.scss';
@@ -150,18 +147,13 @@ function ContextCard({ chat }: { chat: Chat }) {
   const agentKind =
     modelMap.get(selectedModelId)?.agent_kind ?? getAgentKindForModelId(selectedModelId);
   if (!contextUsage || AGENTS_WITHOUT_USAGE_UPDATE.has(agentKind)) return null;
-  const { tokensUsed, contextWindow } = contextUsage;
-  const percentage = contextWindow > 0 ? Math.min((tokensUsed / contextWindow) * 100, 100) : 0;
-  const tone = percentage >= 95 ? 'danger' : percentage >= 75 ? 'warning' : 'normal';
+  const { percentage, tone, label, tooltip } = getContextUsageDisplay(contextUsage);
   return (
     <Card
       title="Context"
       action={
-        <FloatingTooltip
-          content={`${formatNumberCompact(tokensUsed)} / ${formatNumberCompact(contextWindow)} tokens`}
-          className={styles['context-value']}
-        >
-          {percentage >= 1 || percentage === 0 ? percentage.toFixed(0) : '<1'}%
+        <FloatingTooltip content={tooltip} className={styles['context-value']}>
+          {label}
         </FloatingTooltip>
       }
     >
@@ -333,17 +325,7 @@ function ChangesCard({
   branch: string;
 }) {
   const { data: stats } = useGitDiffStatsQuery(sandboxId, worktreeCwd);
-  const { data: remoteUrl } = useGitRemoteUrlQuery(sandboxId, true, worktreeCwd);
-  const owner = remoteUrl?.owner ?? '';
-  const repo = remoteUrl?.repo ?? '';
-  const { data: pulls } = useGitHubPullsQuery(owner, repo, !!owner && !!repo, chatId);
-  const existingPR = useMemo(
-    () =>
-      pulls?.items.find(
-        (pr) => pr.head.ref === branch && pr.head.repo.full_name === `${owner}/${repo}`,
-      ),
-    [pulls?.items, branch, owner, repo],
-  );
+  const { existingPR } = useExistingPullRequest(sandboxId, worktreeCwd, branch, chatId);
   if (!stats) return null;
   const hasUncommitted = stats.uncommitted.files_changed > 0;
   // A PR only carries committed work, so the PR action belongs to the branch row.

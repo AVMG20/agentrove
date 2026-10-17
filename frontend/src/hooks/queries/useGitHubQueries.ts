@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { githubService } from '@/services/githubService';
 import { queryKeys } from '@/hooks/queries/queryKeys';
+import { useGitRemoteUrlQuery } from '@/hooks/queries/useSandboxQueries';
 import type {
   CreatePRRequest,
   CreatePRResponse,
@@ -48,6 +50,28 @@ export function useGitHubCollaboratorsQuery(
     enabled: enabled && !!owner && !!repo,
     staleTime: 300_000,
   });
+}
+
+export function useExistingPullRequest(
+  sandboxId: string,
+  worktreeCwd: string | undefined,
+  branch: string,
+  chatId?: string,
+) {
+  const { data: remoteUrl } = useGitRemoteUrlQuery(sandboxId, !!sandboxId, worktreeCwd);
+  const owner = remoteUrl?.owner ?? '';
+  const repo = remoteUrl?.repo ?? '';
+  const { data: pulls } = useGitHubPullsQuery(owner, repo, !!owner && !!repo, chatId);
+  const existingPR = useMemo(
+    () =>
+      branch && owner && repo
+        ? pulls?.items.find(
+            (pr) => pr.head.ref === branch && pr.head.repo.full_name === `${owner}/${repo}`,
+          )
+        : undefined,
+    [pulls?.items, branch, owner, repo],
+  );
+  return { owner, repo, existingPR };
 }
 
 export function useCreatePullRequestMutation(chatId?: string) {
