@@ -1,5 +1,7 @@
-import { apiClient, resolveChatClient, StreamResponse } from '@/lib/api';
+import { apiClient, remoteApiClient, resolveChatClient, StreamResponse } from '@/lib/api';
 import { ensureResponse, serviceCall, buildQueryString } from '@/services/base/BaseService';
+import { ServiceError } from '@/services/base/ServiceError';
+import { useCloudSettingsStore } from '@/store/cloudSettingsStore';
 import { validateRequired, validateId } from '@/utils/validation';
 import { chatStorage } from '@/utils/storage';
 import { isCloudChat, markCloudChats, markCloudSandboxes } from '@/utils/chatOrigin';
@@ -165,15 +167,34 @@ async function searchChats(query: string): Promise<ChatSearchResponse> {
 async function getChat(chatId: string): Promise<Chat> {
   validateId(chatId, 'Chat ID');
 
-  return serviceCall(async () => {
-    const response = await resolveChatClient(chatId).get<Chat>(`/chat/chats/${chatId}`);
-    const chat = ensureResponse(response, 'Failed to fetch chat');
-    // Deep-link: mark sandbox cloud-owned before the sidebar list has run.
-    if (isCloudChat(chatId)) {
-      markCloudSandboxes([chat.sandbox_id]);
+  const fetchChat = (client: typeof apiClient) =>
+    serviceCall(async () =>
+      ensureResponse(await client.get<Chat>(`/chat/chats/${chatId}`), 'Failed to fetch chat'),
+    );
+
+  let chat: Chat;
+  try {
+    chat = await fetchChat(resolveChatClient(chatId));
+  } catch (error) {
+    // Origin ids only cover loaded list pages; an unknown id may be an older cloud chat.
+    const mayBeCloud =
+      !isCloudChat(chatId) &&
+      error instanceof ServiceError &&
+      error.status === 404 &&
+      !!useCloudSettingsStore.getState().cloudUrl;
+    if (!mayBeCloud) throw error;
+    try {
+      chat = await fetchChat(remoteApiClient);
+    } catch {
+      throw error;
     }
-    return chat;
-  });
+    markCloudChats([chat.id]);
+  }
+  // Deep-link: mark sandbox cloud-owned before the sidebar list has run.
+  if (isCloudChat(chatId)) {
+    markCloudSandboxes([chat.sandbox_id]);
+  }
+  return chat;
 }
 
 async function createChat(data: CreateChatRequest): Promise<Chat> {
