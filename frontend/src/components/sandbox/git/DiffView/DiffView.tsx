@@ -7,6 +7,7 @@ import { useResolvedTheme } from '@/hooks/useResolvedTheme';
 import { useFirstPaint } from '@/hooks/useFirstPaint';
 import { viewLoadingFallback } from '@/components/ui/shared/ViewLoadingFallback/ViewLoadingFallback';
 import { useChatQuery } from '@/hooks/queries/useChatQueries';
+import { useUIStore } from '@/store/uiStore';
 import { parsePatchFiles, parseDiffFromFile } from '@pierre/diffs';
 import type { FileDiffMetadata } from '@pierre/diffs';
 import {
@@ -74,6 +75,12 @@ const DiffViewContent = memo(function DiffViewContent({
   // Expanded by default; set tracks user-collapsed exceptions.
   const [collapsedFiles, toggleCollapsed, setCollapsedFiles] = useToggleSet<string>();
   const [mode, setMode] = useState<DiffMode>('all');
+  const pendingDiffMode = useUIStore((s) => s.pendingDiffMode);
+  useEffect(() => {
+    if (!pendingDiffMode || pendingDiffMode.chatId !== chatId) return;
+    setMode(pendingDiffMode.mode);
+    useUIStore.setState({ pendingDiffMode: null });
+  }, [pendingDiffMode, chatId]);
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>('unified');
   // Scrollspy: file whose diff currently tops the pane.
   const [activeFile, setActiveFile] = useState<string | null>(null);

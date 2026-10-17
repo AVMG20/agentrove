@@ -12,6 +12,7 @@ import type {
   WorkspaceLayout,
 } from '@/types/ui.types';
 import { MAX_CHAT_PANES } from '@/types/ui.types';
+import type { DiffMode } from '@/types/sandbox.types';
 import { MOBILE_BREAKPOINT } from '@/config/constants';
 import {
   activeSplitSlot,
@@ -73,6 +74,8 @@ type UIStoreState = ThemeState &
     setPendingMenuMode: (mode: MenuMode | null) => void;
     subThreadDialogOpen: boolean;
     setSubThreadDialogOpen: (open: boolean) => void;
+    sessionPanelOpen: boolean;
+    setSessionPanelOpen: (open: boolean) => void;
     createPRDialogOpen: boolean;
     setCreatePRDialogOpen: (open: boolean) => void;
     createBranchDialogOpen: boolean;
@@ -89,6 +92,8 @@ type UIStoreState = ThemeState &
       line?: number,
       split?: boolean,
     ) => void;
+    // Diff tab to select when that chat's diff view next renders.
+    pendingDiffMode: { chatId: string; mode: DiffMode } | null;
     pendingChatMessage: { chatId: string; message: string } | null;
     setPendingChatMessage: (payload: { chatId: string; message: string } | null) => void;
     // Selection chips for a chat's input; serialized into the prompt at send.
@@ -270,6 +275,8 @@ export const useUIStore = create<UIStoreState>()(
       setPendingMenuMode: (mode) => set({ pendingMenuMode: mode }),
       subThreadDialogOpen: false,
       setSubThreadDialogOpen: (open) => set({ subThreadDialogOpen: open }),
+      sessionPanelOpen: getInitialSidebarState(),
+      setSessionPanelOpen: (open) => set({ sessionPanelOpen: open }),
       createPRDialogOpen: false,
       setCreatePRDialogOpen: (open) => set({ createPRDialogOpen: open }),
       createBranchDialogOpen: false,
@@ -317,6 +324,7 @@ export const useUIStore = create<UIStoreState>()(
 
       pendingFileOpen: null,
       fileOpenNonce: 0,
+      pendingDiffMode: null,
       openFileInEditor: (path, chatId, line, split = false) => {
         const state = get();
         const splitIndex = chatId ? state.splitChatIds.indexOf(chatId) : -1;
@@ -611,6 +619,7 @@ export const useUIStore = create<UIStoreState>()(
         theme: state.theme,
         sidebarOpen: state.sidebarOpen,
         sidebarWidth: state.sidebarWidth,
+        sessionPanelOpen: state.sessionPanelOpen,
         // Status filters are session-only (empty at mount) — don't persist them.
         sidebarFilters: { ...state.sidebarFilters, statuses: [] },
         splitChatIds: state.splitChatIds,

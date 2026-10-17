@@ -1,6 +1,8 @@
-import { useMutation, useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { githubService } from '@/services/githubService';
 import { queryKeys } from '@/hooks/queries/queryKeys';
+import { useGitRemoteUrlQuery } from '@/hooks/queries/useSandboxQueries';
 import type {
   CreatePRRequest,
   CreatePRResponse,
@@ -50,9 +52,34 @@ export function useGitHubCollaboratorsQuery(
   });
 }
 
+export function useExistingPullRequest(
+  sandboxId: string,
+  worktreeCwd: string | undefined,
+  branch: string,
+  chatId?: string,
+) {
+  const { data: remoteUrl } = useGitRemoteUrlQuery(sandboxId, !!sandboxId, worktreeCwd);
+  const owner = remoteUrl?.owner ?? '';
+  const repo = remoteUrl?.repo ?? '';
+  const { data: pulls } = useGitHubPullsQuery(owner, repo, !!owner && !!repo, chatId);
+  const existingPR = useMemo(
+    () =>
+      branch && owner && repo
+        ? pulls?.items.find(
+            (pr) => pr.head.ref === branch && pr.head.repo.full_name === `${owner}/${repo}`,
+          )
+        : undefined,
+    [pulls?.items, branch, owner, repo],
+  );
+  return { owner, repo, existingPR };
+}
+
 export function useCreatePullRequestMutation(chatId?: string) {
+  const queryClient = useQueryClient();
   return useMutation<CreatePRResponse, Error, CreatePRRequest>({
     mutationFn: (request) => githubService.createPullRequest(request, chatId),
+    onSuccess: (_data, { owner, repo }) =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.github.pulls(owner, repo, chatId) }),
   });
 }
 

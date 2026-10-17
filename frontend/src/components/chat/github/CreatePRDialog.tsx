@@ -13,14 +13,10 @@ import { useActiveChat } from '@/hooks/useActiveChat';
 import { useModelStore } from '@/store/modelStore';
 import { sandboxService } from '@/services/sandboxService';
 import { MAX_DIFF_LENGTH } from '@/config/constants';
-import {
-  useGitBranchesQuery,
-  useGitDiffQuery,
-  useGitRemoteUrlQuery,
-} from '@/hooks/queries/useSandboxQueries';
+import { useGitBranchesQuery, useGitDiffQuery } from '@/hooks/queries/useSandboxQueries';
 import {
   useGitHubCollaboratorsQuery,
-  useGitHubPullsQuery,
+  useExistingPullRequest,
   useCreatePullRequestMutation,
   useGeneratePRDescriptionMutation,
 } from '@/hooks/queries/useGitHubQueries';
@@ -62,21 +58,23 @@ export function CreatePRDialog({ onClose }: CreatePRDialogProps) {
   const sandboxId = currentChat?.sandbox_id ?? '';
   const worktreeCwd = currentChat?.worktree_cwd ?? undefined;
 
-  const { data: remoteUrl } = useGitRemoteUrlQuery(sandboxId, !!sandboxId, worktreeCwd);
-  const owner = remoteUrl?.owner ?? '';
-  const repo = remoteUrl?.repo ?? '';
-
   const { data: branchesData } = useGitBranchesQuery(sandboxId, !!sandboxId, worktreeCwd);
   const { data: diffData } = useGitDiffQuery(sandboxId, 'branch', false, worktreeCwd);
   // GitHub calls run with the credentials of the backend that owns the chat.
   const chatId = currentChat?.id;
+  const headBranch = branchesData?.current_branch ?? '';
+  const { owner, repo, existingPR } = useExistingPullRequest(
+    sandboxId,
+    worktreeCwd,
+    headBranch,
+    chatId,
+  );
   const { data: collaborators } = useGitHubCollaboratorsQuery(
     owner,
     repo,
     !!owner && !!repo,
     chatId,
   );
-  const { data: pullsData } = useGitHubPullsQuery(owner, repo, !!owner && !!repo, chatId);
 
   const changedFiles = useMemo(
     () => (diffData?.diff ? parseChangedFiles(diffData.diff) : []),
@@ -98,17 +96,6 @@ export function CreatePRDialog({ onClose }: CreatePRDialogProps) {
     return parts.join('\n');
   }, [changedFiles]);
 
-  const headBranch = branchesData?.current_branch ?? '';
-  const repoFullName = owner && repo ? `${owner}/${repo}` : '';
-  const existingPR = useMemo(
-    () =>
-      headBranch && repoFullName
-        ? pullsData?.items.find(
-            (pr) => pr.head.ref === headBranch && pr.head.repo.full_name === repoFullName,
-          )
-        : undefined,
-    [pullsData?.items, headBranch, repoFullName],
-  );
   const sortedBranches = useMemo(() => {
     const candidates = branchesData?.branches.filter((b) => b !== headBranch) ?? [];
     const defaults = candidates

@@ -13,6 +13,8 @@ from app.models.schemas.sandbox import (
     GitCommandResponse,
     GitCreateBranchResponse,
     GitDiffResponse,
+    GitDiffStatsResponse,
+    GitDiffTotals,
     GitFileBaselineResponse,
     GitRemoteUrlResponse,
 )
@@ -145,19 +147,44 @@ GIT_CHECKPOINT_UNTRACKED_DIFF_TEMPLATE = (
     " | xargs -0 -I{} "
     "git diff --binary --no-index -- /dev/null {} 2>/dev/null"
 )
+GIT_DETECT_BASE_CMD = (
+    "base=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/||');"
+    # Exact refs in priority order: main wins over develop, and origin/mainline
+    # never matches origin/main.
+    ' [ -z "$base" ] && for b in main master develop trunk; do'
+    ' git rev-parse --verify -q "refs/remotes/origin/$b" >/dev/null && base=origin/$b && break; done;'
+    ' [ -z "$base" ] && for b in main master develop trunk; do'
+    " git rev-parse --verify $b >/dev/null 2>&1 && base=$b && break; done;"
+)
 # Diff HEAD against the merge-base with the default branch. Default branch is
 # detected via the remote HEAD symref, falling back to main/master/develop/
 # trunk. Exits 2 when no base can be determined so the caller can surface a
 # distinct error. `$$` escapes literal `$` (shell vars and command subs) so
-# `string.Template` only substitutes the `$ctx` placeholder.
+# `string.Template` only substitutes the `$ctx`/`$detect_base` placeholders.
 GIT_DIFF_BRANCH_TEMPLATE = Template(
-    "base=$$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/||');"
-    " [ -z \"$$base\" ] && base=$$(git branch -r 2>/dev/null | grep -oE 'origin/(main|master|develop|trunk)' | head -1 | tr -d ' ');"
-    ' [ -z "$$base" ] && for b in main master develop trunk; do'
-    " git rev-parse --verify $$b >/dev/null 2>&1 && base=$$b && break; done;"
+    "$detect_base"
     ' if [ -z "$$base" ]; then exit 2; fi;'
     ' merge_base=$$(git merge-base "$$base" HEAD 2>/dev/null || echo "$$base");'
     ' git diff$ctx "$$merge_base" HEAD 2>/dev/null'
+)
+
+# Untracked files are marked intent-to-add in a throwaway index copy so one
+# `git diff` counts them without touching the real index. Bail if mktemp fails
+# (an empty GIT_INDEX_FILE would hit the real index); with no index yet, drop
+# the copy so git starts empty instead of rejecting a zero-byte file.
+GIT_DIFF_STATS_CMD = (
+    "git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 2; "
+    'cd "$(git rev-parse --show-toplevel)"; '
+    "head=$(git rev-parse --verify -q HEAD || git hash-object -t tree /dev/null);"
+    " tmp=$(mktemp) || exit 1; trap 'rm -f \"$tmp\"' EXIT;"
+    ' cp "$(git rev-parse --git-path index)" "$tmp" 2>/dev/null || rm -f "$tmp";'
+    ' GIT_INDEX_FILE="$tmp" git add -A -N >/dev/null 2>&1;'
+    " printf '__UNCOMMITTED__\\n';"
+    ' GIT_INDEX_FILE="$tmp" git diff --numstat "$head" 2>/dev/null;'
+    " printf '__BRANCH__\\n'; " + GIT_DETECT_BASE_CMD + ' if [ -n "$base" ]; then'
+    ' merge_base=$(git merge-base "$base" HEAD 2>/dev/null || echo "$base");'
+    ' git diff --numstat "$merge_base" HEAD 2>/dev/null; fi;'
+    " true"
 )
 
 # Exit 2 distinguishes "not a repo" from "path not in HEAD" — `git show`
@@ -262,7 +289,9 @@ class GitService:
         untracked_diff = GIT_UNTRACKED_DIFF_TEMPLATE.substitute(ctx=ctx)
 
         if mode == "branch":
-            cmd = GIT_DIFF_BRANCH_TEMPLATE.substitute(ctx=ctx)
+            cmd = GIT_DIFF_BRANCH_TEMPLATE.substitute(
+                ctx=ctx, detect_base=GIT_DETECT_BASE_CMD
+            )
         else:
             cmd = GIT_DIFF_ALL_TEMPLATE.substitute(ctx=ctx, untracked=untracked_diff)
 
@@ -280,6 +309,36 @@ class GitService:
         return GitDiffResponse(
             diff=diff_output,
             has_changes=bool(diff_output.strip()),
+            is_git_repo=True,
+        )
+
+    async def get_diff_stats(
+        self,
+        sandbox_id: str,
+        cwd: str | None = None,
+    ) -> GitDiffStatsResponse:
+        git_prefix = self.git_command_prefix(cwd)
+        result = await self.sandbox_service.execute_command(
+            sandbox_id, f"{git_prefix}{GIT_DIFF_STATS_CMD}"
+        )
+        if result.exit_code == 2:
+            return GitDiffStatsResponse(
+                uncommitted=GitDiffTotals(),
+                branch=GitDiffTotals(),
+                is_git_repo=False,
+            )
+        if result.exit_code != 0:
+            detail = (result.stderr or result.stdout).strip()
+            raise ValueError(
+                f"Failed to compute diff stats: {detail}"
+                if detail
+                else "Failed to compute diff stats"
+            )
+        _, _, rest = result.stdout.partition("__UNCOMMITTED__\n")
+        uncommitted, _, branch = rest.partition("__BRANCH__\n")
+        return GitDiffStatsResponse(
+            uncommitted=self._sum_numstat(uncommitted),
+            branch=self._sum_numstat(branch),
             is_git_repo=True,
         )
 
@@ -710,6 +769,21 @@ class GitService:
                 worktree_cwd,
                 (result.stdout or result.stderr).strip(),
             )
+
+    @staticmethod
+    def _sum_numstat(output: str) -> GitDiffTotals:
+        totals = GitDiffTotals()
+        for line in output.splitlines():
+            parts = line.split("\t", 2)
+            if len(parts) != 3:
+                continue
+            totals.files_changed += 1
+            # Binary files report "-" for both counts.
+            if parts[0].isdigit():
+                totals.additions += int(parts[0])
+            if parts[1].isdigit():
+                totals.deletions += int(parts[1])
+        return totals
 
     @staticmethod
     def _validate_branch_name(name: str, label: str = "branch") -> None:

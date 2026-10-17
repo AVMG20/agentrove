@@ -1726,6 +1726,139 @@ async def test_git_diff_unborn_head_emits_each_file_once(
     assert diff.count("diff --git") == 2
 
 
+async def test_git_diff_stats_counts_uncommitted_and_branch(
+    tmp_path: Path,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    create_user: UserFactory,
+    login: LoginClient,
+) -> None:
+    workspace_dir = tmp_path / "diff-stats-workspace"
+    workspace_dir.mkdir()
+    subprocess.run(
+        ["git", "-c", "init.defaultBranch=main", "init", "-q"],
+        cwd=workspace_dir,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "diffstats@example.com"],
+        cwd=workspace_dir,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Diff Stats"], cwd=workspace_dir, check=True
+    )
+    (workspace_dir / "app.py").write_text("a\nb\nc\n")
+    subprocess.run(["git", "add", "."], cwd=workspace_dir, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "initial"], cwd=workspace_dir, check=True
+    )
+    subprocess.run(
+        ["git", "checkout", "-q", "-b", "feature"], cwd=workspace_dir, check=True
+    )
+    (workspace_dir / "app.py").write_text("a\nB\nc\nd\n")
+    subprocess.run(["git", "commit", "-qam", "feature"], cwd=workspace_dir, check=True)
+    (workspace_dir / "app.py").write_text("a\nB\nc\nd\ne\n")
+    (workspace_dir / "notes.txt").write_text("x\ny\n")
+    (workspace_dir / "logo.bin").write_bytes(b"\x00\x01\x02")
+
+    headers, workspace = await create_host_workspace(
+        db_session,
+        create_user,
+        login,
+        workspace_dir,
+        email="diffstats@example.com",
+        username="diffstats",
+    )
+
+    response = await client.get(
+        f"/api/v1/sandbox/{workspace.sandbox_id}/git/diff-stats", headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "uncommitted": {"additions": 3, "deletions": 0, "files_changed": 3},
+        "branch": {"additions": 2, "deletions": 1, "files_changed": 1},
+        "is_git_repo": True,
+    }
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=workspace_dir,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert "?? notes.txt" in status.splitlines()
+    assert "?? logo.bin" in status.splitlines()
+    assert (
+        subprocess.run(
+            ["git", "diff", "--cached", "--name-only"],
+            cwd=workspace_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        == ""
+    )
+
+
+async def test_git_diff_stats_unborn_head(
+    tmp_path: Path,
+    client: AsyncClient,
+    db_session: AsyncSession,
+    create_user: UserFactory,
+    login: LoginClient,
+) -> None:
+    workspace_dir = tmp_path / "diff-stats-unborn-workspace"
+    workspace_dir.mkdir()
+    subprocess.run(
+        ["git", "-c", "init.defaultBranch=main", "init", "-q"],
+        cwd=workspace_dir,
+        check=True,
+    )
+    (workspace_dir / "app.py").write_text("a\nb\n")
+    subprocess.run(["git", "add", "app.py"], cwd=workspace_dir, check=True)
+    (workspace_dir / "notes.txt").write_text("x\n")
+
+    headers, workspace = await create_host_workspace(
+        db_session,
+        create_user,
+        login,
+        workspace_dir,
+        email="diffstatsunborn@example.com",
+        username="diffstatsunborn",
+    )
+
+    response = await client.get(
+        f"/api/v1/sandbox/{workspace.sandbox_id}/git/diff-stats", headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "uncommitted": {"additions": 3, "deletions": 0, "files_changed": 2},
+        "branch": {"additions": 0, "deletions": 0, "files_changed": 0},
+        "is_git_repo": True,
+    }
+    assert (
+        subprocess.run(
+            ["git", "diff", "--cached", "--name-only"],
+            cwd=workspace_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        == "app.py"
+    )
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=workspace_dir,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert "?? notes.txt" in status.splitlines()
+
+
 async def test_git_endpoint_injects_github_token_env(
     client: AsyncClient,
     db_session: AsyncSession,

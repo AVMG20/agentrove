@@ -1,7 +1,7 @@
 import { createContext, type RefObject } from 'react';
 import type { MentionItem, SlashCommand } from '@/types/ui.types';
 import type { ComposerSelection } from '@/store/uiStore';
-import type { ContextUsageInfo } from './ContextUsageIndicator';
+import type { ContextUsageInfo } from '@/utils/contextUsage';
 
 export interface InputState {
   message: string;

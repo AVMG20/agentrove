@@ -37,6 +37,18 @@ export interface GitFileBaselineData {
   is_git_repo: boolean;
 }
 
+export interface GitDiffTotals {
+  additions: number;
+  deletions: number;
+  files_changed: number;
+}
+
+export interface GitDiffStatsData {
+  uncommitted: GitDiffTotals;
+  branch: GitDiffTotals;
+  is_git_repo: boolean;
+}
+
 export interface GitChangedPathsData {
   paths: string[];
   is_git_repo: boolean;

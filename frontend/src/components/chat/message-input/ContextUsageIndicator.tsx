@@ -1,41 +1,17 @@
 import { FloatingTooltip } from '@/components/ui/FloatingTooltip/FloatingTooltip';
-import { formatNumberCompact } from '@/utils/format';
+import { getContextUsageDisplay, type ContextUsageInfo } from '@/utils/contextUsage';
 import styles from './ContextUsageIndicator.module.scss';
-
-export interface ContextUsageInfo {
-  tokensUsed: number;
-  contextWindow: number;
-}
 
 const RADIUS = 9;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export function ContextUsageIndicator({ usage }: { usage: ContextUsageInfo }) {
-  const percentage =
-    usage.contextWindow > 0 ? Math.min((usage.tokensUsed / usage.contextWindow) * 100, 100) : 0;
-
-  const formattedPercentage =
-    percentage === 0
-      ? '0'
-      : percentage >= 10
-        ? percentage.toFixed(0)
-        : percentage >= 1
-          ? percentage.toFixed(1)
-          : percentage.toFixed(2);
+  const { percentage, tone, label, tooltip } = getContextUsageDisplay(usage);
   const dashOffset = CIRCUMFERENCE * (1 - percentage / 100);
-
-  const progressClass =
-    percentage >= 95
-      ? styles['ring-progress--danger']
-      : percentage >= 75
-        ? styles['ring-progress--warning']
-        : styles['ring-progress--normal'];
-
-  const tooltip = `${formatNumberCompact(usage.tokensUsed)}/${formatNumberCompact(usage.contextWindow)}`;
 
   return (
     <FloatingTooltip content={tooltip} className={styles['context-usage']}>
-      <span className={styles.value}>{formattedPercentage}%</span>
+      <span className={styles.value}>{label}</span>
       <svg viewBox="0 0 24 24" className={styles.ring} role="presentation" aria-hidden="true">
         <circle
           cx="12"
@@ -52,7 +28,7 @@ export function ContextUsageIndicator({ usage }: { usage: ContextUsageInfo }) {
           r={RADIUS}
           strokeWidth="2"
           stroke="currentColor"
-          className={progressClass}
+          className={styles[`ring-progress--${tone}`]}
           fill="none"
           strokeDasharray={CIRCUMFERENCE}
           strokeDashoffset={dashOffset}

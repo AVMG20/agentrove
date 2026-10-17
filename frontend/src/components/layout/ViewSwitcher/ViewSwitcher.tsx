@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
+import { useMatch } from 'react-router-dom';
+import { PanelRight } from 'lucide-react';
 import { Button } from '@/components/ui/primitives/Button/Button';
 import { Tooltip } from '@/components/ui/Tooltip/Tooltip';
-import { ALL_COMMANDS, formatShortcut } from '@/components/ui/command-menu/commandRegistry';
+import {
+  ALL_COMMANDS,
+  formatShortcut,
+  SESSION_PANEL_SHORTCUT,
+} from '@/components/ui/command-menu/commandRegistry';
 import { useUIStore } from '@/store/uiStore';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { activeSplitSlot, VIEW_ICONS, VIEW_LABELS, viewTypeToTileId } from '@/utils/tileHelpers';
@@ -19,6 +25,8 @@ const VIEW_SHORTCUTS = new Map<ViewType, string>(
   ),
 );
 
+const SESSION_PANEL_TOOLTIP = `Session panel · ${formatShortcut(SESSION_PANEL_SHORTCUT)}`;
+
 function viewTooltip(view: SwitchableView): string {
   const shortcut = VIEW_SHORTCUTS.get(view);
   const label = shortcut ? `${VIEW_LABELS[view]} · ${shortcut}` : VIEW_LABELS[view];
@@ -29,6 +37,8 @@ export function ViewSwitcher() {
   const activeAgentTile = useUIStore((s) => s.activeAgentTile);
   const splitChatIds = useUIStore((s) => s.splitChatIds);
   const visibleLayout = useUIStore((s) => s.visibleLayout);
+  const sessionPanelOpen = useUIStore((s) => s.sessionPanelOpen);
+  const isChatPage = useMatch('/chat/:chatId');
   const isMobile = useIsMobile();
 
   // Active state matches the tile toggleView() will act on (focused split pane).
@@ -69,6 +79,19 @@ export function ViewSwitcher() {
           </Tooltip>
         );
       })}
+      {isChatPage && !isMobile && (
+        <Tooltip content={SESSION_PANEL_TOOLTIP} position="bottom-end">
+          <Button
+            variant="unstyled"
+            onClick={() => useUIStore.getState().setSessionPanelOpen(!sessionPanelOpen)}
+            className={styles['view-button']}
+            aria-label="Toggle session panel"
+            aria-pressed={sessionPanelOpen}
+          >
+            <PanelRight className={styles.icon} />
+          </Button>
+        </Tooltip>
+      )}
     </div>
   );
 }

@@ -28,6 +28,9 @@ export const queryKeys = {
       cwd?: string,
     ) => ['sandbox', sandboxId, 'git-diff', mode, fullContext, cwd] as const,
     gitDiffAll: (sandboxId?: string) => ['sandbox', sandboxId, 'git-diff'] as const,
+    // Under the git-diff prefix so every gitDiffAll invalidation refreshes it.
+    gitDiffStats: (sandboxId?: string, cwd?: string) =>
+      ['sandbox', sandboxId, 'git-diff', 'stats', cwd] as const,
     gitFileBaseline: (sandboxId?: string, path?: string, cwd?: string) =>
       ['sandbox', sandboxId, 'git-file-baseline', path, cwd] as const,
     gitFileBaselineAll: (sandboxId?: string) =>
