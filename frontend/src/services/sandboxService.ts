@@ -7,6 +7,7 @@ import type {
   FileMetadata,
   GitBranchesData,
   GitChangedPathsData,
+  GitDiffStatsData,
   GitCheckoutData,
   GitCommitResult,
   GitCreateBranchResult,
@@ -117,6 +118,18 @@ async function getGitChangedPaths(sandboxId: string, cwd?: string): Promise<GitC
       `/sandbox/${sandboxId}/git/changed-paths${qs}`,
     );
     return ensureResponse(response, 'Failed to get changed paths');
+  });
+}
+
+async function getGitDiffStats(sandboxId: string, cwd?: string): Promise<GitDiffStatsData> {
+  validateRequired(sandboxId, 'Sandbox ID');
+
+  return serviceCall(async () => {
+    const qs = buildQueryString({ cwd });
+    const response = await resolveSandboxClient(sandboxId).get<GitDiffStatsData>(
+      `/sandbox/${sandboxId}/git/diff-stats${qs}`,
+    );
+    return ensureResponse(response, 'Failed to get diff stats');
   });
 }
 
@@ -305,6 +318,7 @@ export const sandboxService = {
   downloadZip,
   getGitDiff,
   getGitChangedPaths,
+  getGitDiffStats,
   getGitFileBaseline,
   getGitBranches,
   checkoutGitBranch,

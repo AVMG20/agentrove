@@ -20,6 +20,7 @@ from app.models.schemas.sandbox import (
     GitCreateBranchRequest,
     GitCreateBranchResponse,
     GitDiffResponse,
+    GitDiffStatsResponse,
     GitFileBaselineResponse,
     GitRemoteUrlResponse,
     GitRestoreFileRequest,
@@ -139,6 +140,21 @@ async def get_git_diff(
 ) -> GitDiffResponse:
     try:
         return await git_service.get_diff(sandbox_id, mode, full_context, cwd)
+    except (ValueError, SandboxException) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.get("/{sandbox_id}/git/diff-stats", response_model=GitDiffStatsResponse)
+async def get_git_diff_stats(
+    sandbox_id: str = Depends(validate_sandbox_ownership),
+    git_service: GitService = Depends(get_git_service),
+    cwd: str | None = Query(None),
+) -> GitDiffStatsResponse:
+    try:
+        return await git_service.get_diff_stats(sandbox_id, cwd)
     except (ValueError, SandboxException) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

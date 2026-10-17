@@ -132,6 +132,17 @@ export const useGitDiffQuery = (
   });
 };
 
+// Branch + uncommitted line totals vs the default branch's merge-base.
+export const useGitDiffStatsQuery = (sandboxId: string | undefined, cwd?: string) => {
+  return useQuery({
+    queryKey: queryKeys.sandbox.gitDiffStats(sandboxId, cwd),
+    queryFn: () => sandboxService.getGitDiffStats(sandboxId!, cwd),
+    enabled: !!sandboxId,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+};
+
 // Uncommitted paths for change indicators (no full diff).
 export const useGitChangedPathsQuery = (sandboxId: string | undefined, cwd?: string) => {
   return useQuery({

@@ -24,6 +24,7 @@ import { useSandboxFiles } from '@/hooks/useSandboxFiles';
 import { useWorkspacesList, useWorkspaceResourcesQuery } from '@/hooks/queries/useWorkspaceQueries';
 import { useSettingsForChatQuery } from '@/hooks/queries/useSettingsQueries';
 import { ChatProvider } from '@/contexts/ChatContext';
+import { SessionPanel } from '@/components/chat/session-panel/SessionPanel';
 import { SubThreadDialog } from './SubThreadDialog';
 import styles from './ChatPage.module.scss';
 
@@ -57,6 +58,7 @@ export function ChatPage() {
   const createCommitDialogOpen = useUIStore((s) => s.createCommitDialogOpen);
   const createPRDialogOpen = useUIStore((s) => s.createPRDialogOpen);
   const createBranchDialogOpen = useUIStore((s) => s.createBranchDialogOpen);
+  const sessionPanelOpen = useUIStore((s) => s.sessionPanelOpen);
 
   const activeViews = useActiveViews();
   const splitChatIds = useUIStore((s) => s.splitChatIds);
@@ -149,6 +151,7 @@ export function ChatPage() {
   }, [activeViews, currentChat?.sandbox_id, refetchFilesMetadata]);
 
   const workspaces = useWorkspacesList();
+  const currentWorkspace = workspaces.find((w) => w.id === currentChat?.workspace_id);
   // Cloud chats resolve personas against the VPS settings list.
   const { data: settings } = useSettingsForChatQuery(chatId);
 
@@ -315,6 +318,9 @@ export function ChatPage() {
           <div className={styles.surface}>
             <SplitViewContainer renderView={renderView} />
           </div>
+          {sessionPanelOpen && !isMobile && currentChat && (
+            <SessionPanel chat={currentChat} workspace={currentWorkspace} />
+          )}
           <CommandMenu />
           {subThreadDialogOpen && <SubThreadDialog />}
           {createCommitDialogOpen && (

@@ -35,6 +35,13 @@ class GitDiffResponse(BaseModel):
     error: str | None = None
 
 
+class GitDiffStatsResponse(BaseModel):
+    additions: int
+    deletions: int
+    files_changed: int
+    is_git_repo: bool
+
+
 class GitFileBaselineResponse(BaseModel):
     path: str
     content: str

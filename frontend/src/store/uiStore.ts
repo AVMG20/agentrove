@@ -73,6 +73,8 @@ type UIStoreState = ThemeState &
     setPendingMenuMode: (mode: MenuMode | null) => void;
     subThreadDialogOpen: boolean;
     setSubThreadDialogOpen: (open: boolean) => void;
+    sessionPanelOpen: boolean;
+    setSessionPanelOpen: (open: boolean) => void;
     createPRDialogOpen: boolean;
     setCreatePRDialogOpen: (open: boolean) => void;
     createBranchDialogOpen: boolean;
@@ -270,6 +272,8 @@ export const useUIStore = create<UIStoreState>()(
       setPendingMenuMode: (mode) => set({ pendingMenuMode: mode }),
       subThreadDialogOpen: false,
       setSubThreadDialogOpen: (open) => set({ subThreadDialogOpen: open }),
+      sessionPanelOpen: getInitialSidebarState(),
+      setSessionPanelOpen: (open) => set({ sessionPanelOpen: open }),
       createPRDialogOpen: false,
       setCreatePRDialogOpen: (open) => set({ createPRDialogOpen: open }),
       createBranchDialogOpen: false,
@@ -611,6 +615,7 @@ export const useUIStore = create<UIStoreState>()(
         theme: state.theme,
         sidebarOpen: state.sidebarOpen,
         sidebarWidth: state.sidebarWidth,
+        sessionPanelOpen: state.sessionPanelOpen,
         // Status filters are session-only (empty at mount) — don't persist them.
         sidebarFilters: { ...state.sidebarFilters, statuses: [] },
         splitChatIds: state.splitChatIds,

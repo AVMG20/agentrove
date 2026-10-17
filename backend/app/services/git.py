@@ -13,6 +13,7 @@ from app.models.schemas.sandbox import (
     GitCommandResponse,
     GitCreateBranchResponse,
     GitDiffResponse,
+    GitDiffStatsResponse,
     GitFileBaselineResponse,
     GitRemoteUrlResponse,
 )
@@ -149,15 +150,34 @@ GIT_CHECKPOINT_UNTRACKED_DIFF_TEMPLATE = (
 # detected via the remote HEAD symref, falling back to main/master/develop/
 # trunk. Exits 2 when no base can be determined so the caller can surface a
 # distinct error. `$$` escapes literal `$` (shell vars and command subs) so
-# `string.Template` only substitutes the `$ctx` placeholder.
+# `string.Template` only substitutes the `$ctx`/`$detect_base` placeholders.
+GIT_DETECT_BASE_CMD = (
+    "base=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/||');"
+    " [ -z \"$base\" ] && base=$(git branch -r 2>/dev/null | grep -oE 'origin/(main|master|develop|trunk)' | head -1 | tr -d ' ');"
+    ' [ -z "$base" ] && for b in main master develop trunk; do'
+    " git rev-parse --verify $b >/dev/null 2>&1 && base=$b && break; done;"
+)
 GIT_DIFF_BRANCH_TEMPLATE = Template(
-    "base=$$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/||');"
-    " [ -z \"$$base\" ] && base=$$(git branch -r 2>/dev/null | grep -oE 'origin/(main|master|develop|trunk)' | head -1 | tr -d ' ');"
-    ' [ -z "$$base" ] && for b in main master develop trunk; do'
-    " git rev-parse --verify $$b >/dev/null 2>&1 && base=$$b && break; done;"
+    "$detect_base"
     ' if [ -z "$$base" ]; then exit 2; fi;'
     ' merge_base=$$(git merge-base "$$base" HEAD 2>/dev/null || echo "$$base");'
     ' git diff$ctx "$$merge_base" HEAD 2>/dev/null'
+)
+
+# Everything a PR from this worktree would contain: committed branch work plus
+# uncommitted and untracked changes, measured from the merge-base with the
+# default branch (HEAD, or the empty tree on an unborn branch, when no base
+# exists). Exit 2 means "not a repo".
+GIT_DIFF_STATS_CMD = (
+    "git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 2; "
+    'cd "$(git rev-parse --show-toplevel)"; '
+    + GIT_DETECT_BASE_CMD
+    + ' ref=""; [ -n "$base" ] && ref=$(git merge-base "$base" HEAD 2>/dev/null);'
+    ' [ -z "$ref" ] && ref=$(git rev-parse --verify -q HEAD || git hash-object -t tree /dev/null);'
+    ' git diff --numstat "$ref" 2>/dev/null;'
+    " git ls-files --others --exclude-standard -z"
+    " | xargs -0 -I{} git diff --numstat --no-index -- /dev/null {} 2>/dev/null;"
+    " true"
 )
 
 # Exit 2 distinguishes "not a repo" from "path not in HEAD" — `git show`
@@ -262,7 +282,9 @@ class GitService:
         untracked_diff = GIT_UNTRACKED_DIFF_TEMPLATE.substitute(ctx=ctx)
 
         if mode == "branch":
-            cmd = GIT_DIFF_BRANCH_TEMPLATE.substitute(ctx=ctx)
+            cmd = GIT_DIFF_BRANCH_TEMPLATE.substitute(
+                ctx=ctx, detect_base=GIT_DETECT_BASE_CMD
+            )
         else:
             cmd = GIT_DIFF_ALL_TEMPLATE.substitute(ctx=ctx, untracked=untracked_diff)
 
@@ -280,6 +302,37 @@ class GitService:
         return GitDiffResponse(
             diff=diff_output,
             has_changes=bool(diff_output.strip()),
+            is_git_repo=True,
+        )
+
+    async def get_diff_stats(
+        self,
+        sandbox_id: str,
+        cwd: str | None = None,
+    ) -> GitDiffStatsResponse:
+        git_prefix = self.git_command_prefix(cwd)
+        result = await self.sandbox_service.execute_command(
+            sandbox_id, f"{git_prefix}{GIT_DIFF_STATS_CMD}"
+        )
+        if result.exit_code == 2:
+            return GitDiffStatsResponse(
+                additions=0, deletions=0, files_changed=0, is_git_repo=False
+            )
+        additions = deletions = files_changed = 0
+        for line in result.stdout.splitlines():
+            parts = line.split("\t", 2)
+            if len(parts) != 3:
+                continue
+            files_changed += 1
+            # Binary files report "-" for both counts.
+            if parts[0].isdigit():
+                additions += int(parts[0])
+            if parts[1].isdigit():
+                deletions += int(parts[1])
+        return GitDiffStatsResponse(
+            additions=additions,
+            deletions=deletions,
+            files_changed=files_changed,
             is_git_repo=True,
         )
 

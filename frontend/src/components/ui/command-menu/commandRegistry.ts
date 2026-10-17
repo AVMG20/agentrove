@@ -9,6 +9,7 @@ import {
   Terminal,
   GitBranch,
   PanelLeftClose,
+  PanelRight,
   GitPullRequest,
   GitCommitHorizontal,
   ArrowUpFromLine,
@@ -145,6 +146,8 @@ const ACTION_COMMANDS: ActionCommandItem[] = [
   },
 ];
 
+export const SESSION_PANEL_SHORTCUT = 'g';
+
 const SETTING_COMMANDS: ActionCommandItem[] = [
   {
     type: 'action',
@@ -152,6 +155,15 @@ const SETTING_COMMANDS: ActionCommandItem[] = [
     label: 'Toggle sidebar',
     icon: PanelLeftClose,
     shortcut: '.',
+  },
+  {
+    type: 'action',
+    id: 'toggle-session-panel',
+    label: 'Toggle session panel',
+    icon: PanelRight,
+    shortcut: SESSION_PANEL_SHORTCUT,
+    hideOnMobile: true,
+    requiresChat: true,
   },
   // Opens the theme picker sub-mode (every theme as a list) instead of one command per
   // theme — keeps the chord space sane as themes grow.
@@ -318,6 +330,8 @@ export function executeCommand(
     });
   } else if (cmd.id === 'toggle-sidebar') {
     ui.setSidebarOpen(!ui.sidebarOpen);
+  } else if (cmd.id === 'toggle-session-panel') {
+    ui.setSessionPanelOpen(!ui.sessionPanelOpen);
   } else if (cmd.id === 'set-theme') {
     ui.setPendingMenuMode('themes');
     ui.setCommandMenuOpen(true);

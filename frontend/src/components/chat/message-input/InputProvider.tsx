@@ -18,17 +18,8 @@ import {
   type InputContextValue,
 } from './InputContext';
 import type { InputProps } from './Input';
-import { getAgentKindForModelId, type AgentKind, type Chat } from '@/types/chat.types';
-
-// Agents whose ACP servers don't emit UsageUpdate notifications — the context
-// window indicator stays at 0 for these, so we hide it entirely.
-const AGENTS_WITHOUT_USAGE_UPDATE: ReadonlySet<AgentKind> = new Set([
-  'antigravity',
-  'copilot',
-  'cursor',
-  'grok',
-  'opencode',
-]);
+import { getAgentKindForModelId, type Chat } from '@/types/chat.types';
+import { AGENTS_WITHOUT_USAGE_UPDATE } from '@/config/constants';
 
 // Stable fallback so chat-less composers (landing page) don't churn the selector.
 const NO_SELECTIONS: ComposerSelection[] = [];
