@@ -343,7 +343,7 @@ function ChangesCard({
   // A PR only carries committed work, so the PR action belongs to the branch row.
   const mergedAtHead = mergedPR && mergedPR.head.sha === stats.head_sha ? mergedPR : undefined;
   const linkedPR = openPR ?? mergedAtHead;
-  const showBranch = stats.branch.files_changed > 0 || !!openPR;
+  const showBranch = stats.branch.files_changed > 0 || !!linkedPR;
   return (
     <Card title="Changes">
       {hasUncommitted && (

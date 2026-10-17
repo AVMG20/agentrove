@@ -16,6 +16,8 @@ import type { Chat, ChatRequest, ChatSearchResponse, CreateChatRequest } from '@
 import type { ActiveStreamSnapshot } from '@/types/stream.types';
 import type { PaginatedChats, PaginatedResponse } from '@/types/api.types';
 
+const ORIGIN_PREFETCH_TIMEOUT_MS = 5000;
+
 // Log into the VPS and persist its refresh token for reconnect across restarts.
 async function connect(url: string, email: string, password: string): Promise<void> {
   const trimmedUrl = trimTrailingSlash(url);
@@ -37,9 +39,9 @@ async function connect(url: string, email: string, password: string): Promise<vo
 
   await cloudAuthStorage.setTokens(auth.access_token, auth.refresh_token);
   // Origins were cleared on disconnect; re-mark them before the UI flips to connected.
-  await Promise.allSettled([
-    listChats({ page: 1, per_page: CLOUD_CHATS_PER_PAGE }),
-    listWorkspaces(),
+  await Promise.race([
+    Promise.allSettled([listChats({ page: 1, per_page: CLOUD_CHATS_PER_PAGE }), listWorkspaces()]),
+    new Promise((resolve) => setTimeout(resolve, ORIGIN_PREFETCH_TIMEOUT_MS)),
   ]);
   useCloudSettingsStore.getState().setCloud(trimmedUrl, email);
   void queryClient.invalidateQueries({ predicate: (query) => query.state.status === 'error' });

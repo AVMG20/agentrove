@@ -167,9 +167,11 @@ async function searchChats(query: string): Promise<ChatSearchResponse> {
 async function getChat(chatId: string): Promise<Chat> {
   validateId(chatId, 'Chat ID');
 
-  const fetchChat = (client: typeof apiClient) =>
-    serviceCall(async () =>
-      ensureResponse(await client.get<Chat>(`/chat/chats/${chatId}`), 'Failed to fetch chat'),
+  const fetchChat = (client: typeof apiClient, options?: { maxRetries: number }) =>
+    serviceCall(
+      async () =>
+        ensureResponse(await client.get<Chat>(`/chat/chats/${chatId}`), 'Failed to fetch chat'),
+      options,
     );
 
   let chat: Chat;
@@ -184,7 +186,7 @@ async function getChat(chatId: string): Promise<Chat> {
       !!useCloudSettingsStore.getState().cloudUrl;
     if (!mayBeCloud) throw error;
     try {
-      chat = await fetchChat(remoteApiClient);
+      chat = await fetchChat(remoteApiClient, { maxRetries: 0 });
     } catch {
       throw error;
     }
