@@ -99,8 +99,13 @@ export const queryKeys = {
     repos: (query: string) => ['github-repos', query] as const,
     // Keyed by chatId because the response depends on which backend's GitHub
     // credentials served it (local vs the chat-owning cloud VPS).
-    pulls: (owner: string, repo: string, chatId?: string) =>
-      ['github-pulls', owner, repo, chatId ?? null] as const,
+    pulls: (
+      owner: string,
+      repo: string,
+      chatId?: string,
+      head?: string,
+      state?: 'open' | 'closed' | 'all',
+    ) => ['github-pulls', owner, repo, chatId ?? null, head ?? null, state ?? 'open'] as const,
     collaborators: (owner: string, repo: string, chatId?: string) =>
       ['github-collaborators', owner, repo, chatId ?? null] as const,
   },

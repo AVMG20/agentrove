@@ -31,6 +31,7 @@ class GitHubPullRequest(BaseModel):
     user: dict[str, Any]
     draft: bool
     review_comments: int
+    merged: bool
 
 
 class GitHubPRListResponse(BaseModel):

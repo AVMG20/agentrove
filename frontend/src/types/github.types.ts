@@ -26,6 +26,7 @@ interface GitHubPullRequest {
   user: { login: string; avatar_url: string };
   draft: boolean;
   review_comments: number;
+  merged: boolean;
 }
 
 export interface GitHubPRListResponse {

@@ -23,7 +23,7 @@ import { useChatQuery, markChatViewed } from '@/hooks/queries/useChatQueries';
 import { useSandboxFiles } from '@/hooks/useSandboxFiles';
 import { useWorkspacesList, useWorkspaceResourcesQuery } from '@/hooks/queries/useWorkspaceQueries';
 import { useCloudWorkspacesQuery } from '@/hooks/queries/useCloudQueries';
-import { isCloudChat } from '@/utils/chatOrigin';
+import { useIsCloudChat } from '@/utils/chatOrigin';
 import { useSettingsForChatQuery } from '@/hooks/queries/useSettingsQueries';
 import { ChatProvider } from '@/contexts/ChatContext';
 import { SessionPanel } from '@/components/chat/session-panel/SessionPanel';
@@ -154,7 +154,7 @@ export function ChatPage() {
 
   const workspaces = useWorkspacesList();
   // Cloud chats' workspaces live on the VPS, not in the local list.
-  const isCloud = !!chatId && isCloudChat(chatId);
+  const isCloud = useIsCloudChat(chatId);
   const { data: cloudWorkspaces } = useCloudWorkspacesQuery(isCloud);
   const currentWorkspace = (isCloud ? cloudWorkspaces : workspaces)?.find(
     (w) => w.id === currentChat?.workspace_id,

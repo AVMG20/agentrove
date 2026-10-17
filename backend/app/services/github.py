@@ -1,4 +1,5 @@
 import logging
+from typing import Literal
 
 import httpx
 
@@ -98,15 +99,22 @@ class GitHubService:
 
         return GitHubReposResponse(items=repos, has_more=len(raw_repos) == per_page)
 
-    async def list_pull_requests(self, owner: str, repo: str) -> GitHubPRListResponse:
+    async def list_pull_requests(
+        self,
+        owner: str,
+        repo: str,
+        head: str | None = None,
+        state: Literal["open", "closed", "all"] = "open",
+    ) -> GitHubPRListResponse:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 f"{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls",
                 params={
-                    "state": "open",
+                    "state": state,
                     "per_page": 30,
                     "sort": "updated",
                     "direction": "desc",
+                    **({"head": head} if head else {}),
                 },
                 headers=self._headers,
             )
@@ -138,6 +146,7 @@ class GitHubService:
                 },
                 draft=pr.get("draft", False),
                 review_comments=pr.get("review_comments", 0),
+                merged=pr.get("merged_at") is not None,
             )
             for pr in raw_prs
         ]

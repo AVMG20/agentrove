@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react';
+
 // Cloud-owned chat/sandbox IDs for routing API calls to the VPS.
 // Flat sets are enough (single-user; IDs unique across backends).
 // Hydrated sync at load so deep-links don't fall back to the local backend.
@@ -13,6 +15,19 @@ function load(key: string): Set<string> {
   } catch {
     return new Set();
   }
+}
+
+const listeners = new Set<() => void>();
+
+function notify(): void {
+  for (const listener of listeners) listener();
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 const cloudChatIds = load(CHATS_KEY);
@@ -34,7 +49,10 @@ function add(ids: string[], set: Set<string>, key: string): void {
       changed = true;
     }
   }
-  if (changed) persist(key, set);
+  if (changed) {
+    persist(key, set);
+    notify();
+  }
 }
 
 export function markCloudChats(ids: string[]): void {
@@ -43,6 +61,10 @@ export function markCloudChats(ids: string[]): void {
 
 export function isCloudChat(id: string): boolean {
   return cloudChatIds.has(id);
+}
+
+export function useIsCloudChat(id: string | undefined): boolean {
+  return useSyncExternalStore(subscribe, () => !!id && cloudChatIds.has(id));
 }
 
 export function markCloudSandboxes(ids: string[]): void {
@@ -58,4 +80,5 @@ export function clearCloudOrigins(): void {
   cloudSandboxIds.clear();
   persist(CHATS_KEY, cloudChatIds);
   persist(SANDBOXES_KEY, cloudSandboxIds);
+  notify();
 }

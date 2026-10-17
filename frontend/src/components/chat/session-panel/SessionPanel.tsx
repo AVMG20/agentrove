@@ -29,7 +29,7 @@ import { useUIStore } from '@/store/uiStore';
 import { getAgentKindForModelId, type Chat } from '@/types/chat.types';
 import type { DiffMode, GitDiffTotals } from '@/types/sandbox.types';
 import type { Workspace } from '@/types/workspace.types';
-import { isCloudChat } from '@/utils/chatOrigin';
+import { useIsCloudChat } from '@/utils/chatOrigin';
 import { getRelativeTime } from '@/utils/date';
 import { getContextUsageDisplay } from '@/utils/contextUsage';
 import { stripMarkdownTitle } from '@/utils/format';
@@ -106,7 +106,7 @@ function EnvironmentCard({
   workspace: Workspace | undefined;
   branch: string | null;
 }) {
-  const isCloud = isCloudChat(chat.id);
+  const isCloud = useIsCloudChat(chat.id);
   const isDocker = workspace?.sandbox_provider === 'docker';
   const path = chat.worktree_cwd ?? workspace?.workspace_path;
   return (
@@ -301,8 +301,12 @@ function ChangesRow({
       >
         <span className={styles['changes-label']}>{label}</span>
         <span className={styles['changes-numbers']}>
-          <span className={styles['stat-add']}>+{totals.additions}</span>
-          <span className={styles['stat-del']}>−{totals.deletions}</span>
+          {(totals.additions > 0 || totals.deletions > 0) && (
+            <>
+              <span className={styles['stat-add']}>+{totals.additions}</span>
+              <span className={styles['stat-del']}>−{totals.deletions}</span>
+            </>
+          )}
           <span className={styles.secondary}>
             {totals.files_changed} {totals.files_changed === 1 ? 'file' : 'files'}
           </span>
@@ -325,11 +329,11 @@ function ChangesCard({
   branch: string;
 }) {
   const { data: stats } = useGitDiffStatsQuery(sandboxId, worktreeCwd);
-  const { existingPR } = useExistingPullRequest(sandboxId, worktreeCwd, branch, chatId);
+  const { pr } = useExistingPullRequest(sandboxId, worktreeCwd, branch, chatId);
   if (!stats) return null;
   const hasUncommitted = stats.uncommitted.files_changed > 0;
   // A PR only carries committed work, so the PR action belongs to the branch row.
-  const showBranch = stats.branch.files_changed > 0 || !!existingPR;
+  const showBranch = stats.branch.files_changed > 0 || pr?.state === 'open';
   return (
     <Card title="Changes">
       {hasUncommitted && (
@@ -358,14 +362,15 @@ function ChangesCard({
           totals={stats.branch}
           onOpen={() => openDiff(chatId, 'branch')}
           action={
-            existingPR ? (
+            pr ? (
               <Button
                 variant="unstyled"
                 type="button"
                 className={styles['pr-button']}
-                onClick={() => openExternalUrl(existingPR.html_url)}
+                onClick={() => openExternalUrl(pr.html_url)}
               >
-                PR #{existingPR.number}
+                PR #{pr.number}
+                {pr.merged && ' · Merged'}
                 <ExternalLink className={styles['pr-icon']} />
               </Button>
             ) : (

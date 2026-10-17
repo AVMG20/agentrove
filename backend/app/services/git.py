@@ -182,6 +182,11 @@ GIT_DIFF_STATS_CMD = (
     " printf '__UNCOMMITTED__\\n';"
     ' GIT_INDEX_FILE="$tmp" git diff --numstat "$head" 2>/dev/null;'
     " printf '__BRANCH__\\n'; " + GIT_DETECT_BASE_CMD + ' if [ -n "$base" ]; then'
+    # No `timeout` binary on stock macOS hosts; git's low-speed abort bounds HTTP stalls.
+    ' case "$base" in origin/*)'
+    " git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 fetch --quiet --no-tags"
+    ' origin "${base#origin/}" >/dev/null 2>&1 || true;;'
+    " esac;"
     ' merge_base=$(git merge-base "$base" HEAD 2>/dev/null || echo "$base");'
     ' git diff --numstat "$merge_base" HEAD 2>/dev/null; fi;'
     " true"

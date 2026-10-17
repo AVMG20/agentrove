@@ -29,10 +29,12 @@ export function useGitHubPullsQuery(
   repo: string,
   enabled: boolean,
   chatId?: string,
+  head?: string,
+  state?: 'open' | 'closed' | 'all',
 ) {
   return useQuery({
-    queryKey: queryKeys.github.pulls(owner, repo, chatId),
-    queryFn: () => githubService.listPullRequests(owner, repo, chatId),
+    queryKey: queryKeys.github.pulls(owner, repo, chatId, head, state),
+    queryFn: () => githubService.listPullRequests(owner, repo, chatId, head, state),
     enabled: enabled && !!owner && !!repo,
     staleTime: 30_000,
   });
@@ -61,17 +63,24 @@ export function useExistingPullRequest(
   const { data: remoteUrl } = useGitRemoteUrlQuery(sandboxId, !!sandboxId, worktreeCwd);
   const owner = remoteUrl?.owner ?? '';
   const repo = remoteUrl?.repo ?? '';
-  const { data: pulls } = useGitHubPullsQuery(owner, repo, !!owner && !!repo, chatId);
-  const existingPR = useMemo(
-    () =>
-      branch && owner && repo
-        ? pulls?.items.find(
-            (pr) => pr.head.ref === branch && pr.head.repo.full_name === `${owner}/${repo}`,
-          )
-        : undefined,
-    [pulls?.items, branch, owner, repo],
+  const { data: pulls } = useGitHubPullsQuery(
+    owner,
+    repo,
+    !!owner && !!repo && !!branch,
+    chatId,
+    `${owner}:${branch}`,
+    'all',
   );
-  return { owner, repo, existingPR };
+  const pr = useMemo(() => {
+    if (!branch || !owner || !repo) return undefined;
+    const branchPulls = pulls?.items.filter(
+      (item) => item.head.ref === branch && item.head.repo.full_name === `${owner}/${repo}`,
+    );
+    return (
+      branchPulls?.find((item) => item.state === 'open') ?? branchPulls?.find((item) => item.merged)
+    );
+  }, [pulls?.items, branch, owner, repo]);
+  return { owner, repo, pr };
 }
 
 export function useCreatePullRequestMutation(chatId?: string) {

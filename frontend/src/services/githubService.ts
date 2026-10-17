@@ -35,9 +35,11 @@ async function listPullRequests(
   owner: string,
   repo: string,
   chatId?: string,
+  head?: string,
+  state?: 'open' | 'closed' | 'all',
 ): Promise<GitHubPRListResponse> {
   return serviceCall(async () => {
-    const qs = buildQueryString({ owner, repo });
+    const qs = buildQueryString({ owner, repo, head, state });
     const response = await resolveChatClient(chatId).get<GitHubPRListResponse>(
       `/github/pulls${qs}`,
     );

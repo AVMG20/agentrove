@@ -63,12 +63,8 @@ export function CreatePRDialog({ onClose }: CreatePRDialogProps) {
   // GitHub calls run with the credentials of the backend that owns the chat.
   const chatId = currentChat?.id;
   const headBranch = branchesData?.current_branch ?? '';
-  const { owner, repo, existingPR } = useExistingPullRequest(
-    sandboxId,
-    worktreeCwd,
-    headBranch,
-    chatId,
-  );
+  const { owner, repo, pr } = useExistingPullRequest(sandboxId, worktreeCwd, headBranch, chatId);
+  const existingPR = pr?.state === 'open' ? pr : undefined;
   const { data: collaborators } = useGitHubCollaboratorsQuery(
     owner,
     repo,
