@@ -1780,6 +1780,13 @@ async def test_git_diff_stats_counts_uncommitted_and_branch(
         "uncommitted": {"additions": 3, "deletions": 0, "files_changed": 3},
         "branch": {"additions": 2, "deletions": 1, "files_changed": 1},
         "is_git_repo": True,
+        "head_sha": subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=workspace_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip(),
     }
     status = subprocess.run(
         ["git", "status", "--porcelain"],
@@ -1838,6 +1845,7 @@ async def test_git_diff_stats_unborn_head(
         "uncommitted": {"additions": 3, "deletions": 0, "files_changed": 2},
         "branch": {"additions": 0, "deletions": 0, "files_changed": 0},
         "is_git_repo": True,
+        "head_sha": None,
     }
     assert (
         subprocess.run(

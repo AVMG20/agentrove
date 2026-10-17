@@ -47,6 +47,7 @@ export interface GitDiffStatsData {
   uncommitted: GitDiffTotals;
   branch: GitDiffTotals;
   is_git_repo: boolean;
+  head_sha: string | null;
 }
 
 export interface GitFetchBaseData {

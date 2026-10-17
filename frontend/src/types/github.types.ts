@@ -28,7 +28,7 @@ interface GitHubPullRequest {
   body: string | null;
   state: string;
   html_url: string;
-  head: { ref: string; repo: { full_name: string } };
+  head: { ref: string; sha: string; repo: { full_name: string } };
   base: { ref: string };
   user: { login: string; avatar_url: string };
   draft: boolean;

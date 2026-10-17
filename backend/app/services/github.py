@@ -131,6 +131,7 @@ class GitHubService:
                 html_url=pr["html_url"],
                 head={
                     "ref": pr["head"]["ref"],
+                    "sha": pr["head"]["sha"],
                     "repo": {
                         "full_name": (
                             pr["head"]["repo"]["full_name"]

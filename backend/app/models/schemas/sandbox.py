@@ -45,6 +45,7 @@ class GitDiffStatsResponse(BaseModel):
     uncommitted: GitDiffTotals
     branch: GitDiffTotals
     is_git_repo: bool
+    head_sha: str | None
 
 
 class GitFetchBaseResponse(BaseModel):

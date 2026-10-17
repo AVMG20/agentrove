@@ -204,6 +204,7 @@ GIT_DIFF_STATS_CMD = (
     " tmp=$(mktemp) || exit 1; trap 'rm -f \"$tmp\"' EXIT;"
     ' cp "$(git rev-parse --git-path index)" "$tmp" 2>/dev/null || rm -f "$tmp";'
     ' GIT_INDEX_FILE="$tmp" git add -A -N >/dev/null 2>&1;'
+    " printf '__HEAD__\\n'; git rev-parse --verify -q HEAD 2>/dev/null;"
     " printf '__UNCOMMITTED__\\n';"
     ' GIT_INDEX_FILE="$tmp" git diff --numstat "$head" 2>/dev/null;'
     " printf '__BRANCH__\\n'; " + GIT_DETECT_BASE_CMD + ' if [ -n "$base" ]; then'
@@ -351,6 +352,7 @@ class GitService:
                 uncommitted=GitDiffTotals(),
                 branch=GitDiffTotals(),
                 is_git_repo=False,
+                head_sha=None,
             )
         if result.exit_code != 0:
             detail = (result.stderr or result.stdout).strip()
@@ -359,12 +361,14 @@ class GitService:
                 if detail
                 else "Failed to compute diff stats"
             )
-        _, _, rest = result.stdout.partition("__UNCOMMITTED__\n")
+        _, _, rest = result.stdout.partition("__HEAD__\n")
+        head_sha, _, rest = rest.partition("__UNCOMMITTED__\n")
         uncommitted, _, branch = rest.partition("__BRANCH__\n")
         return GitDiffStatsResponse(
             uncommitted=self._sum_numstat(uncommitted),
             branch=self._sum_numstat(branch),
             is_git_repo=True,
+            head_sha=head_sha.strip() or None,
         )
 
     async def fetch_base(
