@@ -4,6 +4,7 @@ import { useSmoothText } from '@/hooks/useSmoothText';
 import { ThinkingBlock } from './ThinkingBlock';
 import { PromptSuggestions } from './PromptSuggestions';
 import { PlanCard } from './PlanCard';
+import { MessageAttachments } from './MessageAttachments';
 import { getToolComponent } from '@/components/chat/tools/registry';
 import type { MessageSegment } from './segmentBuilder';
 import type { AgentKind } from '@/types/chat.types';
@@ -69,6 +70,14 @@ export const SegmentView = memo(function SegmentView({
           isActive={isActiveText}
           highlightMentions={highlightMentions}
         />
+      );
+    case 'steering':
+      return (
+        <div className={styles['steering-segment']}>
+          <span className={styles['steering-label']}>You · sent while running</span>
+          <MarkDown content={segment.text} highlightMentions />
+          <MessageAttachments attachments={segment.attachments} chatId={chatId} />
+        </div>
       );
     case 'thinking':
       return (

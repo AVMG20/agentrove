@@ -4,6 +4,7 @@ export type StreamState = 'idle' | 'loading' | 'streaming';
 export type StreamKind =
   | 'stream_started'
   | 'assistant_text'
+  | 'user_steering'
   | 'assistant_thinking'
   | 'tool_started'
   | 'tool_completed'

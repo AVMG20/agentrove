@@ -201,6 +201,12 @@ class StreamService {
       chatStorage.setEventId(chatId, String(seq));
     }
 
+    if (parsed.kind === 'user_steering') {
+      useMessageQueueStore
+        .getState()
+        .removeLocalOnly(chatId, parsed.payload.queued_message_id as string);
+    }
+
     // Handoff is owned by maybeHandleQueueEvent — onEnvelope would clear its pending id.
     if (parsed.kind === 'queue_processing') {
       this.maybeHandleQueueEvent(parsed, chatId);

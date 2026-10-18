@@ -11,6 +11,7 @@ from functools import partial
 from typing import Any, cast
 from uuid import UUID, uuid4
 
+from acp.exceptions import RequestError
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -27,7 +28,7 @@ from app.models.db_models.enums import MessageRole, MessageStreamStatus
 from app.models.db_models.user import User, UserSettings
 from app.models.types import MessageAttachmentDict
 from app.prompts.system_prompt import build_system_prompt_for_chat
-from app.services.acp.session import AcpSessionConfig
+from app.services.acp.session import AcpSession, AcpSessionConfig
 from app.services.agent import (
     AgentService,
     StreamResult,
@@ -62,6 +63,7 @@ TRANSPORT_FATAL_TYPES = (
 SNAPSHOT_EVENT_KINDS = frozenset(
     {
         "assistant_text",
+        "user_steering",
         "assistant_thinking",
         "tool_started",
         "tool_completed",
@@ -79,6 +81,7 @@ EVENT_REPLAY_PAGE_SIZE = 500
 class ChatStreamRuntime:
     # Single-process state: turn gating and reconcile assume the one uvicorn
     # worker in entrypoint.sh. Scaling out needs Redis-side gating first.
+    _active_runtimes: dict[str, ChatStreamRuntime] = {}
     _background_task_chat_ids: dict[asyncio.Task[str], str] = {}
     # Reserved before the background task registers — closes the double-send
     # window. The event fires when the reservation is released.
@@ -110,6 +113,10 @@ class ChatStreamRuntime:
         self.publish_user_id = request.publish_user_id
         self.member_turn = request.member_turn
         self.chat = chat
+        self._request = request
+        self._acp_session: AcpSession | None = None
+        self._steering_lock = asyncio.Lock()
+        self._accepts_steering = False
         self.chat_id = str(chat.id)
         self.stream_id = uuid4()
         self.session_id: str | None = request.session_id
@@ -172,6 +179,8 @@ class ChatStreamRuntime:
                     "system",
                     {"data": {"worktree_cwd": self.chat.worktree_cwd}},
                 )
+            self._accepts_steering = True
+            self._active_runtimes[self.chat_id] = self
             await self._consume_stream(stream_result, stream)
             await self._emit_prompt_suggestions()
 
@@ -220,38 +229,122 @@ class ChatStreamRuntime:
         try:
             while True:
                 event = await self._next_or_cancel(stream_iter)
-                if event is None:
-                    break
-
-                event_dict: dict[str, Any] = dict(event)
-                kind = str(event_dict.get("type") or "system")
-                payload: dict[str, Any] = {
-                    k: v for k, v in event_dict.items() if k != "type"
-                }
-
-                if kind == "system":
-                    session_data: dict[str, Any] = payload.get("data") or {}
-                    if session_data.get("session_id"):
-                        task = asyncio.create_task(
-                            self._handle_session_update(session_data)
-                        )
-                        self._bg_tasks.add(task)
-                        task.add_done_callback(self._bg_tasks.discard)
-                        task.add_done_callback(self._on_session_update_done)
-
-                if kind == "usage":
-                    usage_data = payload.get("data")
-                    stream_result.usage = (
-                        usage_data if isinstance(usage_data, dict) else None
-                    )
-                    await self._emit_context_usage(stream_result)
-                else:
-                    await self.emit_event(kind, payload)
-                    await self._flush_snapshot()
+                async with self._steering_lock:
+                    if event is None:
+                        self._accepts_steering = False
+                        break
+                    await self._process_stream_event(stream_result, event)
         except asyncio.CancelledError:
             if not (self._cancel_event and self._cancel_event.is_set()):
                 raise
             self._cancelled = True
+        finally:
+            async with self._steering_lock:
+                self._accepts_steering = False
+
+    async def _process_stream_event(
+        self, stream_result: StreamResult, event: StreamEvent
+    ) -> None:
+        event_dict: dict[str, Any] = dict(event)
+        kind = str(event_dict.get("type") or "system")
+        payload: dict[str, Any] = {k: v for k, v in event_dict.items() if k != "type"}
+
+        if kind == "system":
+            session_data: dict[str, Any] = payload.get("data") or {}
+            if session_data.get("session_id"):
+                task = asyncio.create_task(self._handle_session_update(session_data))
+                self._bg_tasks.add(task)
+                task.add_done_callback(self._bg_tasks.discard)
+                task.add_done_callback(self._on_session_update_done)
+
+        if kind == "usage":
+            usage_data = payload.get("data")
+            stream_result.usage = usage_data if isinstance(usage_data, dict) else None
+            await self._emit_context_usage(stream_result)
+        else:
+            await self.emit_event(kind, payload)
+            await self._flush_snapshot()
+
+    @classmethod
+    async def steer_send_now(cls, chat_id: str) -> bool:
+        runtime = cls._active_runtimes.get(chat_id)
+        if runtime is None:
+            return False
+        async with runtime._steering_lock:
+            session = runtime._acp_session
+            if (
+                not runtime._accepts_steering
+                or session is None
+                or not session.supports_steering
+                or runtime.member_turn is not None
+                or runtime.assistant_message_id is None
+                or (runtime._cancel_event and runtime._cancel_event.is_set())
+            ):
+                return False
+            async with cache_connection() as cache:
+                queue = QueueService(cache)
+                queued = await queue.pop_send_now_message(chat_id)
+                if queued is None:
+                    return False
+                injected = False
+                try:
+                    request = runtime._request
+                    options = {
+                        "model_id": request.model_id,
+                        "permission_mode": request.permission_mode,
+                        "thinking_mode": request.thinking_mode,
+                        "worktree": request.worktree,
+                        "base_branch": request.base_branch,
+                        "selected_persona_name": request.selected_persona_name,
+                        "fast_mode": request.fast_mode,
+                    }
+                    if any(queued.get(key) != value for key, value in options.items()):
+                        return False
+                    try:
+                        outcome = await session.steer_prompt(
+                            AgentService.prepare_user_prompt(
+                                queued["content"], runtime.custom_instructions
+                            ),
+                            queued["attachments"],
+                        )
+                    except (RequestError, AgentException):
+                        return False
+                    if outcome != "injected":
+                        return False
+                    injected = True
+                    await runtime.emit_event(
+                        "user_steering",
+                        {
+                            "queued_message_id": queued["id"],
+                            "text": queued["content"],
+                            "attachments": [
+                                {
+                                    "id": f"{queued['id']}-{index}",
+                                    "message_id": runtime.assistant_message_id,
+                                    "file_url": attachment["file_url"],
+                                    "file_type": attachment["file_type"],
+                                    "filename": attachment["filename"] or "Attachment",
+                                    "created_at": queued["queued_at"],
+                                }
+                                for index, attachment in enumerate(
+                                    queued["attachments"] or []
+                                )
+                            ],
+                        },
+                    )
+                    await runtime._flush_event_buffer()
+                    await runtime.message_service.update_message_snapshot(
+                        UUID(runtime.assistant_message_id),
+                        content_text=runtime.snapshot.content_text,
+                        content_render=runtime.snapshot.to_render(),
+                        last_seq=runtime.last_seq,
+                        active_stream_id=runtime.stream_id,
+                    )
+                    return True
+                finally:
+                    if not injected:
+                        await queue.requeue_message(chat_id, queued)
+                        await queue.mark_send_now(chat_id, queued["id"])
 
     async def _emit_prompt_suggestions(self) -> None:
         raw = "".join(self.snapshot.text_parts)
@@ -1285,6 +1378,7 @@ class ChatStreamRuntime:
                 {"session_id": session.acp_session.acp_session_id}
             )
 
+            runtime._acp_session = session.acp_session
             session.cancel_event.clear()
             if session_registry.consume_pending_cancel(runtime.chat_id):
                 session.cancel_event.set()
@@ -1341,6 +1435,9 @@ class ChatStreamRuntime:
                 await session_registry.terminate(runtime.chat_id)
                 raise
             finally:
+                runtime._accepts_steering = False
+                if cls._active_runtimes.get(runtime.chat_id) is runtime:
+                    cls._active_runtimes.pop(runtime.chat_id)
                 await runtime._close_stream()
                 session.active_generation_task = None
                 session.last_used_at = time.monotonic()

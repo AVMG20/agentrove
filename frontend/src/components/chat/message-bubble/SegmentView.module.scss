@@ -33,3 +33,17 @@
   @include type.type-default;
   color: var(--theme-text-tertiary);
 }
+
+.steering-segment {
+  margin: var(--space-3) 0;
+  margin-left: auto;
+  padding: var(--space-3);
+  border: 1px solid colors.theme-color('border', 0.5);
+  border-radius: var(--radius-lg);
+  overflow-wrap: break-word;
+}
+
+.steering-label {
+  @include type.type-default;
+  color: var(--theme-text-tertiary);
+}

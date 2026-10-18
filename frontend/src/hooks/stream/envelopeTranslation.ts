@@ -1,4 +1,4 @@
-import type { AssistantStreamEvent, PlanEntry } from '@/types/chat.types';
+import type { AssistantStreamEvent, MessageAttachment, PlanEntry } from '@/types/chat.types';
 import type { ToolEventPayload } from '@/types/tools.types';
 import type { StreamEnvelope } from '@/types/stream.types';
 
@@ -15,6 +15,13 @@ export function envelopeToRenderEvent(envelope: StreamEnvelope): AssistantStream
   const payload = envelope.payload as Record<string, unknown>;
 
   switch (envelope.kind) {
+    case 'user_steering':
+      return {
+        type: 'user_steering',
+        queued_message_id: payload.queued_message_id as string,
+        text: payload.text as string,
+        attachments: payload.attachments as MessageAttachment[],
+      };
     case 'assistant_text': {
       const text = typeof payload.text === 'string' ? payload.text : '';
       if (!text) return null;
