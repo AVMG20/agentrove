@@ -205,12 +205,14 @@ def streaming_runtime_state_reset() -> Iterator[None]:
     # reservation, lock, or session left by one test can't leak into the next.
     ChatStreamRuntime._background_task_chat_ids.clear()
     ChatStreamRuntime._starting_chat_ids.clear()
+    ChatStreamRuntime._active_runtimes.clear()
     QueueService._locks.clear()
     session_registry._sessions.clear()
     session_registry._pending_cancels.clear()
     yield
     ChatStreamRuntime._background_task_chat_ids.clear()
     ChatStreamRuntime._starting_chat_ids.clear()
+    ChatStreamRuntime._active_runtimes.clear()
     QueueService._locks.clear()
     session_registry._sessions.clear()
     session_registry._pending_cancels.clear()
@@ -295,6 +297,17 @@ async def wait_for_message_event_type(
                 return event
         await asyncio.sleep(0.01)
     raise AssertionError(f"event type {event_type!r} not observed for {message_id}")
+
+
+async def wait_for_steerable_runtime(chat_id: UUID, *, timeout: float = 2.0) -> None:
+    # stream_started precedes steering registration; send-now must land after it.
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        runtime = ChatStreamRuntime._active_runtimes.get(str(chat_id))
+        if runtime is not None and runtime._accepts_steering:
+            return
+        await asyncio.sleep(0.01)
+    raise AssertionError(f"runtime for chat {chat_id} never accepted steering")
 
 
 async def send_message(
@@ -792,9 +805,7 @@ async def test_send_now_cancels_active_generation_and_starts_queued_message(
 
     first_result = await send_message(client, headers, chat, prompt="First prompt")
     first_message_id = first_result["message_id"]
-    await wait_for_message_event_type(
-        client, headers, first_message_id, "stream_started"
-    )
+    await wait_for_steerable_runtime(chat.id)
 
     send_now_response = await client.post(
         f"/api/v1/chat/chats/{chat.id}/queue/{queued_id}/send-now", headers=headers
@@ -858,10 +869,8 @@ async def test_send_now_steers_active_turn_inline(
     )
     queued_id = queue_response.json()["id"]
 
-    result = await send_message(client, headers, chat, prompt="First prompt")
-    await wait_for_message_event_type(
-        client, headers, result["message_id"], "stream_started"
-    )
+    await send_message(client, headers, chat, prompt="First prompt")
+    await wait_for_steerable_runtime(chat.id)
 
     send_now_response = await client.post(
         f"/api/v1/chat/chats/{chat.id}/queue/{queued_id}/send-now", headers=headers
