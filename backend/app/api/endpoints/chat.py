@@ -70,7 +70,7 @@ from app.models.schemas.queue import (
     QueueAddResponse,
     QueuedMessage,
     QueuedMessageBase,
-    QueueMessageUpdate,
+    QueueMessageContent,
 )
 from app.services.chat import ChatService
 from app.services.agent import AgentService
@@ -219,7 +219,7 @@ async def generate_chat_title(
 @router.post("/chats/{chat_id}/ask-code", response_model=AskCodeResponse)
 async def ask_about_code(
     request: AskCodeRequest,
-    chat: Chat = Depends(ensure_chat_access),
+    chat: Chat = Depends(ensure_member_chat_access),
     current_user: User = Depends(get_current_user),
     ai_service: AgentService = Depends(get_agent_service),
 ) -> dict[str, str]:
@@ -379,7 +379,8 @@ async def get_chat_detail(
     chat_service: ChatService = Depends(get_chat_service),
 ) -> ChatSchema:
     try:
-        chat = await chat_service.get_chat(chat_id, current_user)
+        # Channel member chats back the channel's terminal, editor and diff views.
+        chat = await chat_service.get_chat(chat_id, current_user, include_channel=True)
         chat.sub_thread_count = await chat_service.count_sub_threads(
             chat_id, current_user
         )
@@ -718,16 +719,7 @@ async def queue_message(
     queue_attachments = [dict(item) for item in attachments] if attachments else None
 
     return await queue_service.add_message(
-        str(chat_id),
-        queued_message.content,
-        queued_message.model_id,
-        permission_mode=queued_message.permission_mode,
-        thinking_mode=queued_message.thinking_mode,
-        worktree=queued_message.worktree,
-        base_branch=queued_message.base_branch,
-        fast_mode=queued_message.fast_mode,
-        selected_persona_name=queued_message.selected_persona_name,
-        attachments=queue_attachments,
+        str(chat_id), queued_message, queue_attachments
     )
 
 
@@ -750,7 +742,7 @@ async def get_queue(
 async def update_queued_message(
     chat_id: UUID,
     message_id: UUID,
-    update: QueueMessageUpdate,
+    update: QueueMessageContent,
     _chat: Chat = Depends(ensure_chat_access),
     queue_service: QueueService = Depends(get_queue_service),
 ) -> QueuedMessage:

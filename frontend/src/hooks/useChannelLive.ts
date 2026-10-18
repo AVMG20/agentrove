@@ -4,6 +4,7 @@ import { channelService } from '@/services/channelService';
 import '@/services/streamService';
 import { streamConnection } from '@/services/streamConnection';
 import { useChannelStore } from '@/store/channelStore';
+import { useChannelQueueStore } from '@/store/messageQueueStore';
 import { logger } from '@/utils/logger';
 
 const RETRY_BASE_DELAY_MS = 1000;
@@ -37,6 +38,7 @@ export function useChannelLive(channelId: string) {
 
     const catchUp = (delayMs: number) => {
       const token = useChannelStore.getState().beginPermissionSync(channelId);
+      void useChannelQueueStore.getState().fetchQueue(channelId);
       Promise.all([
         channelService.listMessages(channelId, catchUpCursor(channelId)),
         channelService.listPermissions(channelId),

@@ -92,6 +92,7 @@ class Chat(ChatBase):
     pinned_at: datetime | None = None
     worktree_cwd: str | None = None
     parent_chat_id: UUID | None = None
+    channel_id: UUID | None = None
     sub_thread_count: int = 0
     session_agent_kind: str | None = None
     unread: bool = False

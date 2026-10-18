@@ -1,17 +1,13 @@
-import { useEffect, useMemo, useCallback, useRef, ReactNode, Suspense } from 'react';
-import { lazyNamed } from '@/utils/lazyNamed';
+import { useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
 import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar/Sidebar';
 import { useLayoutSidebar } from '@/components/layout/Layout/layoutState';
 import { useUIStore } from '@/store/uiStore';
 import { useChatStore } from '@/store/chatStore';
-import { SplitViewContainer } from '@/components/ui/SplitViewContainer/SplitViewContainer';
-import { CommandMenu } from '@/components/ui/command-menu/CommandMenu';
 import { useCommandMenu } from '@/hooks/useCommandMenu';
 import { useActiveViews } from '@/hooks/useActiveViews';
-import { viewLoadingFallback } from '@/components/ui/shared/ViewLoadingFallback/ViewLoadingFallback';
 import type { TileId, ViewType } from '@/types/ui.types';
-import { splitSlotOfTile, tileIdToViewType } from '@/utils/tileHelpers';
+import { splitSlotOfTile } from '@/utils/tileHelpers';
 import { Chat as ChatComponent } from '@/components/chat/chat-window/Chat';
 import { ChatSessionOrchestrator } from '@/components/chat/chat-window/ChatSessionOrchestrator';
 import { AgentPane } from '@/components/chat/chat-window/AgentPane';
@@ -27,40 +23,17 @@ import { useIsCloudChat } from '@/utils/chatOrigin';
 import { useSettingsForChatQuery } from '@/hooks/queries/useSettingsQueries';
 import { ChatProvider } from '@/contexts/ChatContext';
 import { SessionPanel } from '@/components/chat/session-panel/SessionPanel';
+import {
+  WorkspaceSurface,
+  WorkspaceTile,
+} from '@/components/layout/WorkspaceSurface/WorkspaceSurface';
 import { SubThreadDialog } from './SubThreadDialog';
-import styles from './ChatPage.module.scss';
-
-const EditorPane = lazyNamed(
-  () => import('@/components/editor/editor-core/EditorPane'),
-  'EditorPane',
-);
-const DiffView = lazyNamed(() => import('@/components/sandbox/git/DiffView/DiffView'), 'DiffView');
-const TerminalContainer = lazyNamed(
-  () => import('@/components/sandbox/terminal/Container/Container'),
-  'Container',
-);
-const CreateBranchDialog = lazyNamed(
-  () => import('@/components/chat/github/CreateBranchDialog'),
-  'CreateBranchDialog',
-);
-const CreateCommitDialog = lazyNamed(
-  () => import('@/components/chat/github/CreateCommitDialog'),
-  'CreateCommitDialog',
-);
-const CreatePRDialog = lazyNamed(
-  () => import('@/components/chat/github/CreatePRDialog'),
-  'CreatePRDialog',
-);
 
 export function ChatPage() {
   const { chatId } = useParams();
   const navigate = useNavigate();
   useCommandMenu();
   const subThreadDialogOpen = useUIStore((s) => s.subThreadDialogOpen);
-  const createCommitDialogOpen = useUIStore((s) => s.createCommitDialogOpen);
-  const createPRDialogOpen = useUIStore((s) => s.createPRDialogOpen);
-  const createBranchDialogOpen = useUIStore((s) => s.createBranchDialogOpen);
-  const sessionPanelOpen = useUIStore((s) => s.sessionPanelOpen);
 
   const activeViews = useActiveViews();
   const splitChatIds = useUIStore((s) => s.splitChatIds);
@@ -220,88 +193,35 @@ export function ChatPage() {
 
   useLayoutSidebar(sidebarContent);
 
-  const renderNonTerminalView = useCallback(
-    (tileId: TileId, isVisible: boolean): ReactNode => {
-      if (tileId === 'agent:primary') return <ChatComponent />;
-      const slot = splitSlotOfTile(tileId);
-      const splitChatId = slot ? splitChatIds[slot - 1] : undefined;
-      if (tileIdToViewType(tileId) === 'agent') {
-        return splitChatId ? <AgentPane chatId={splitChatId} /> : null;
-      }
-      // Terminal branch lives in renderView; missing split chat → empty.
-      if (slot && !splitChatId) return null;
-      const paneChatId = splitChatId ?? chatId;
-      switch (tileIdToViewType(tileId)) {
-        case 'editor':
-          return (
-            <Suspense fallback={viewLoadingFallback}>
-              <EditorPane chatId={paneChatId} />
-            </Suspense>
-          );
-        case 'diff':
-          return (
-            <Suspense fallback={viewLoadingFallback}>
-              <DiffView chatId={paneChatId} isVisible={isVisible} />
-            </Suspense>
-          );
-        default:
-          return null;
-      }
-    },
-    [chatId, splitChatIds],
-  );
-
   const renderView = useCallback(
     (tileId: TileId, isVisible: boolean): ReactNode => {
       const slot = splitSlotOfTile(tileId);
-      const splitChatId = slot ? splitChatIds[slot - 1] : undefined;
-      const splitChat = slot
+      const paneChatId = slot ? splitChatIds[slot - 1] : chatId;
+      const paneChat = slot
         ? [splitQuery1.data, splitQuery2.data, splitQuery3.data][slot - 1]
-        : undefined;
-      const isTerminal = tileIdToViewType(tileId) === 'terminal';
-      const terminalSandboxId = slot
-        ? (splitChat?.sandbox_id ?? undefined)
-        : currentChat?.sandbox_id;
-      const terminalChatId = slot ? splitChatId : currentChat?.id;
-      // Spawn shell in worktree so terminal matches agent/editor/diff cwd.
-      const terminalWorktreeCwd = slot
-        ? (splitChat?.worktree_cwd ?? undefined)
-        : (currentChat?.worktree_cwd ?? undefined);
+        : currentChat;
       return (
-        <div
-          className={styles.tile}
-          // focusTile keeps shortcuts + tab highlight on the pane in use.
-          onPointerDownCapture={() => useUIStore.getState().focusTile(tileId)}
-        >
-          <div className={isTerminal ? styles.fill : styles.hidden}>
-            <Suspense fallback={viewLoadingFallback}>
-              <TerminalContainer
-                sandboxId={terminalSandboxId}
-                storageScope={terminalChatId}
-                worktreeCwd={terminalWorktreeCwd}
-                // Background tiles are mounted but zero-size — only fit when visible.
-                isVisible={isTerminal && isVisible}
-                panelKey={`tile-${tileId}`}
-              />
-            </Suspense>
-          </div>
-          <div className={isTerminal ? styles.hidden : styles.fill}>
-            {renderNonTerminalView(tileId, isVisible)}
-          </div>
-        </div>
+        <WorkspaceTile
+          tileId={tileId}
+          isVisible={isVisible}
+          chatId={paneChatId}
+          chat={paneChat}
+          agent={
+            tileId === 'agent:primary' ? (
+              <ChatComponent />
+            ) : (
+              paneChatId && <AgentPane chatId={paneChatId} />
+            )
+          }
+        />
       );
     },
-    [
-      currentChat,
-      renderNonTerminalView,
-      splitChatIds,
-      splitQuery1.data,
-      splitQuery2.data,
-      splitQuery3.data,
-    ],
+    [chatId, currentChat, splitChatIds, splitQuery1.data, splitQuery2.data, splitQuery3.data],
   );
 
   if (!chatId) return <Navigate to="/" />;
+  if (currentChat?.channel_id)
+    return <Navigate to={`/channels/${currentChat.channel_id}`} replace />;
 
   return (
     <ChatProvider
@@ -322,35 +242,14 @@ export function ChatPage() {
         hasFetchedMessages={hasFetchedMessages}
         messagesQuery={messagesQuery}
       >
-        <div className={styles['chat-root']}>
-          <div className={styles.surface}>
-            <SplitViewContainer renderView={renderView} />
-          </div>
-          {sessionPanelOpen && !isMobile && currentChat && (
-            <SessionPanel chat={currentChat} workspace={currentWorkspace} />
-          )}
-          <CommandMenu />
+        <WorkspaceSurface
+          renderView={renderView}
+          sessionPanel={
+            currentChat && <SessionPanel chat={currentChat} workspace={currentWorkspace} />
+          }
+        >
           {subThreadDialogOpen && <SubThreadDialog />}
-          {createCommitDialogOpen && (
-            <Suspense fallback={null}>
-              <CreateCommitDialog
-                onClose={() => useUIStore.getState().setCreateCommitDialogOpen(false)}
-              />
-            </Suspense>
-          )}
-          {createPRDialogOpen && (
-            <Suspense fallback={null}>
-              <CreatePRDialog onClose={() => useUIStore.getState().setCreatePRDialogOpen(false)} />
-            </Suspense>
-          )}
-          {createBranchDialogOpen && (
-            <Suspense fallback={null}>
-              <CreateBranchDialog
-                onClose={() => useUIStore.getState().setCreateBranchDialogOpen(false)}
-              />
-            </Suspense>
-          )}
-        </div>
+        </WorkspaceSurface>
       </ChatSessionOrchestrator>
     </ChatProvider>
   );

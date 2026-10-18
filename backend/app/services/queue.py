@@ -1,33 +1,43 @@
 import asyncio
 import json
 from datetime import datetime, timezone
-from typing import Any, cast
-from uuid import UUID, uuid4
+from typing import Any, ClassVar, Generic, TypeVar, cast
+from uuid import uuid4
+
+from pydantic import BaseModel
 
 from app.constants import (
     QUEUE_MESSAGE_TTL_SECONDS,
+    REDIS_KEY_CHANNEL_QUEUE,
     REDIS_KEY_CHAT_QUEUE,
     REDIS_KEY_CHAT_QUEUE_SEND_NOW,
 )
-from app.models.schemas.queue import QueueAddResponse, QueuedMessage
-from app.prompts.system_prompt import DEFAULT_PERSONA_NAME
+from app.models.schemas.queue import (
+    QueueAddResponse,
+    QueuedChannelMessage,
+    QueuedMessage,
+)
 
 from app.utils.cache import CacheStore
 
+ItemT = TypeVar("ItemT", bound=BaseModel)
 
-class QueueService:
-    # Serializes per-chat read-modify-write; single uvicorn worker only
+
+class BaseQueueService(Generic[ItemT]):
+    key_template: ClassVar[str]
+    item_type: type[ItemT]
+    # Serializes per-queue read-modify-write; single uvicorn worker only
     # (entrypoint.sh). Locks are retained for the process lifetime.
-    _locks: dict[str, asyncio.Lock] = {}
+    _locks: ClassVar[dict[str, asyncio.Lock]] = {}
 
     def __init__(self, cache: CacheStore):
         self.cache = cache
 
-    def _lock(self, chat_id: str) -> asyncio.Lock:
-        return self._locks.setdefault(chat_id, asyncio.Lock())
+    def _lock(self, queue_id: str) -> asyncio.Lock:
+        return self._locks.setdefault(self._queue_key(queue_id), asyncio.Lock())
 
-    def _queue_key(self, chat_id: str) -> str:
-        return REDIS_KEY_CHAT_QUEUE.format(chat_id=chat_id)
+    def _queue_key(self, queue_id: str) -> str:
+        return self.key_template.format(queue_id=queue_id)
 
     async def _read_queue(self, key: str) -> list[dict[str, Any]]:
         raw = await self.cache.get(key)
@@ -43,103 +53,73 @@ class QueueService:
 
     async def add_message(
         self,
-        chat_id: str,
-        content: str,
-        model_id: str,
-        permission_mode: str = "bypassPermissions",
-        thinking_mode: str | None = None,
-        worktree: bool = False,
-        base_branch: str | None = None,
-        fast_mode: bool = False,
-        selected_persona_name: str = DEFAULT_PERSONA_NAME,
+        queue_id: str,
+        message: BaseModel,
         attachments: list[dict[str, Any]] | None = None,
     ) -> QueueAddResponse:
-        async with self._lock(chat_id):
-            key = self._queue_key(chat_id)
+        async with self._lock(queue_id):
+            key = self._queue_key(queue_id)
             queue = await self._read_queue(key)
 
             message_id = uuid4()
             queued_at = datetime.now(timezone.utc)
-            message_data: dict[str, Any] = {
-                "id": str(message_id),
-                "content": content,
-                "model_id": model_id,
-                "permission_mode": permission_mode,
-                "thinking_mode": thinking_mode,
-                "worktree": worktree,
-                "base_branch": base_branch,
-                "fast_mode": fast_mode,
-                "selected_persona_name": selected_persona_name,
-                "queued_at": queued_at.isoformat(),
-                "attachments": attachments,
-            }
-
-            queue.append(message_data)
+            queue.append(
+                {
+                    **message.model_dump(mode="json"),
+                    "id": str(message_id),
+                    "queued_at": queued_at.isoformat(),
+                    "attachments": attachments,
+                }
+            )
             await self._write_queue(key, queue)
 
             return QueueAddResponse(id=message_id, queued_at=queued_at)
 
-    @staticmethod
-    def _to_queued_message(item: dict[str, Any]) -> QueuedMessage:
-        return QueuedMessage(
-            id=UUID(item["id"]),
-            content=item["content"],
-            model_id=item["model_id"],
-            # Queue items are backend-owned payloads, so missing keys indicate
-            # corrupted internal state and should fail instead of changing behavior.
-            permission_mode=item["permission_mode"],
-            thinking_mode=item["thinking_mode"],
-            worktree=item["worktree"],
-            base_branch=item.get("base_branch"),
-            # Older queue entries predate fast_mode; default off.
-            fast_mode=item.get("fast_mode", False),
-            selected_persona_name=item["selected_persona_name"],
-            queued_at=datetime.fromisoformat(item["queued_at"]),
-            attachments=item["attachments"],
-        )
-
-    async def get_queue(self, chat_id: str) -> list[QueuedMessage]:
-        key = self._queue_key(chat_id)
+    async def get_queue(self, queue_id: str) -> list[ItemT]:
+        key = self._queue_key(queue_id)
         queue = await self._read_queue(key)
-        return [self._to_queued_message(item) for item in queue]
+        return [self.item_type.model_validate(item) for item in queue]
 
     async def update_message(
-        self, chat_id: str, message_id: str, content: str
-    ) -> QueuedMessage | None:
-        async with self._lock(chat_id):
-            key = self._queue_key(chat_id)
+        self, queue_id: str, message_id: str, content: str
+    ) -> ItemT | None:
+        async with self._lock(queue_id):
+            key = self._queue_key(queue_id)
             queue = await self._read_queue(key)
 
             for item in queue:
                 if item["id"] == message_id:
                     item["content"] = content
                     await self._write_queue(key, queue)
-                    return self._to_queued_message(item)
+                    updated: ItemT = self.item_type.model_validate(item)
+                    return updated
 
             return None
 
-    async def delete_message(self, chat_id: str, message_id: str) -> bool:
-        async with self._lock(chat_id):
-            key = self._queue_key(chat_id)
+    async def delete_message(
+        self, queue_id: str, message_id: str
+    ) -> dict[str, Any] | None:
+        async with self._lock(queue_id):
+            key = self._queue_key(queue_id)
             queue = await self._read_queue(key)
-            original_len = len(queue)
-            queue = [item for item in queue if item["id"] != message_id]
+            removed = next((item for item in queue if item["id"] == message_id), None)
+            if removed is None:
+                return None
 
-            if len(queue) == original_len:
-                return False
+            await self._write_queue(
+                key, [item for item in queue if item["id"] != message_id]
+            )
+            return removed
 
-            await self._write_queue(key, queue)
-            return True
-
-    async def clear_queue(self, chat_id: str) -> None:
+    async def clear_queue(self, queue_id: str) -> None:
         # Locked so a concurrent pop's _write_queue can't resurrect the key.
-        async with self._lock(chat_id):
-            key = self._queue_key(chat_id)
+        async with self._lock(queue_id):
+            key = self._queue_key(queue_id)
             await self.cache.delete(key)
 
-    async def pop_next_message(self, chat_id: str) -> dict[str, Any] | None:
-        async with self._lock(chat_id):
-            key = self._queue_key(chat_id)
+    async def pop_next_message(self, queue_id: str) -> dict[str, Any] | None:
+        async with self._lock(queue_id):
+            key = self._queue_key(queue_id)
             queue = await self._read_queue(key)
 
             if not queue:
@@ -148,6 +128,21 @@ class QueueService:
             next_msg = queue[0]
             await self._write_queue(key, queue[1:])
             return next_msg
+
+    async def requeue_message(
+        self, queue_id: str, message_data: dict[str, Any]
+    ) -> None:
+        # Front of queue so a failed process is retried next.
+        async with self._lock(queue_id):
+            key = self._queue_key(queue_id)
+            queue = await self._read_queue(key)
+            queue.insert(0, message_data)
+            await self._write_queue(key, queue)
+
+
+class QueueService(BaseQueueService[QueuedMessage]):
+    key_template = REDIS_KEY_CHAT_QUEUE
+    item_type = QueuedMessage
 
     async def mark_send_now(self, chat_id: str, message_id: str) -> bool:
         # Runtime checks this key to skip normal queue order.
@@ -186,10 +181,7 @@ class QueueService:
             await self._write_queue(key, remaining)
             return target
 
-    async def requeue_message(self, chat_id: str, message_data: dict[str, Any]) -> None:
-        # Front of queue so a failed process is retried next.
-        async with self._lock(chat_id):
-            key = self._queue_key(chat_id)
-            queue = await self._read_queue(key)
-            queue.insert(0, message_data)
-            await self._write_queue(key, queue)
+
+class ChannelQueueService(BaseQueueService[QueuedChannelMessage]):
+    key_template = REDIS_KEY_CHANNEL_QUEUE
+    item_type = QueuedChannelMessage

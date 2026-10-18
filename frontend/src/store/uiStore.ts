@@ -469,10 +469,14 @@ export const useUIStore = create<UIStoreState>()(
         }),
 
       loadWorkspaceForChat: (chatId) => {
-        const state = get();
-        // Before early-return so same-chat rehydrate still keeps the title tab.
+        // Before loading so same-chat rehydrate still keeps the title tab.
         get().openChatTab(chatId);
-        if (state.currentWorkspaceChatId === chatId) return;
+        get().loadWorkspace(chatId);
+      },
+
+      loadWorkspace: (workspaceId) => {
+        const state = get();
+        if (state.currentWorkspaceChatId === workspaceId) return;
         const layoutsByChat = { ...state.layoutsByChat };
         if (state.currentWorkspaceChatId) {
           layoutsByChat[state.currentWorkspaceChatId] = ownTabs(
@@ -480,13 +484,13 @@ export const useUIStore = create<UIStoreState>()(
             state.visibleLayout,
           );
         }
-        const restored = layoutsByChat[chatId] ?? {
+        const restored = layoutsByChat[workspaceId] ?? {
           openTabs: ['agent:primary'],
           visibleLayout: [['agent:primary']],
         };
         set({
           layoutsByChat,
-          currentWorkspaceChatId: chatId,
+          currentWorkspaceChatId: workspaceId,
           openTabs: restored.openTabs,
           visibleLayout: restored.visibleLayout,
         });

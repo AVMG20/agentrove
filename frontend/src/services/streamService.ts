@@ -1,7 +1,7 @@
 import { queryKeys } from '@/hooks/queries/queryKeys';
 import { queryClient } from '@/lib/queryClient';
 import { useStreamStore } from '@/store/streamStore';
-import { useMessageQueueStore } from '@/store/messageQueueStore';
+import { useChannelQueueStore, useMessageQueueStore } from '@/store/messageQueueStore';
 import { useChannelStore } from '@/store/channelStore';
 import { isChannelEnvelope, type ChannelEnvelope } from '@/types/channel.types';
 import type { ChatRequest } from '@/types/chat.types';
@@ -176,7 +176,11 @@ class StreamService {
   private handleEnvelopeData(raw: string): void {
     const parsed = this.parseStreamEvent<StreamEnvelope | ChannelEnvelope>(raw);
     if (isChannelEnvelope(parsed)) {
-      useChannelStore.getState().applyEnvelope(parsed);
+      if (parsed.kind === 'channel_queue_sent') {
+        useChannelQueueStore.getState().removeLocalOnly(parsed.channelId, parsed.payload.id);
+      } else {
+        useChannelStore.getState().applyEnvelope(parsed);
+      }
       return;
     }
     if (!parsed?.chatId) return;

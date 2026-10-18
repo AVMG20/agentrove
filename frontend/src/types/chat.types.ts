@@ -84,6 +84,8 @@ export interface Chat {
   pinned_at: string | null;
   worktree_cwd: string | null;
   parent_chat_id: string | null;
+  // Member chats belong to a channel and are only shown through it.
+  channel_id: string | null;
   sub_thread_count: number;
   session_agent_kind: AgentKind | null;
   unread: boolean;

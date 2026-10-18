@@ -12,7 +12,13 @@ import {
   usePostChannelMessageMutation,
   useStopChannelMutation,
 } from '@/hooks/queries/useChannelQueries';
+import { SelectionAttachments } from '@/components/chat/message-input/SelectionAttachments';
+import { useChannelQueueStore } from '@/store/messageQueueStore';
+import { useUIStore, type ComposerSelection } from '@/store/uiStore';
+import { formatComposerSelections } from '@/utils/composerSelections';
 import type { Channel } from '@/types/channel.types';
+
+const NO_SELECTIONS: ComposerSelection[] = [];
 
 interface ChannelComposerProps {
   channel: Channel;
@@ -30,6 +36,11 @@ export function ChannelComposer({ channel, isBusy, onSend }: ChannelComposerProp
   const postMessage = usePostChannelMessageMutation();
   const stopChannel = useStopChannelMutation();
   const hasDraft = draft.trim().length > 0;
+  // Diff comments and editor selections target the anchor chat's composer key.
+  const selections = useUIStore(
+    (state) => state.composerSelectionsByChat[channel.anchor_chat_id] ?? NO_SELECTIONS,
+  );
+  const canSend = hasDraft || selections.length > 0;
 
   const attachments = useInputAttachments({ attachedFiles: files, onAttach: setFiles });
   const { isEnhancing, handleEnhancePrompt } = useInputEnhance({
@@ -41,16 +52,23 @@ export function ChannelComposer({ channel, isBusy, onSend }: ChannelComposerProp
   });
 
   const handleSend = async () => {
-    const content = draft.trim();
-    if (!content || postMessage.isPending || isEnhancing) return;
+    const text = draft.trim();
+    if (!canSend || postMessage.isPending || isEnhancing) return;
+    const content = formatComposerSelections(selections, text);
     const sentFiles = files;
     setDraft('');
     setFiles([]);
     onSend();
     try {
-      await postMessage.mutateAsync({ channelId: channel.id, content, files: sentFiles });
+      // Queued messages are sent once every member is idle, without interrupting anyone.
+      if (isBusy) {
+        await useChannelQueueStore.getState().queueMessage(channel.id, content, sentFiles);
+      } else {
+        await postMessage.mutateAsync({ channelId: channel.id, content, files: sentFiles });
+      }
+      useUIStore.getState().clearComposerSelections(channel.anchor_chat_id);
     } catch (error) {
-      setDraft((current) => (current ? `${content}\n${current}` : content));
+      setDraft((current) => (current ? `${text}\n${current}` : text));
       setFiles((current) => [...sentFiles, ...current]);
       toast.error(error instanceof Error ? error.message : 'Failed to send message');
     }
@@ -62,7 +80,7 @@ export function ChannelComposer({ channel, isBusy, onSend }: ChannelComposerProp
     });
   };
 
-  const sendStatus: SendButtonStatus = hasDraft
+  const sendStatus: SendButtonStatus = canSend
     ? 'ready'
     : isBusy
       ? 'streaming'
@@ -79,20 +97,28 @@ export function ChannelComposer({ channel, isBusy, onSend }: ChannelComposerProp
       isDragging={attachments.isDragging}
       dragHandlers={attachments.dragHandlers}
       attachments={
-        <ComposerAttachmentSlots
-          isDragging={attachments.isDragging}
-          files={files}
-          previewUrls={attachments.previewUrls}
-          onRemoveFile={attachments.handleRemoveFile}
-          onEditImage={attachments.handleDrawClick}
-          showFileUpload={attachments.showFileUpload}
-          onCloseFileUpload={() => attachments.setShowFileUpload(false)}
-          onFileSelect={attachments.handleFileSelect}
-          editingImageIndex={attachments.editingImageIndex}
-          showDrawingModal={attachments.showDrawingModal}
-          onCloseDrawing={attachments.closeDrawingModal}
-          onSaveDrawing={attachments.handleDrawingSave}
-        />
+        <>
+          <ComposerAttachmentSlots
+            isDragging={attachments.isDragging}
+            files={files}
+            previewUrls={attachments.previewUrls}
+            onRemoveFile={attachments.handleRemoveFile}
+            onEditImage={attachments.handleDrawClick}
+            showFileUpload={attachments.showFileUpload}
+            onCloseFileUpload={() => attachments.setShowFileUpload(false)}
+            onFileSelect={attachments.handleFileSelect}
+            editingImageIndex={attachments.editingImageIndex}
+            showDrawingModal={attachments.showDrawingModal}
+            onCloseDrawing={attachments.closeDrawingModal}
+            onSaveDrawing={attachments.handleDrawingSave}
+          />
+          <SelectionAttachments
+            selections={selections}
+            onRemove={(index) =>
+              useUIStore.getState().removeComposerSelection(channel.anchor_chat_id, index)
+            }
+          />
+        </>
       }
       textarea={
         <Textarea
@@ -131,7 +157,7 @@ export function ChannelComposer({ channel, isBusy, onSend }: ChannelComposerProp
               isEnhancing ||
               (sendStatus === 'streaming' && stopChannel.isPending)
             }
-            onClick={hasDraft ? () => void handleSend() : handleStop}
+            onClick={canSend ? () => void handleSend() : handleStop}
           />
         </>
       }

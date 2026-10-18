@@ -176,7 +176,9 @@ class RaisingChatService:
     async def get_sub_threads(self, chat_id: UUID, user: User) -> list[Chat]:
         raise self.exc
 
-    async def get_chat(self, chat_id: UUID, user: User) -> Chat:
+    async def get_chat(
+        self, chat_id: UUID, user: User, *, include_channel: bool = False
+    ) -> Chat:
         raise self.exc
 
     async def update_chat(
@@ -202,7 +204,9 @@ class StreamStatusServiceOverride:
     async def __call__(self) -> AsyncIterator["StreamStatusServiceOverride"]:
         yield self
 
-    async def get_chat(self, chat_id: UUID, user: User) -> Chat:
+    async def get_chat(
+        self, chat_id: UUID, user: User, *, include_channel: bool = False
+    ) -> Chat:
         return self._chat
 
 

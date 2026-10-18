@@ -765,8 +765,10 @@ async def test_normal_chat_routes_hide_member_chats(
     source_message: Message,
 ) -> None:
     base = f"/api/v1/chat/chats/{channel_state.channel.members[0].chat_id}"
+    response = await client.get(base, headers=owner[0])
+    assert response.status_code == 200
+    assert response.json()["channel_id"] == str(channel_state.channel.id)
     for method, path, kwargs, expected_status in [
-        ("GET", base, {}, 404),
         ("GET", f"{base}/messages", {}, 403),
         ("GET", f"/api/v1/chat/messages/{source_message.id}/events", {}, 404),
         ("PATCH", base, {"json": {"title": "Renamed"}}, 404),

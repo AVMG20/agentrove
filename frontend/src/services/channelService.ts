@@ -8,6 +8,7 @@ import type {
   ChannelPermissionRequest,
 } from '@/types/channel.types';
 import type { Message } from '@/types/chat.types';
+import type { QueueAddResponse, QueuedItem } from '@/types/queue.types';
 
 async function listChannels(workspaceId?: string): Promise<Channel[]> {
   return serviceCall(async () => {
@@ -62,20 +63,71 @@ async function getMessageActivity(channelId: string, messageId: string): Promise
   });
 }
 
+function messageForm(content: string, files: File[]): FormData {
+  const formData = new FormData();
+  formData.append('content', content);
+  files.forEach((file) => formData.append('attached_files', file));
+  return formData;
+}
+
 async function postMessage(
   channelId: string,
   content: string,
   files: File[],
 ): Promise<ChannelMessage> {
   return serviceCall(async () => {
-    const formData = new FormData();
-    formData.append('content', content);
-    files.forEach((file) => formData.append('attached_files', file));
     const response = await apiClient.postForm<ChannelMessage>(
       `/channels/${channelId}/messages`,
-      formData,
+      messageForm(content, files),
     );
     return ensureResponse(response, 'Failed to send message');
+  });
+}
+
+async function queueMessage(
+  channelId: string,
+  content: string,
+  files: File[],
+): Promise<QueueAddResponse> {
+  return serviceCall(async () => {
+    const response = await apiClient.postForm<QueueAddResponse>(
+      `/channels/${channelId}/queue`,
+      messageForm(content, files),
+    );
+    return ensureResponse(response, 'Failed to queue message');
+  });
+}
+
+async function getQueue(channelId: string): Promise<QueuedItem[]> {
+  return serviceCall(async () => {
+    const response = await apiClient.get<QueuedItem[]>(`/channels/${channelId}/queue`);
+    return ensureResponse(response, 'Failed to fetch queue');
+  });
+}
+
+async function updateQueuedMessage(
+  channelId: string,
+  messageId: string,
+  content: string,
+): Promise<QueuedItem> {
+  return serviceCall(async () => {
+    const response = await apiClient.patch<QueuedItem>(
+      `/channels/${channelId}/queue/${messageId}`,
+      { content },
+    );
+    return ensureResponse(response, 'Failed to update queued message');
+  });
+}
+
+async function deleteQueuedMessage(channelId: string, messageId: string): Promise<void> {
+  await serviceCall(async () => {
+    await apiClient.delete(`/channels/${channelId}/queue/${messageId}`);
+  });
+}
+
+async function sendQueuedNow(channelId: string, messageId: string): Promise<void> {
+  await serviceCall(async () => {
+    await apiClient.post(`/channels/${channelId}/queue/${messageId}/send-now`);
   });
 }
 
@@ -112,6 +164,11 @@ export const channelService = {
   listMessages,
   getMessageActivity,
   postMessage,
+  queueMessage,
+  getQueue,
+  updateQueuedMessage,
+  deleteQueuedMessage,
+  sendQueuedNow,
   listPermissions,
   getMemberActivity,
   stopChannel,

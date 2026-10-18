@@ -22,6 +22,7 @@ function makeChat(id: string, title: string): Chat {
     pinned_at: null,
     worktree_cwd: null,
     parent_chat_id: null,
+    channel_id: null,
     sub_thread_count: 0,
     session_agent_kind: null,
     unread: false,

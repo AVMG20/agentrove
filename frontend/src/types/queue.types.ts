@@ -18,9 +18,14 @@ export interface QueueMessageOptions {
   files?: File[];
 }
 
-export interface QueuedMessage {
+export interface QueuedItem {
   id: string;
   content: string;
+  queued_at: string;
+  attachments?: QueueMessageAttachment[];
+}
+
+export interface QueuedMessage extends QueuedItem {
   model_id: string;
   permission_mode: PermissionMode;
   thinking_mode?: string | null;
@@ -28,8 +33,6 @@ export interface QueuedMessage {
   base_branch?: string | null;
   fast_mode: boolean;
   selected_persona_name: string;
-  queued_at: string;
-  attachments?: QueueMessageAttachment[];
 }
 
 export interface QueueAddResponse {
@@ -39,15 +42,8 @@ export interface QueueAddResponse {
 export interface LocalQueuedMessage {
   id: string;
   content: string;
-  model_id: string;
   files?: File[];
   attachments?: QueueMessageAttachment[];
-  permissionMode?: PermissionMode;
-  thinkingMode?: string | null;
-  worktree?: boolean;
-  baseBranch?: string;
-  fastMode?: boolean;
-  selectedPersonaName?: string;
   queuedAt: number;
   synced: boolean;
   sendingNow: boolean;
