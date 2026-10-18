@@ -87,6 +87,7 @@ class ChannelRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     members: list[ChannelMemberRead]
+    anchor_chat_id: UUID
     activity: ChannelMemberActivity
 
 

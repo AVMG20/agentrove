@@ -191,7 +191,8 @@
 .changes-numbers {
   @include type.type-default;
   display: flex;
-  gap: var(--space-1-5);
+  flex-wrap: wrap;
+  column-gap: var(--space-1-5);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }

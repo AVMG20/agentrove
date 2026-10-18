@@ -118,6 +118,8 @@ export interface SplitViewActions {
   resetWorkspace: () => void;
   // Stash outgoing + restore incoming chat tabs (chat navigation).
   loadWorkspaceForChat: (chatId: string) => void;
+  // Stash outgoing + restore incoming tabs for a chat or channel id.
+  loadWorkspace: (workspaceId: string) => void;
   // Persist current tabs (leaving the chat page).
   stashWorkspace: () => void;
   openChatInSplit: (chatId: string) => void;

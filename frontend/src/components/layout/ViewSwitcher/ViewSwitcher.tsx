@@ -38,7 +38,7 @@ export function ViewSwitcher() {
   const splitChatIds = useUIStore((s) => s.splitChatIds);
   const visibleLayout = useUIStore((s) => s.visibleLayout);
   const sessionPanelOpen = useUIStore((s) => s.sessionPanelOpen);
-  const isChatPage = useMatch('/chat/:chatId');
+  const isLandingPage = useMatch('/');
   const isMobile = useIsMobile();
 
   // Active state matches the tile toggleView() will act on (focused split pane).
@@ -79,7 +79,7 @@ export function ViewSwitcher() {
           </Tooltip>
         );
       })}
-      {isChatPage && !isMobile && (
+      {!isLandingPage && !isMobile && (
         <Tooltip content={SESSION_PANEL_TOOLTIP} position="bottom-end">
           <Button
             variant="unstyled"

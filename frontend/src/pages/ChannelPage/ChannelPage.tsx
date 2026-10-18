@@ -1,28 +1,91 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar/Sidebar';
 import { useLayoutSidebar } from '@/components/layout/Layout/layoutState';
+import {
+  WorkspaceSurface,
+  WorkspaceTile,
+} from '@/components/layout/WorkspaceSurface/WorkspaceSurface';
 import { ChatProvider } from '@/contexts/ChatContext';
-import { CommandMenu } from '@/components/ui/command-menu/CommandMenu';
 import { useCommandMenu } from '@/hooks/useCommandMenu';
 import { ChannelView } from '@/components/channels/ChannelView';
+import { SessionPanel } from '@/components/chat/session-panel/SessionPanel';
 import { LoadingScreen } from '@/components/ui/LoadingScreen/LoadingScreen';
 import { useChannelQuery } from '@/hooks/queries/useChannelQueries';
+import { useChatQuery } from '@/hooks/queries/useChatQueries';
+import { useSandboxFiles } from '@/hooks/useSandboxFiles';
 import { useChatStore } from '@/store/chatStore';
 import { useUIStore } from '@/store/uiStore';
 import { useMountEffect } from '@/hooks/useMountEffect';
 import { useWorkspacesList } from '@/hooks/queries/useWorkspaceQueries';
-import styles from './ChannelPage.module.scss';
+import type { Channel } from '@/types/channel.types';
+import type { TileId } from '@/types/ui.types';
+import type { Workspace } from '@/types/workspace.types';
+
+function ChannelWorkspace({
+  channel,
+  workspace,
+}: {
+  channel: Channel;
+  workspace: Workspace | undefined;
+}) {
+  const workspaceChatId = channel.anchor_chat_id;
+  const { data: workspaceChat } = useChatQuery(workspaceChatId);
+  const { fileStructure } = useSandboxFiles(workspaceChat, workspaceChatId);
+
+  // Chat-scoped git actions (commit, PR, branch) resolve the channel's worktree through it.
+  useEffect(() => {
+    useChatStore.getState().setCurrentChat(workspaceChat ?? null);
+    return () => useChatStore.getState().setCurrentChat(null);
+  }, [workspaceChat]);
+
+  const renderView = useCallback(
+    (tileId: TileId, isVisible: boolean): ReactNode => (
+      <WorkspaceTile
+        tileId={tileId}
+        isVisible={isVisible}
+        chatId={workspaceChatId}
+        chat={workspaceChat}
+        agent={<ChannelView key={channel.id} channel={channel} />}
+      />
+    ),
+    [channel, workspaceChatId, workspaceChat],
+  );
+
+  return (
+    // File links, open-in-editor and the command menu resolve against the shared workspace.
+    <ChatProvider
+      chatId={workspaceChatId}
+      sandboxId={workspaceChat?.sandbox_id}
+      worktreeCwd={workspaceChat?.worktree_cwd ?? undefined}
+      fileStructure={fileStructure}
+    >
+      <WorkspaceSurface
+        renderView={renderView}
+        sessionPanel={
+          workspaceChat && (
+            <SessionPanel chat={workspaceChat} workspace={workspace} channel={channel} />
+          )
+        }
+      />
+    </ChatProvider>
+  );
+}
 
 export function ChannelPage() {
   const { channelId } = useParams();
   const navigate = useNavigate();
   useCommandMenu();
 
-  useMountEffect(() => {
-    useChatStore.getState().setCurrentChat(null);
-    useUIStore.getState().resetWorkspace();
-  });
+  // Split chats are chat-only; each channel keeps its own view layout.
+  const loadedChannelIdRef = useRef<string>(undefined);
+  if (channelId && loadedChannelIdRef.current !== channelId) {
+    loadedChannelIdRef.current = channelId;
+    const ui = useUIStore.getState();
+    ui.closeSplitChat();
+    ui.loadWorkspace(channelId);
+  }
+  useMountEffect(() => () => useUIStore.getState().stashWorkspace());
 
   const workspaces = useWorkspacesList();
   const { data: channel, isError } = useChannelQuery(channelId);
@@ -50,11 +113,9 @@ export function ChannelPage() {
   if (!channel) return <LoadingScreen />;
 
   return (
-    <div className={styles.page}>
-      <ChannelView key={channel.id} channel={channel} />
-      <ChatProvider>
-        <CommandMenu />
-      </ChatProvider>
-    </div>
+    <ChannelWorkspace
+      channel={channel}
+      workspace={workspaces?.find((w) => w.id === channel.workspace_id)}
+    />
   );
 }

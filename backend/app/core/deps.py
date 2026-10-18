@@ -1,7 +1,7 @@
 import logging
 from collections.abc import AsyncIterator, Callable, Coroutine
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
@@ -22,7 +22,7 @@ from app.services.exceptions import ChatException, UserException
 from app.services.git import GitService
 from app.services.message import MessageService
 from app.services.github import GitHubService
-from app.services.queue import QueueService
+from app.services.queue import ChannelQueueService, QueueService
 from app.services.refresh_token import RefreshTokenService
 from app.services.sandbox import SandboxService
 from app.services.search import SearchService
@@ -238,13 +238,25 @@ ensure_chat_access = chat_access_dependency()
 ensure_member_chat_access = chat_access_dependency(include_channel=True)
 
 
-async def get_queue_service() -> AsyncIterator[QueueService]:
-    try:
-        async with cache_connection() as cache:
-            yield QueueService(cache)
-    except CacheError as e:
-        logger.error("Redis error: %s", e, exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service temporarily unavailable",
-        ) from e
+QueueServiceT = TypeVar("QueueServiceT", QueueService, ChannelQueueService)
+
+
+def queue_service_dependency(
+    service_type: type[QueueServiceT],
+) -> Callable[[], AsyncIterator[QueueServiceT]]:
+    async def get_service() -> AsyncIterator[QueueServiceT]:
+        try:
+            async with cache_connection() as cache:
+                yield service_type(cache)
+        except CacheError as e:
+            logger.error("Redis error: %s", e, exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Service temporarily unavailable",
+            ) from e
+
+    return get_service
+
+
+get_queue_service = queue_service_dependency(QueueService)
+get_channel_queue_service = queue_service_dependency(ChannelQueueService)

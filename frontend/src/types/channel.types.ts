@@ -20,6 +20,8 @@ export interface Channel {
   created_at: string;
   updated_at: string;
   members: ChannelMember[];
+  // Member chat that owns the shared sandbox/worktree; backs the channel's workspace views.
+  anchor_chat_id: string;
   activity: ChannelMemberActivity;
 }
 
@@ -80,7 +82,8 @@ export type ChannelEnvelope =
   | ChannelEnvelopeBase<'channel_message', { message: ChannelMessage }>
   | ChannelEnvelopeBase<'channel_permission_request', ChannelPermissionRequest>
   | ChannelEnvelopeBase<'channel_permission_resolved', { member_id: string; request_id: string }>
-  | ChannelEnvelopeBase<'channel_member_activity', ChannelMemberActivity>;
+  | ChannelEnvelopeBase<'channel_member_activity', ChannelMemberActivity>
+  | ChannelEnvelopeBase<'channel_queue_sent', { id: string }>;
 
 export function isChannelEnvelope(value: unknown): value is ChannelEnvelope {
   return typeof value === 'object' && value !== null && 'channelId' in value;

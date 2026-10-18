@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { MarkDown } from '@/components/ui/markdown/MarkDown';
 import { Tooltip } from '@/components/ui/Tooltip/Tooltip';
 import { ProviderIcon } from '@/components/ui/icons/ProviderIcon';
@@ -7,6 +7,7 @@ import {
   ConversationLayout,
   ConversationScroller,
 } from '@/components/chat/chat-window/ConversationLayout';
+import { ChatQueueBanner } from '@/components/chat/chat-window/ChatQueueBanner';
 import { ChatSkeleton } from '@/components/chat/chat-window/ChatSkeleton';
 import { InlinePermission } from '@/components/chat/chat-window/ChatInlinePermission';
 import { StatusIndicator } from '@/components/chat/chat-window/StatusTypewriter';
@@ -26,6 +27,7 @@ import {
   useChannelActivity,
   useChannelStore,
 } from '@/store/channelStore';
+import { EMPTY_QUEUE, useChannelQueueStore } from '@/store/messageQueueStore';
 import { getAgentKindForModelId, type AgentKind } from '@/types/chat.types';
 import { formatFullTimestamp, formatRelativeTime } from '@/utils/date';
 import { executePermissionResponse } from '@/utils/permissionResponse';
@@ -239,6 +241,26 @@ export function ChannelView({ channel }: { channel: Channel }) {
     (state) => state.channels[channel.id]?.permissions ?? EMPTY_PERMISSIONS,
   );
   const activity = useChannelActivity(channel);
+  const queuedMessages = useChannelQueueStore(
+    (state) => state.queues.get(channel.id) ?? EMPTY_QUEUE,
+  );
+  const handleCancelQueued = useCallback(
+    (messageId: string) =>
+      void useChannelQueueStore.getState().removeMessage(channel.id, messageId),
+    [channel.id],
+  );
+  const handleEditQueued = useCallback(
+    (messageId: string, content: string) =>
+      void useChannelQueueStore.getState().updateQueuedMessage(channel.id, messageId, content),
+    [channel.id],
+  );
+  const handleSendQueuedNow = useCallback(
+    async (messageId: string) => {
+      const queue = useChannelQueueStore.getState();
+      if (await queue.sendNow(channel.id, messageId)) queue.removeLocalOnly(channel.id, messageId);
+    },
+    [channel.id],
+  );
 
   const messages = useMemo(
     () =>
@@ -294,6 +316,14 @@ export function ChannelView({ channel }: { channel: Channel }) {
     <ConversationLayout
       showScrollButton={showScrollButton}
       onScrollToBottom={scrollToBottom}
+      composerBanner={
+        <ChatQueueBanner
+          messages={queuedMessages}
+          onCancel={handleCancelQueued}
+          onEdit={handleEditQueued}
+          onSendNow={handleSendQueuedNow}
+        />
+      }
       composer={<ChannelComposer channel={channel} isBusy={isBusy} onSend={scrollToBottom} />}
     >
       {messages.length === 0 ? (

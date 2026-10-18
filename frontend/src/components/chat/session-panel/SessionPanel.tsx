@@ -31,6 +31,7 @@ import { useChatSessionState } from '@/hooks/useChatSessionContext';
 import { useStreamStore } from '@/store/streamStore';
 import { useUIStore } from '@/store/uiStore';
 import { getAgentKindForModelId, type Chat } from '@/types/chat.types';
+import type { Channel } from '@/types/channel.types';
 import type { DiffMode, GitDiffTotals } from '@/types/sandbox.types';
 import type { Workspace } from '@/types/workspace.types';
 import { useIsCloudChat } from '@/utils/chatOrigin';
@@ -105,10 +106,12 @@ function EnvironmentCard({
   chat,
   workspace,
   branch,
+  children,
 }: {
   chat: Chat;
   workspace: Workspace | undefined;
   branch: string | null;
+  children?: ReactNode;
 }) {
   const isCloud = useIsCloudChat(chat.id);
   const isDocker = workspace?.sandbox_provider === 'docker';
@@ -140,7 +143,39 @@ function EnvironmentCard({
           {branch}
         </Row>
       )}
-      <ModelRow chatId={chat.id} sessionAgentKind={chat.session_agent_kind} />
+      {children}
+    </Card>
+  );
+}
+
+function MembersCard({ channel }: { channel: Channel }) {
+  const modelMap = useModelMap();
+  return (
+    <Card title="Members">
+      {channel.members.map((member) => {
+        const details = [
+          modelMap.get(member.model_id)?.name ?? member.model_id,
+          member.persona,
+          member.thinking_mode,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        return (
+          <Row
+            key={member.id}
+            icon={
+              <ProviderIcon
+                agentKind={getAgentKindForModelId(member.model_id)}
+                className={styles.glyph}
+              />
+            }
+            hint={details}
+          >
+            {member.display_name}
+            <span className={styles.secondary}>{` · ${details}`}</span>
+          </Row>
+        );
+      })}
     </Card>
   );
 }
@@ -407,20 +442,34 @@ function ChangesCard({
 interface SessionPanelProps {
   chat: Chat;
   workspace: Workspace | undefined;
+  // A channel's panel describes its shared workspace through `chat`, one of its member chats.
+  channel?: Channel;
 }
 
-export const SessionPanel = memo(function SessionPanel({ chat, workspace }: SessionPanelProps) {
+export const SessionPanel = memo(function SessionPanel({
+  chat,
+  workspace,
+  channel,
+}: SessionPanelProps) {
   const worktreeCwd = chat.worktree_cwd ?? undefined;
   const { data: branches } = useGitBranchesQuery(chat.sandbox_id, true, worktreeCwd);
   const branch = branches?.is_git_repo ? branches.current_branch : null;
   return (
     <aside className={styles.panel} aria-label="Session details">
-      <EnvironmentCard chat={chat} workspace={workspace} branch={branch} />
-      <ContextCard chat={chat} />
-      {chat.parent_chat_id ? (
-        <ParentThreadCard parentChatId={chat.parent_chat_id} />
+      <EnvironmentCard chat={chat} workspace={workspace} branch={branch}>
+        {!channel && <ModelRow chatId={chat.id} sessionAgentKind={chat.session_agent_kind} />}
+      </EnvironmentCard>
+      {channel ? (
+        <MembersCard channel={channel} />
       ) : (
-        <SubThreadsCard chatId={chat.id} />
+        <>
+          <ContextCard chat={chat} />
+          {chat.parent_chat_id ? (
+            <ParentThreadCard parentChatId={chat.parent_chat_id} />
+          ) : (
+            <SubThreadsCard chatId={chat.id} />
+          )}
+        </>
       )}
       {branch && (
         <ChangesCard

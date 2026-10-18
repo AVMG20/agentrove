@@ -293,7 +293,7 @@ export function executeCommand(
     navigate('/');
   } else if (cmd.id === 'new-sub-thread') {
     const chat = getActiveChat(queryClient);
-    if (!chat || chat.parent_chat_id) {
+    if (!chat || chat.parent_chat_id || chat.channel_id) {
       toast.error('Open a top-level thread first');
     } else {
       ui.setSubThreadDialogOpen(toggle ? !ui.subThreadDialogOpen : true);

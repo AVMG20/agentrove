@@ -42,6 +42,7 @@ from app.services.acp.adapters import (
 )
 from app.services.agent import AgentService
 from app.services.git import GitService
+from app.services.queue import ChannelQueueService
 from app.services.storage import StorageService
 from app.services.chat import ChatService
 from app.services.db import BaseDbService, SessionFactoryType
@@ -55,6 +56,7 @@ from app.utils.attachment_urls import AttachmentURL
 
 logger = logging.getLogger(__name__)
 DEBOUNCE_SECONDS = 2.5
+QUEUE_RETRY_SECONDS = 5
 ACTIVITY_EPOCH = uuid4().hex
 
 INTRODUCTION = (
@@ -244,10 +246,14 @@ class ChannelService(BaseDbService[Channel]):
             raise
         return channel
 
+    @staticmethod
+    def anchor_chat_id(channel: Channel) -> UUID:
+        chat_id: UUID = min(member.chat_id for member in channel.members)
+        return chat_id
+
     async def anchor_chat(self, channel: Channel) -> Chat:
-        member = min(channel.members, key=lambda member: member.chat_id)
         return await self.chats.get_chat(
-            member.chat_id, User(id=channel.user_id), include_channel=True
+            self.anchor_chat_id(channel), User(id=channel.user_id), include_channel=True
         )
 
     async def prepare_worktree(self, channel: Channel) -> None:
@@ -341,6 +347,7 @@ class ChannelService(BaseDbService[Channel]):
             members=[
                 ChannelMemberRead.model_validate(member) for member in channel.members
             ],
+            anchor_chat_id=self.anchor_chat_id(channel),
             activity=ChannelMemberActivity.model_validate(
                 self.member_activity(self.state(channel))
             ),
@@ -484,27 +491,43 @@ class ChannelService(BaseDbService[Channel]):
             state.channel.name = name
         return await self.get(channel.id, User(id=channel.user_id))
 
-    async def post(
-        self, channel: Channel, content: str, files: list[UploadFile] | None = None
+    async def save_attachments(
+        self, channel: Channel, files: list[UploadFile] | None
+    ) -> list[MessageAttachmentDict]:
+        if not files:
+            return []
+        chat = await self.anchor_chat(channel)
+        storage = StorageService(self.chats.sandbox_for_workspace(chat.workspace))
+        kinds = [
+            MODELS[member.model_id].agent_kind
+            for member in channel.members
+            if member.model_id in MODELS
+        ]
+        kind = min(kinds, key=lambda kind: len(NATIVE_FILE_TYPES[kind]), default=None)
+        return await storage.save_files(
+            files,
+            agent_kind=kind,
+            sandbox_id=chat.sandbox_id,
+            user_id=str(channel.user_id),
+        )
+
+    async def send(
+        self,
+        state: ChannelState,
+        content: str,
+        attachments: list[MessageAttachmentDict],
     ) -> ChannelMessage:
-        attachments: list[MessageAttachmentDict] = []
-        if files:
-            chat = await self.anchor_chat(channel)
-            storage = StorageService(self.chats.sandbox_for_workspace(chat.workspace))
-            kinds = [
-                MODELS[member.model_id].agent_kind
-                for member in channel.members
-                if member.model_id in MODELS
-            ]
-            kind = min(
-                kinds, key=lambda kind: len(NATIVE_FILE_TYPES[kind]), default=None
-            )
-            attachments = await storage.save_files(
-                files,
-                agent_kind=kind,
-                sandbox_id=chat.sandbox_id,
-                user_id=str(channel.user_id),
-            )
+        message = await self.new_message(state, content, attachments=attachments)
+        await self.publish_message(state.channel, message)
+        self.fan_out(state)
+        return message
+
+    async def post(
+        self,
+        channel: Channel,
+        content: str,
+        attachments: list[MessageAttachmentDict],
+    ) -> ChannelMessage:
         state = self.state(channel)
         async with state.control:
             turns: list[MemberTurn] = []
@@ -516,11 +539,7 @@ class ChannelService(BaseDbService[Channel]):
                     state.retries.clear()
                     turns = list(state.turns.values())
                     await self.cancel_active(state)
-                    message = await self.new_message(
-                        state, content, attachments=attachments
-                    )
-                    await self.publish_message(channel, message)
-                    self.fan_out(state)
+                    message = await self.send(state, content, attachments)
             finally:
                 try:
                     await self.cancel_turns(turns)
@@ -598,6 +617,73 @@ class ChannelService(BaseDbService[Channel]):
             await self.publish_activity(state)
             if retry_times:
                 self.schedule(state, min(retry_times))
+            await self.send_next_queued(state)
+
+    @staticmethod
+    def idle(state: ChannelState) -> bool:
+        return not (
+            state.turns
+            or state.retries
+            or state.permissions
+            or state.timer
+            or state.paused
+            or state.deleted
+        )
+
+    async def send_next_queued(self, state: ChannelState) -> None:
+        if not self.idle(state):
+            return
+        channel_id = str(state.channel.id)
+        try:
+            async with cache_connection() as cache:
+                queue = ChannelQueueService(cache)
+                item = await queue.pop_next_message(channel_id)
+                if item is None:
+                    return
+                try:
+                    message = await self.new_message(
+                        state, item["content"], attachments=item["attachments"] or []
+                    )
+                except Exception:
+                    await queue.requeue_message(channel_id, item)
+                    logger.warning(
+                        "Failed to send queued message for channel %s",
+                        channel_id,
+                        exc_info=True,
+                    )
+                    # The channel is idle, so nothing else would wake it to retry.
+                    self.schedule(
+                        state, asyncio.get_running_loop().time() + QUEUE_RETRY_SECONDS
+                    )
+                    return
+        except CacheError:
+            logger.warning("Failed to read queued messages for channel %s", channel_id)
+            return
+        await self.publish_message(state.channel, message)
+        self.fan_out(state)
+        await self.publish(state.channel, "channel_queue_sent", {"id": item["id"]})
+
+    async def dispatch_queued(self, channel: Channel) -> None:
+        state = self.state(channel)
+        async with state.lock:
+            await self.send_next_queued(state)
+
+    async def send_queued_now(
+        self, channel: Channel, queue: ChannelQueueService, message_id: UUID
+    ) -> ChannelMessage:
+        channel_id = str(channel.id)
+        item = await queue.delete_message(channel_id, str(message_id))
+        if item is None:
+            raise HTTPException(404, "Queued message not found")
+        try:
+            message = await self.post(
+                channel, item["content"], item["attachments"] or []
+            )
+        except Exception:
+            await queue.requeue_message(channel_id, item)
+            raise
+        await self.publish(channel, "channel_queue_sent", {"id": item["id"]})
+        return message
 
     def backoff(
         self, state: ChannelState, member: ChannelMember, error: object

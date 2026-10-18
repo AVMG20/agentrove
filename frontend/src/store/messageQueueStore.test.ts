@@ -20,7 +20,6 @@ const svc = vi.mocked(queueService);
 
 const localMsg = (over: Partial<LocalQueuedMessage> & { id: string }): LocalQueuedMessage => ({
   content: 'hi',
-  model_id: 'm',
   queuedAt: 1000,
   synced: true,
   sendingNow: false,
@@ -50,7 +49,6 @@ describe('queueMessage', () => {
     expect(queue[0]).toMatchObject({
       id: 'server-1',
       content: 'hello',
-      model_id: 'gpt-5',
       synced: true,
     });
   });

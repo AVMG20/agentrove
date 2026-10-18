@@ -205,7 +205,7 @@ export function TitleBar() {
           {isAuthenticated && isChannelPage && <ChannelHeader />}
         </div>
         {/* No per-view tabs — switcher opens/closes views (landing needs it too). */}
-        {(isChatPage || isLandingPage) && <ViewSwitcher />}
+        {showSidebar && <ViewSwitcher />}
       </div>
     </div>
   );

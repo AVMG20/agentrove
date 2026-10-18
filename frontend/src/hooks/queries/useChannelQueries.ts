@@ -3,6 +3,8 @@ import { channelService } from '@/services/channelService';
 import { queryKeys } from '@/hooks/queries/queryKeys';
 import { createMutation } from '@/hooks/queries/createMutation';
 import { useChannelStore } from '@/store/channelStore';
+import { useChannelQueueStore } from '@/store/messageQueueStore';
+import { useUIStore } from '@/store/uiStore';
 import type { Channel, ChannelCreateRequest, ChannelMessage } from '@/types/channel.types';
 import type { Message } from '@/types/chat.types';
 
@@ -53,8 +55,20 @@ export const useRenameChannelMutation = createMutation<
 export const useDeleteChannelMutation = createMutation<void, Error, string>(
   (channelId) => channelService.deleteChannel(channelId),
   (queryClient, _data, channelId) => {
+    const anchorChatId = (
+      queryClient.getQueryData<Channel>(queryKeys.channel(channelId)) ??
+      queryClient
+        .getQueriesData<Channel[]>({ queryKey: queryKeys.channelsAll })
+        .flatMap(([, channels]) => channels ?? [])
+        .find((channel) => channel.id === channelId)
+    )?.anchor_chat_id;
     queryClient.removeQueries({ queryKey: queryKeys.channel(channelId) });
     useChannelStore.getState().releaseChannel(channelId);
+    useChannelQueueStore.getState().cleanupChat(channelId);
+    // Layout is keyed by channel; editor tabs and terminals by the anchor chat.
+    const ui = useUIStore.getState();
+    ui.cleanupChat(channelId);
+    if (anchorChatId) ui.cleanupChat(anchorChatId);
     return queryClient.invalidateQueries({ queryKey: queryKeys.channelsAll });
   },
 );

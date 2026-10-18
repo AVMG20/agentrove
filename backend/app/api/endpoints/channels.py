@@ -12,6 +12,7 @@ from fastapi import (
     UploadFile,
 )
 
+from app.core.deps import get_channel_queue_service
 from app.core.security import get_current_user
 from app.models.db_models.user import User
 from app.models.schemas.channel import (
@@ -21,7 +22,13 @@ from app.models.schemas.channel import (
     ChannelRead,
 )
 from app.models.schemas.chat import Message as MessageSchema
+from app.models.schemas.queue import (
+    QueueAddResponse,
+    QueuedChannelMessage,
+    QueueMessageContent,
+)
 from app.services.channel import channel_service
+from app.services.queue import ChannelQueueService
 from app.services.exceptions import ChatException, StorageException, SandboxException
 
 router = APIRouter()
@@ -89,12 +96,88 @@ async def post_message(
 ) -> ChannelMessageRead:
     channel = await channel_service.get(channel_id, user)
     try:
-        response: ChannelMessageRead = ChannelMessageRead.model_validate(
-            await channel_service.post(channel, content, attached_files)
-        )
+        attachments = await channel_service.save_attachments(channel, attached_files)
     except (StorageException, SandboxException) as exc:
         raise HTTPException(exc.status_code, str(exc)) from exc
+    response: ChannelMessageRead = ChannelMessageRead.model_validate(
+        await channel_service.post(channel, content, attachments)
+    )
     return response
+
+
+@router.post("/{channel_id}/queue", response_model=QueueAddResponse, status_code=201)
+async def queue_message(
+    channel_id: UUID,
+    content: str = Form(..., min_length=1, max_length=100000),
+    attached_files: list[UploadFile] | None = File(None),
+    user: User = Depends(get_current_user),
+    queue_service: ChannelQueueService = Depends(get_channel_queue_service),
+) -> QueueAddResponse:
+    channel = await channel_service.get(channel_id, user)
+    try:
+        attachments = await channel_service.save_attachments(channel, attached_files)
+    except (StorageException, SandboxException) as exc:
+        raise HTTPException(exc.status_code, str(exc)) from exc
+    response = await queue_service.add_message(
+        str(channel_id),
+        QueueMessageContent(content=content),
+        [dict(item) for item in attachments] or None,
+    )
+    # The channel may have gone idle before the message landed in the queue.
+    await channel_service.dispatch_queued(channel)
+    return response
+
+
+@router.get("/{channel_id}/queue", response_model=list[QueuedChannelMessage])
+async def get_queue(
+    channel_id: UUID,
+    user: User = Depends(get_current_user),
+    queue_service: ChannelQueueService = Depends(get_channel_queue_service),
+) -> list[QueuedChannelMessage]:
+    await channel_service.get(channel_id, user)
+    return await queue_service.get_queue(str(channel_id))
+
+
+@router.patch("/{channel_id}/queue/{message_id}", response_model=QueuedChannelMessage)
+async def update_queued_message(
+    channel_id: UUID,
+    message_id: UUID,
+    update: QueueMessageContent,
+    user: User = Depends(get_current_user),
+    queue_service: ChannelQueueService = Depends(get_channel_queue_service),
+) -> QueuedChannelMessage:
+    await channel_service.get(channel_id, user)
+    result = await queue_service.update_message(
+        str(channel_id), str(message_id), update.content
+    )
+    if result is None:
+        raise HTTPException(404, "Queued message not found")
+    return result
+
+
+@router.delete("/{channel_id}/queue/{message_id}", status_code=204)
+async def delete_queued_message(
+    channel_id: UUID,
+    message_id: UUID,
+    user: User = Depends(get_current_user),
+    queue_service: ChannelQueueService = Depends(get_channel_queue_service),
+) -> Response:
+    await channel_service.get(channel_id, user)
+    if await queue_service.delete_message(str(channel_id), str(message_id)) is None:
+        raise HTTPException(404, "Queued message not found")
+    return Response(status_code=204)
+
+
+@router.post("/{channel_id}/queue/{message_id}/send-now", status_code=204)
+async def send_queued_message_now(
+    channel_id: UUID,
+    message_id: UUID,
+    user: User = Depends(get_current_user),
+    queue_service: ChannelQueueService = Depends(get_channel_queue_service),
+) -> Response:
+    channel = await channel_service.get(channel_id, user)
+    await channel_service.send_queued_now(channel, queue_service, message_id)
+    return Response(status_code=204)
 
 
 @router.post("/{channel_id}/stop", status_code=204)

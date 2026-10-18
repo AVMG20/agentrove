@@ -9,7 +9,6 @@ function makeMessage(over: Partial<LocalQueuedMessage> = {}): LocalQueuedMessage
   return {
     id: 'msg-1',
     content: 'queued text',
-    model_id: 'claude-x',
     queuedAt: 0,
     synced: true,
     sendingNow: false,
