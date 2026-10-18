@@ -89,6 +89,7 @@ class FakeAcpSession:
         self.handler: AcpClientHandler | None = None
         self.configs: list[AcpSessionConfig] = []
         self.acp_session_id = session_id
+        self.supports_steering = False
         self._scripts = scripts
         self._call_index = 0
         self.usage = usage
