@@ -81,7 +81,7 @@ COPY --chmod=755 sandbox/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=user:user --chmod=755 backend/app/browser_mcp_cloud.py /home/user/browser_mcp_cloud.py
 
 RUN set -eux; \
-    version=1.4.0; \
+    version=1.4.1; \
     case "$(uname -m)" in \
       x86_64|amd64) arch=x86_64 ;; \
       aarch64|arm64) arch=arm64 ;; \
