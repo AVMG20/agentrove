@@ -13,6 +13,7 @@ import { SessionPanel } from '@/components/chat/session-panel/SessionPanel';
 import { LoadingScreen } from '@/components/ui/LoadingScreen/LoadingScreen';
 import { useChannelQuery } from '@/hooks/queries/useChannelQueries';
 import { useChatQuery } from '@/hooks/queries/useChatQueries';
+import { useSandboxFiles } from '@/hooks/useSandboxFiles';
 import { useChatStore } from '@/store/chatStore';
 import { useUIStore } from '@/store/uiStore';
 import { useMountEffect } from '@/hooks/useMountEffect';
@@ -30,6 +31,7 @@ function ChannelWorkspace({
 }) {
   const workspaceChatId = channel.anchor_chat_id;
   const { data: workspaceChat } = useChatQuery(workspaceChatId);
+  const { fileStructure } = useSandboxFiles(workspaceChat, workspaceChatId);
 
   // Chat-scoped git actions (commit, PR, branch) resolve the channel's worktree through it.
   useEffect(() => {
@@ -51,7 +53,13 @@ function ChannelWorkspace({
   );
 
   return (
-    <ChatProvider>
+    // File links, open-in-editor and the command menu resolve against the shared workspace.
+    <ChatProvider
+      chatId={workspaceChatId}
+      sandboxId={workspaceChat?.sandbox_id}
+      worktreeCwd={workspaceChat?.worktree_cwd ?? undefined}
+      fileStructure={fileStructure}
+    >
       <WorkspaceSurface
         renderView={renderView}
         sessionPanel={
