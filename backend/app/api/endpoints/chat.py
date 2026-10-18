@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import (
@@ -577,7 +577,7 @@ async def get_message_render(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Chat not found or access denied",
         )
-    return message.content_render
+    return cast(dict[str, Any], message.content_render)
 
 
 @router.post(

@@ -395,11 +395,14 @@ class MessageService(BaseDbService[Message]):
                         seen[key] = value
                 slim[key] = value
             compacted.append({**event, "tool": slim})
-        return item.model_copy(
-            update={
-                "content_render": {**item.content_render, "events": compacted},
-                "tool_results_omitted": True,
-            }
+        return cast(
+            MessageSchema,
+            item.model_copy(
+                update={
+                    "content_render": {**item.content_render, "events": compacted},
+                    "tool_results_omitted": True,
+                }
+            ),
         )
 
     async def get_latest_assistant_message(self, chat_id: UUID) -> Message | None:
