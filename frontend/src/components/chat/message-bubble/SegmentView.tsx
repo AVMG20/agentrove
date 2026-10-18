@@ -5,6 +5,7 @@ import { ThinkingBlock } from './ThinkingBlock';
 import { PromptSuggestions } from './PromptSuggestions';
 import { PlanCard } from './PlanCard';
 import { MessageAttachments } from './MessageAttachments';
+import { UserBubble } from './Message';
 import { getToolComponent } from '@/components/chat/tools/registry';
 import type { MessageSegment } from './segmentBuilder';
 import type { AgentKind } from '@/types/chat.types';
@@ -74,9 +75,10 @@ export const SegmentView = memo(function SegmentView({
     case 'steering':
       return (
         <div className={styles['steering-segment']}>
-          <span className={styles['steering-label']}>You · sent while running</span>
-          <MarkDown content={segment.text} highlightMentions />
-          <MessageAttachments attachments={segment.attachments} chatId={chatId} />
+          <UserBubble>
+            <MessageAttachments attachments={segment.attachments} chatId={chatId} />
+            <MarkDown content={segment.text} highlightMentions />
+          </UserBubble>
         </div>
       );
     case 'thinking':
