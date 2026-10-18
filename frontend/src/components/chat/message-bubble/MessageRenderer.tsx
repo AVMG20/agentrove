@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { SegmentView } from './SegmentView';
-import { WorkedRollup } from './WorkedRollup';
+import { TraceLoadState, WorkedRollup } from './WorkedRollup';
+import { useMessageRenderQuery } from '@/hooks/queries/useChatQueries';
 import { buildSegments, segmentsEqual, type MessageSegment } from './segmentBuilder';
 import { AgentToolsContext } from '@/contexts/AgentToolsContext';
 import type { AgentKind, AssistantStreamEvent } from '@/types/chat.types';
@@ -8,6 +9,9 @@ import type { ToolAggregate } from '@/types/tools.types';
 
 interface MessageRendererProps {
   events: AssistantStreamEvent[];
+  // Set when `events` lack tool results; the full render is fetched before the
+  // trace mounts.
+  omittedToolResults?: { chatId: string; messageId: string };
   className?: string;
   isStreaming?: boolean;
   chatId?: string;
@@ -19,7 +23,8 @@ interface MessageRendererProps {
 }
 
 export const MessageRenderer = memo(function MessageRenderer({
-  events,
+  events: initialEvents,
+  omittedToolResults,
   className = '',
   isStreaming = false,
   chatId,
@@ -30,6 +35,15 @@ export const MessageRenderer = memo(function MessageRenderer({
   highlightMentions = false,
 }: MessageRendererProps) {
   const prevSegmentsRef = React.useRef<Map<string, MessageSegment>>(new Map());
+  const [fullRenderRequested, setFullRenderRequested] = React.useState(false);
+  const fullRender = useMessageRenderQuery(
+    omittedToolResults?.chatId ?? '',
+    omittedToolResults?.messageId ?? '',
+    omittedToolResults !== undefined && fullRenderRequested,
+  );
+  const events = fullRender.data?.events ?? initialEvents;
+  const awaitingFullRender = omittedToolResults !== undefined && !fullRender.data;
+  const requestFullRender = React.useCallback(() => setFullRenderRequested(true), []);
 
   const { segments, activeThinkingId, activeTextId } = React.useMemo(() => {
     const builtSegments = buildSegments(events);
@@ -91,8 +105,11 @@ export const MessageRenderer = memo(function MessageRenderer({
       tailSegments: segments.slice(traceEnd + 1),
     };
   }, [segments, isStreaming]);
-  // If a turn is cut off before an answer, the trace is the only visible content.
-  const rollUpTrace = traceSegments.length > 0 && tailSegments.length > 0;
+  // If a turn is cut off before an answer, the trace is the only visible content —
+  // unless its tool results were omitted, where showing it would mean fetching
+  // the full render on chat open.
+  const rollUpTrace =
+    traceSegments.length > 0 && (tailSegments.length > 0 || omittedToolResults !== undefined);
   const segmentViewProps = {
     chatId,
     agentKind,
@@ -102,15 +119,19 @@ export const MessageRenderer = memo(function MessageRenderer({
   };
   // Per-segment booleans instead of the active ids: when the active segment
   // changes, only the segments whose flag flipped lose their memo bailout.
-  const traceNodes = traceSegments.map((segment) => (
-    <SegmentView
-      key={segment.id}
-      segment={segment}
-      isActiveThinking={segment.id === activeThinkingId}
-      isActiveText={segment.id === activeTextId}
-      {...segmentViewProps}
-    />
-  ));
+  const traceNodes = awaitingFullRender ? (
+    <TraceLoadState failed={fullRender.isError} onRetry={() => void fullRender.refetch()} />
+  ) : (
+    traceSegments.map((segment) => (
+      <SegmentView
+        key={segment.id}
+        segment={segment}
+        isActiveThinking={segment.id === activeThinkingId}
+        isActiveText={segment.id === activeTextId}
+        {...segmentViewProps}
+      />
+    ))
+  );
   const tailNodes = tailSegments.map((segment) => (
     <SegmentView
       key={segment.id}
@@ -125,7 +146,9 @@ export const MessageRenderer = memo(function MessageRenderer({
     <AgentToolsContext value={agentTools}>
       <div className={className}>
         {rollUpTrace ? (
-          <WorkedRollup durationMs={durationMs}>{traceNodes}</WorkedRollup>
+          <WorkedRollup durationMs={durationMs} onExpand={requestFullRender}>
+            {traceNodes}
+          </WorkedRollup>
         ) : (
           traceNodes
         )}

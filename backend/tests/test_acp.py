@@ -818,7 +818,9 @@ async def test_chat_non_text_content_chunks_produce_no_events(
     )
     assert message["stream_status"] == "completed"
     events = message["content_render"]["events"]
-    assert len([e for e in events if e["type"] == "assistant_text"]) == 2
+    assert [e for e in events if e["type"] == "assistant_text"] == [
+        {"type": "assistant_text", "text": "Hello from the fake agent."}
+    ]
     assert len([e for e in events if e["type"] == "assistant_thinking"]) == 1
 
 

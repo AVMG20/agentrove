@@ -27,6 +27,8 @@ export interface Message {
   attachments: MessageAttachment[];
   created_at: string;
   checkpoint_id: string | null;
+  // History omits completed turns' tool results; fetch the full render on demand.
+  tool_results_omitted: boolean;
 }
 
 // Plan events replace the whole list (not append).

@@ -601,6 +601,7 @@ export function useStreamCallbacks({
         model_id: null,
         duration_ms: null,
         checkpoint_id: null,
+        tool_results_omitted: false,
       };
 
       const assistantMessage: Message = {
@@ -618,6 +619,7 @@ export function useStreamCallbacks({
         is_bot: true,
         duration_ms: null,
         checkpoint_id: data.checkpointId,
+        tool_results_omitted: false,
       };
 
       // Cache even off-screen; single setQueryData for both msgs to avoid double churn.

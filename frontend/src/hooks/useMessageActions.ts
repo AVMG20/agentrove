@@ -145,6 +145,7 @@ export function useMessageActions({
           model_id: selectedModelId ?? undefined,
           duration_ms: null,
           checkpoint_id: checkpointId,
+          tool_results_omitted: false,
         };
 
         setMessages((prev) => {
@@ -237,6 +238,7 @@ export function useMessageActions({
         attachments: createAttachmentsFromFiles(inputFiles, storeBlobUrl) ?? [],
         duration_ms: null,
         checkpoint_id: null,
+        tool_results_omitted: false,
       };
 
       setMessages((prev) => [...prev, newMessage]);

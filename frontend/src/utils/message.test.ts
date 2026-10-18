@@ -16,6 +16,7 @@ const msg = (over: Partial<Message>): Message => ({
   duration_ms: null,
   created_at: '2020-01-01T00:00:00.000Z',
   checkpoint_id: null,
+  tool_results_omitted: false,
   ...over,
 });
 

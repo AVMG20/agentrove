@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from 'react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MessageRenderer } from './MessageRenderer';
+import { chatService } from '@/services/chatService';
 import type { AssistantStreamEvent } from '@/types/chat.types';
 import type { ToolEventPayload } from '@/types/tools.types';
 
@@ -34,10 +36,20 @@ vi.mock('./SegmentView', () => ({
 
 // The completed-turn work trace collapses into WorkedRollup; expose it as a
 // boundary so the trace/tail split is assertable.
-vi.mock('./WorkedRollup', () => ({
-  WorkedRollup: ({ children }: { children: ReactNode }) => (
-    <div data-testid="rollup">{children}</div>
+vi.mock('./WorkedRollup', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./WorkedRollup')>()),
+  WorkedRollup: ({ children, onExpand }: { children: ReactNode; onExpand?: () => void }) => (
+    <div data-testid="rollup">
+      <button type="button" onClick={onExpand}>
+        Worked
+      </button>
+      {children}
+    </div>
   ),
+}));
+
+vi.mock('@/services/chatService', () => ({
+  chatService: { getMessageRender: vi.fn() },
 }));
 
 const tool = (over: Partial<ToolEventPayload> & { id: string }): ToolEventPayload => ({
@@ -46,6 +58,12 @@ const tool = (over: Partial<ToolEventPayload> & { id: string }): ToolEventPayloa
   status: 'started',
   ...over,
 });
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    {children}
+  </QueryClientProvider>
+);
 
 function renderedOrder() {
   return screen.getAllByTestId('segment').map((el) => el.getAttribute('data-id'));
@@ -60,7 +78,7 @@ describe('MessageRenderer streaming wiring', () => {
       { type: 'tool_started', tool: tool({ id: 't1' }) },
       { type: 'assistant_text', text: 'outro' },
     ];
-    render(<MessageRenderer events={events} isStreaming />);
+    render(<MessageRenderer events={events} isStreaming />, { wrapper });
     expect(renderedOrder()).toEqual(['text-0', 'tool-t1', 'text-1']);
   });
 
@@ -70,7 +88,7 @@ describe('MessageRenderer streaming wiring', () => {
       { type: 'tool_started', tool: tool({ id: 't1' }) },
       { type: 'assistant_text', text: 'live tail' },
     ];
-    render(<MessageRenderer events={events} isStreaming />);
+    render(<MessageRenderer events={events} isStreaming />, { wrapper });
 
     const segments = screen.getAllByTestId('segment');
     const byId = Object.fromEntries(segments.map((el) => [el.getAttribute('data-id'), el]));
@@ -85,6 +103,7 @@ describe('MessageRenderer streaming wiring', () => {
         events={[{ type: 'assistant_thinking', thinking: 'pondering' }]}
         isStreaming
       />,
+      { wrapper },
     );
     const segment = screen.getByTestId('segment');
     expect(segment.getAttribute('data-kind')).toBe('thinking');
@@ -96,7 +115,7 @@ describe('MessageRenderer streaming wiring', () => {
       { type: 'assistant_thinking', thinking: 'done thinking' },
       { type: 'assistant_text', text: 'final answer' },
     ];
-    render(<MessageRenderer events={events} isStreaming={false} />);
+    render(<MessageRenderer events={events} isStreaming={false} />, { wrapper });
     for (const el of screen.getAllByTestId('segment')) {
       expect(el.getAttribute('data-active-thinking')).toBe('false');
       expect(el.getAttribute('data-active-text')).toBe('false');
@@ -110,7 +129,7 @@ describe('MessageRenderer streaming wiring', () => {
       { type: 'tool_completed', tool: tool({ id: 't1', status: 'completed' }) },
       { type: 'assistant_text', text: 'the answer' },
     ];
-    render(<MessageRenderer events={events} isStreaming={false} />);
+    render(<MessageRenderer events={events} isStreaming={false} />, { wrapper });
 
     const rollup = screen.getByTestId('rollup');
     const rollupIds = within(rollup)
@@ -129,8 +148,47 @@ describe('MessageRenderer streaming wiring', () => {
       { type: 'tool_started', tool: tool({ id: 't1' }) },
       { type: 'assistant_text', text: 'streaming answer' },
     ];
-    render(<MessageRenderer events={events} isStreaming />);
+    render(<MessageRenderer events={events} isStreaming />, { wrapper });
     expect(screen.queryByTestId('rollup')).toBeNull();
     expect(renderedOrder()).toEqual(['thinking-0', 'tool-t1', 'text-0']);
+  });
+
+  it('loads omitted tool results on expand and recovers from a failed load via Retry', async () => {
+    const getMessageRender = vi.mocked(chatService.getMessageRender);
+    const slim: AssistantStreamEvent[] = [
+      { type: 'tool_completed', tool: tool({ id: 't1', status: 'completed' }) },
+      { type: 'assistant_text', text: 'the answer' },
+    ];
+    const full: AssistantStreamEvent[] = [
+      { type: 'tool_completed', tool: tool({ id: 't1', status: 'completed', result: 'out' }) },
+      { type: 'assistant_text', text: 'the answer' },
+    ];
+    getMessageRender
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce({ events: full });
+    render(
+      <MessageRenderer
+        events={slim}
+        isStreaming={false}
+        omittedToolResults={{ chatId: 'c1', messageId: 'm1' }}
+      />,
+      { wrapper },
+    );
+
+    // Cards never render from the stripped events.
+    const rollup = screen.getByTestId('rollup');
+    expect(within(rollup).queryByTestId('segment')).toBeNull();
+    expect(getMessageRender).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Worked'));
+    const retry = await screen.findByText('Retry');
+    expect(screen.getByText('the answer')).toBeTruthy();
+    fireEvent.click(retry);
+
+    expect(await within(rollup).findByTestId('segment')).toBeTruthy();
+    expect(screen.queryByText('Retry')).toBeNull();
+    expect(screen.getByText('the answer')).toBeTruthy();
+    expect(getMessageRender).toHaveBeenCalledTimes(2);
+    expect(getMessageRender).toHaveBeenCalledWith('c1', 'm1');
   });
 });

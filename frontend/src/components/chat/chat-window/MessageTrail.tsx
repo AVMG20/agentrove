@@ -49,12 +49,17 @@ export const MessageTrail = memo(function MessageTrail({
     return result;
   }, [messages]);
 
+  // Previews change on every stream flush; the scroll tracking below only needs
+  // the ids, so key it on them to avoid re-measuring every turn per flush.
+  const turnIdsKey = turns.map((turn) => turn.id).join('\n');
+  const turnIds = useMemo(() => (turnIdsKey ? turnIdsKey.split('\n') : []), [turnIdsKey]);
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isCompact, setIsCompact] = useState(false);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
-    if (!scroller || turns.length === 0) return;
+    if (!scroller || turnIds.length === 0) return;
 
     // Compact by the pane's actual left gutter, not a viewport breakpoint — open
     // sidebars narrow the pane until the message column reaches the edge; the
@@ -69,11 +74,11 @@ export const MessageTrail = memo(function MessageTrail({
       // the viewport, so the tick tracks what the user is currently reading.
       const scrollerTop = scroller.getBoundingClientRect().top;
       const threshold = scroller.clientHeight * ACTIVE_VIEWPORT_FRACTION;
-      let current = turns[0].id;
-      for (const turn of turns) {
-        const el = scroller.querySelector(`[data-message-id="${CSS.escape(turn.id)}"]`);
+      let current = turnIds[0];
+      for (const id of turnIds) {
+        const el = scroller.querySelector(`[data-message-id="${CSS.escape(id)}"]`);
         if (el && el.getBoundingClientRect().top - scrollerTop <= threshold) {
-          current = turn.id;
+          current = id;
         }
       }
       setActiveId(current);
@@ -95,7 +100,7 @@ export const MessageTrail = memo(function MessageTrail({
       resizeObserver.disconnect();
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [scrollerRef, turns]);
+  }, [scrollerRef, turnIds]);
 
   const scrollToTurn = useCallback(
     (id: string) => {

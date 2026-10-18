@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/primitives/Button/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog/ConfirmDialog';
 import { formatRelativeTime, formatFullTimestamp } from '@/utils/date';
 import { useChatContext } from '@/hooks/useChatContext';
-import { useChatInputMessageContext } from '@/hooks/useChatInputMessageContext';
+import { useSetChatInputMessage } from '@/hooks/useChatInputMessageContext';
 import { useCheckpointRestore } from '@/hooks/useCheckpointRestore';
 import styles from './Message.module.scss';
 
@@ -92,6 +92,7 @@ export interface AssistantMessageProps extends SharedContentProps {
   modelId?: string;
   durationMs?: number | null;
   isLastBotMessage?: boolean;
+  toolResultsOmitted: boolean;
 }
 
 export const AssistantMessage = memo(function AssistantMessage({
@@ -105,9 +106,10 @@ export const AssistantMessage = memo(function AssistantMessage({
   modelId,
   durationMs,
   isLastBotMessage,
+  toolResultsOmitted,
 }: AssistantMessageProps) {
   const { chatId, sandboxId } = useChatContext();
-  const { setInputMessage } = useChatInputMessageContext();
+  const setInputMessage = useSetChatInputMessage();
   const onSuggestionSelect = isLastBotMessage ? setInputMessage : undefined;
   const modelMap = useModelMap();
   const [restoreOpen, setRestoreOpen] = useState(false);
@@ -131,6 +133,10 @@ export const AssistantMessage = memo(function AssistantMessage({
   // message, so tool renderers can handle per-agent rawInput shape variations
   // (e.g. Copilot's apply_patch vs. Codex's structured changes).
   const agentKind = modelId ? getAgentKindForModelId(modelId) : undefined;
+  const omittedToolResults = useMemo(
+    () => (toolResultsOmitted && chatId ? { chatId, messageId: id } : undefined),
+    [toolResultsOmitted, chatId, id],
+  );
   const hasContentText = contentText.trim().length > 0;
   const showFooter = (hasContentText || checkpointId != null) && !isStreaming;
 
@@ -146,6 +152,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           durationMs={durationMs}
           onSuggestionSelect={onSuggestionSelect}
           agentKind={agentKind}
+          omittedToolResults={omittedToolResults}
         />
       </MessageText>
 

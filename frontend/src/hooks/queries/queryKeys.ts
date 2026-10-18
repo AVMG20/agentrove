@@ -8,6 +8,7 @@ export const queryKeys = {
   chatsRecent: ['chats', 'recent'] as const,
   chat: (chatId?: string) => ['chat', chatId] as const,
   messages: (chatId?: string) => ['messages', chatId] as const,
+  messageRender: (messageId: string) => ['message-render', messageId] as const,
   contextUsage: (chatId?: string) => ['chat', chatId, 'context-usage'] as const,
   subThreads: (chatId?: string) => ['chat', chatId, 'sub-threads'] as const,
   auth: {

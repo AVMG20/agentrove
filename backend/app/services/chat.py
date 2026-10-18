@@ -765,7 +765,13 @@ class ChatService(BaseDbService[Chat]):
             return len(chat_ids)
 
     async def get_chat_messages(
-        self, chat_id: UUID, user: User, cursor: str | None = None, limit: int = 20
+        self,
+        chat_id: UUID,
+        user: User,
+        cursor: str | None = None,
+        limit: int = 20,
+        *,
+        omit_tool_results: bool = False,
     ) -> CursorPaginatedResponse[MessageSchema]:
         async with self.session_factory() as db:
             result = await db.execute(
@@ -786,7 +792,9 @@ class ChatService(BaseDbService[Chat]):
                     status_code=403,
                 )
 
-        return await self.message_service.get_chat_messages(chat_id, cursor, limit)
+        return await self.message_service.get_chat_messages(
+            chat_id, cursor, limit, omit_tool_results=omit_tool_results
+        )
 
     async def restore_checkpoint_all(
         self,

@@ -145,12 +145,16 @@ describe('StreamContentBuffer', () => {
     expect(buf.getContentText()).toBe('fromText');
   });
 
-  it('accumulates pushed assistant_text into events and content', () => {
-    const buf = new StreamContentBuffer();
+  it('merges adjacent same-type deltas and keeps boundaries between kinds', () => {
+    const buf = new StreamContentBuffer([{ type: 'assistant_thinking', thinking: 'h' }]);
+    buf.push({ type: 'assistant_thinking', thinking: 'mm' });
     buf.push({ type: 'assistant_text', text: 'a' });
     buf.push({ type: 'assistant_text', text: 'b' });
     expect(buf.getContentText()).toBe('ab');
-    expect(buf.getEvents()).toHaveLength(2);
+    expect(buf.getEvents()).toEqual([
+      { type: 'assistant_thinking', thinking: 'hmm' },
+      { type: 'assistant_text', text: 'ab' },
+    ]);
   });
 
   it('records non-text events without changing the joined text', () => {
@@ -172,7 +176,7 @@ describe('StreamContentBuffer', () => {
     buf.push({ type: 'assistant_text', text: 'a' });
     const snap = buf.snapshot();
     buf.push({ type: 'assistant_text', text: 'b' });
-    expect(snap.events).toHaveLength(1);
+    expect(snap.events).toEqual([{ type: 'assistant_text', text: 'a' }]);
   });
 
   it('serializes the events to JSON', () => {

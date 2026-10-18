@@ -20,7 +20,7 @@ from app.api.endpoints import chat as chat_endpoint
 from app.core import deps
 from app.constants import MODELS, REDIS_KEY_USER_STREAMS_LIVE
 from app.db.session import SessionLocal, engine
-from app.models.db_models.chat import Chat, Message
+from app.models.db_models.chat import Chat, Message, MessageEvent
 from app.models.db_models.enums import MessageRole, MessageStreamStatus
 from app.models.db_models.user import User
 from app.models.db_models.workspace import Workspace
@@ -352,11 +352,11 @@ async def test_send_message_streams_full_turn_and_persists_final_snapshot(
     events = assistant_item["content_render"]["events"]
     assert [e["type"] for e in events] == [
         "assistant_text",
-        "assistant_text",
         "tool_started",
         "tool_completed",
     ]
-    assert events[3]["tool"]["status"] == "completed"
+    assert events[0]["text"] == "Hello world"
+    assert events[2]["tool"]["status"] == "completed"
 
     status_response = await client.get(
         f"/api/v1/chat/chats/{chat.id}/status", headers=headers
@@ -1314,6 +1314,145 @@ async def test_reconcile_orphaned_messages_finalizes_without_flagging_chats(
     # Cleanup is bookkeeping — it must not flag the chat unread or reorder it.
     await db_session.refresh(chat)
     assert chat.updated_at == updated_at_before
+
+
+async def test_reconcile_folds_events_past_stale_checkpoint(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    create_user: UserFactory,
+    login: LoginClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Checkpoints lag the event log; recovery must keep committed output past
+    # the checkpoint across replay pages before the terminal prune drops it.
+    monkeypatch.setattr(runtime_module, "EVENT_REPLAY_PAGE_SIZE", 2)
+    headers, user, workspace = await create_authenticated_workspace(
+        db_session, create_user, login
+    )
+    chat = await create_chat_row(db_session, user, workspace)
+    orphan = Message(
+        chat_id=chat.id,
+        content_text="Hel",
+        content_render={"events": [{"type": "assistant_text", "text": "Hel"}]},
+        last_seq=3,
+        role=MessageRole.ASSISTANT,
+        model_id=TEST_MODEL_ID,
+        stream_status=MessageStreamStatus.IN_PROGRESS,
+    )
+    # The chat-scoped seq counter is already past the committed events.
+    chat.last_event_seq = 6
+    db_session.add(orphan)
+    await db_session.commit()
+    stream_id = uuid4()
+    for seq, kind, payload in [
+        (4, "assistant_text", {"text": "lo"}),
+        (5, "stream_started", {"status": "started"}),
+        (6, "assistant_text", {"text": " world"}),
+    ]:
+        db_session.add(
+            MessageEvent(
+                chat_id=chat.id,
+                message_id=orphan.id,
+                stream_id=stream_id,
+                seq=seq,
+                event_type=kind,
+                render_payload=payload,
+                audit_payload=None,
+            )
+        )
+    await db_session.commit()
+
+    await ChatStreamRuntime.reconcile_orphaned_messages(SessionLocal)
+
+    messages_response = await client.get(
+        f"/api/v1/chat/chats/{chat.id}/messages", headers=headers
+    )
+    item = next(
+        i for i in messages_response.json()["items"] if i["id"] == str(orphan.id)
+    )
+    assert item["content_text"] == "Hello world"
+    assert item["content_render"]["events"] == [
+        {"type": "assistant_text", "text": "Hello world"}
+    ]
+    assert item["last_seq"] == 6
+    events_response = await client.get(
+        f"/api/v1/chat/messages/{orphan.id}/events", headers=headers
+    )
+    assert [(e["event_type"], e["seq"]) for e in events_response.json()] == [
+        ("cancelled", 7)
+    ]
+
+
+async def test_history_omits_tool_results_only_when_requested(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    create_user: UserFactory,
+    login: LoginClient,
+) -> None:
+    headers, user, workspace = await create_authenticated_workspace(
+        db_session, create_user, login
+    )
+    chat = await create_chat_row(db_session, user, workspace)
+    tool = {"id": "t1", "name": "Read", "title": "Read file", "input": {"path": "a"}}
+    render = {
+        "events": [
+            {"type": "tool_started", "tool": {**tool, "status": "started"}},
+            {
+                "type": "tool_completed",
+                "tool": {**tool, "status": "completed", "result": "contents"},
+            },
+            {"type": "assistant_text", "text": "done"},
+        ]
+    }
+    completed, live = (
+        Message(
+            chat_id=chat.id,
+            content_text="done",
+            content_render=render,
+            role=MessageRole.ASSISTANT,
+            model_id=TEST_MODEL_ID,
+            stream_status=status,
+        )
+        for status in (MessageStreamStatus.COMPLETED, MessageStreamStatus.IN_PROGRESS)
+    )
+    db_session.add_all([completed, live])
+    await db_session.commit()
+
+    async def items(params: dict[str, str]) -> dict[str, dict[str, Any]]:
+        response = await client.get(
+            f"/api/v1/chat/chats/{chat.id}/messages", params=params, headers=headers
+        )
+        return {i["id"]: i for i in response.json()["items"]}
+
+    plain = await items({})
+    assert plain[str(completed.id)]["content_render"] == render
+    assert plain[str(completed.id)]["tool_results_omitted"] is False
+
+    slim = await items({"omit_tool_results": "true"})
+    slim_completed = slim[str(completed.id)]
+    assert slim_completed["tool_results_omitted"] is True
+    assert [e.get("tool") for e in slim_completed["content_render"]["events"]] == [
+        {**tool, "status": "started"},
+        {"id": "t1", "name": "Read", "status": "completed"},
+        None,
+    ]
+    # Live turns stay whole: their snapshot seeds the stream buffer on reconnect.
+    assert slim[str(live.id)]["content_render"] == render
+    assert slim[str(live.id)]["tool_results_omitted"] is False
+
+    render_response = await client.get(
+        f"/api/v1/chat/messages/{completed.id}/render", headers=headers
+    )
+    assert render_response.status_code == 200
+    assert render_response.json() == render
+
+    other_headers, _, _ = await create_authenticated_workspace(
+        db_session, create_user, login, email="other@example.com", username="other"
+    )
+    denied = await client.get(
+        f"/api/v1/chat/messages/{completed.id}/render", headers=other_headers
+    )
+    assert denied.status_code == 404
 
 
 async def test_cancel_chat_turn_covers_reserved_but_unstarted_turn() -> None:

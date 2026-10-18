@@ -61,6 +61,7 @@ export function createInitialMessage(
     model_id: modelId,
     duration_ms: null,
     checkpoint_id: null,
+    tool_results_omitted: false,
   };
 }
 

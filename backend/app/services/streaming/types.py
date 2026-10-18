@@ -35,6 +35,7 @@ PROMPT_SUGGESTIONS_RE = re.compile(
     r"<prompt_suggestions>\s*(.*?)\s*</prompt_suggestions>",
     re.DOTALL,
 )
+MERGEABLE_DELTA_KEYS = {"assistant_text": "text", "assistant_thinking": "thinking"}
 SENSITIVE_KEY_PARTS = (
     "token",
     "api_key",
@@ -110,11 +111,32 @@ class StreamSnapshotAccumulator:
     events: list[dict[str, Any]] = field(default_factory=list)
     text_parts: list[str] = field(default_factory=list)
 
+    @classmethod
+    def from_render(cls, events: list[dict[str, Any]]) -> StreamSnapshotAccumulator:
+        accumulator = cls(events=list(events))
+        accumulator.text_parts = [
+            event["text"]
+            for event in events
+            if event.get("type") == "assistant_text" and event.get("text")
+        ]
+        return accumulator
+
     def add_event(self, kind: str, payload: dict[str, Any]) -> None:
         if kind == "assistant_text":
             text = payload.get("text")
             if isinstance(text, str) and text:
                 self.text_parts.append(text)
+
+        # Merge token deltas into the tail so the persisted render grows per
+        # segment, not per token — it's rewritten on every checkpoint.
+        delta_key = MERGEABLE_DELTA_KEYS.get(kind)
+        last = self.events[-1] if self.events else None
+        if delta_key and last is not None and last.get("type") == kind:
+            self.events[-1] = {
+                "type": kind,
+                delta_key: last.get(delta_key, "") + payload.get(delta_key, ""),
+            }
+            return
 
         self.events.append({"type": kind, **payload})
 

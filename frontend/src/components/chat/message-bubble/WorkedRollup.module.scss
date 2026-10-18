@@ -48,3 +48,13 @@
   @include anim.fade-in;
   margin-top: var(--space-1);
 }
+
+.trace-status {
+  @include type.type-default(400);
+  color: var(--theme-text-tertiary);
+}
+
+.trace-retry {
+  text-decoration: underline;
+  color: var(--theme-text-secondary);
+}

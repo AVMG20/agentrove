@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import and_, case, delete, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import load_only, selectinload
 
 from app.models.db_models.chat import (
     Chat,
@@ -135,9 +135,10 @@ class MessageService(BaseDbService[Message]):
         stream_status: MessageStreamStatus | None = None,
         total_cost_usd: float | None = None,
         record_activity: bool = True,
-    ) -> Message | None:
+    ) -> int | None:
         # Periodic snapshot write so reconnecting clients can hydrate without
-        # replaying every event. Returns None if the row was soft-deleted mid-stream.
+        # replaying every event. Returns duration_ms — None until the terminal
+        # snapshot records it, or if the row was deleted mid-stream.
         async with self.session_factory() as db:
             now = datetime.now(timezone.utc)
             values: dict[str, Any] = {
@@ -168,9 +169,14 @@ class MessageService(BaseDbService[Message]):
             if total_cost_usd is not None:
                 values["total_cost_usd"] = total_cost_usd
 
-            stmt = update(Message).where(Message.id == message_id).values(**values)
-            result = await db.execute(stmt)
-            if int(getattr(result, "rowcount", 0)) == 0:
+            result = await db.execute(
+                update(Message)
+                .where(Message.id == message_id)
+                .values(**values)
+                .returning(Message.duration_ms)
+            )
+            row = result.one_or_none()
+            if row is None:
                 return None
 
             # Terminal snapshot supersedes the event log: history renders from
@@ -186,11 +192,7 @@ class MessageService(BaseDbService[Message]):
                 )
 
             await db.commit()
-
-            query = select(Message).filter(Message.id == message_id)
-            refreshed = await db.execute(query)
-            message = refreshed.scalar_one_or_none()
-            return cast(Message | None, message)
+            return cast(int | None, row.duration_ms)
 
     async def append_event_with_next_seq(
         self,
@@ -299,7 +301,12 @@ class MessageService(BaseDbService[Message]):
             return end_seq
 
     async def get_chat_messages(
-        self, chat_id: UUID, cursor: str | None = None, limit: int = 20
+        self,
+        chat_id: UUID,
+        cursor: str | None = None,
+        limit: int = 20,
+        *,
+        omit_tool_results: bool = False,
     ) -> CursorPaginatedResponse[MessageSchema]:
         # (created_at, id) tiebreak matters — user + empty-assistant pairs
         # created in the same tick share a timestamp.
@@ -339,7 +346,14 @@ class MessageService(BaseDbService[Message]):
             items = []
             for message, checkpoint_id in rows[:limit]:
                 message.checkpoint_id = checkpoint_id
-                items.append(message)
+                item = MessageSchema.model_validate(message)
+                if (
+                    omit_tool_results
+                    and message.role == MessageRole.ASSISTANT
+                    and message.stream_status != MessageStreamStatus.IN_PROGRESS
+                ):
+                    item = self._omit_tool_results(item)
+                items.append(item)
 
             next_cursor = None
             if has_more and items:
@@ -352,10 +366,60 @@ class MessageService(BaseDbService[Message]):
                 has_more=has_more,
             )
 
+    @staticmethod
+    def _omit_tool_results(item: MessageSchema) -> MessageSchema:
+        # Tool results dominate history size and render only inside the expanded
+        # trace, so they're fetched per message on demand. Live turns keep them:
+        # their snapshot seeds the stream buffer on reconnect.
+        events = item.content_render.get("events", [])
+        if not any("result" in (event.get("tool") or {}) for event in events):
+            return item
+        folded: dict[str, dict[str, Any]] = {}
+        compacted = []
+        for event in events:
+            tool = event.get("tool")
+            if not tool:
+                compacted.append(event)
+                continue
+            seen = folded.setdefault(tool.get("id"), {})
+            slim = {}
+            for key, value in tool.items():
+                if key == "result":
+                    continue
+                # The client fold keeps the prior input/title when a later
+                # event omits them, so repeats of the folded value are dropped.
+                if key in ("input", "title"):
+                    if value and seen.get(key) == value:
+                        continue
+                    if value:
+                        seen[key] = value
+                slim[key] = value
+            compacted.append({**event, "tool": slim})
+        return cast(
+            MessageSchema,
+            item.model_copy(
+                update={
+                    "content_render": {**item.content_render, "events": compacted},
+                    "tool_results_omitted": True,
+                }
+            ),
+        )
+
     async def get_latest_assistant_message(self, chat_id: UUID) -> Message | None:
+        # Callers only read stream metadata; skip the multi-MB render blob.
         async with self.session_factory() as db:
             query = (
                 select(Message)
+                .options(
+                    load_only(
+                        Message.id,
+                        Message.model_id,
+                        Message.stream_status,
+                        Message.active_stream_id,
+                        Message.last_seq,
+                        raiseload=True,
+                    )
+                )
                 .filter(
                     Message.chat_id == chat_id,
                     Message.role == MessageRole.ASSISTANT,
