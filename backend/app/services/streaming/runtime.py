@@ -72,6 +72,9 @@ SNAPSHOT_EVENT_KINDS = frozenset(
     }
 )
 
+SNAPSHOT_CHECKPOINT_INTERVAL_SECONDS = 2.0
+EVENT_REPLAY_PAGE_SIZE = 500
+
 
 class ChatStreamRuntime:
     # Single-process state: turn gating and reconcile assume the one uvicorn
@@ -122,6 +125,7 @@ class ChatStreamRuntime:
         self.last_seq: int = 0
         self.pending_since_flush: int = 0
         self.last_flush_at: float = time.monotonic()
+        self.last_checkpoint_at: float = self.last_flush_at
         self.message_service = MessageService(session_factory=session_factory)
         self._event_buffer: list[tuple[str, dict[str, Any], dict[str, Any] | None]] = []
 
@@ -243,7 +247,7 @@ class ChatStreamRuntime:
                     await self._emit_context_usage(stream_result)
                 else:
                     await self.emit_event(kind, payload)
-                    await self._flush_snapshot(force=False)
+                    await self._flush_snapshot()
         except asyncio.CancelledError:
             if not (self._cancel_event and self._cancel_event.is_set()):
                 raise
@@ -389,18 +393,21 @@ class ChatStreamRuntime:
                     exc,
                 )
 
-    async def _flush_snapshot(self, *, force: bool) -> None:
-        # Debounce DB writes (max every 200ms or 24 events) for SSE catch-up freshness.
-        if not self.assistant_message_id:
+    async def _flush_snapshot(self) -> None:
+        # Events publish every 200ms or 24 events. The full-render checkpoint is
+        # rarer: catch-up replays message_events past its last_seq, and
+        # finalize_dead_stream folds those in before pruning.
+        if not self.assistant_message_id or self.pending_since_flush == 0:
             return
-        if not force:
-            elapsed_ms = (time.monotonic() - self.last_flush_at) * 1000
-            if self.pending_since_flush == 0:
-                return
-            if elapsed_ms < 200 and self.pending_since_flush < 24:
-                return
+        now = time.monotonic()
+        if (now - self.last_flush_at) * 1000 < 200 and self.pending_since_flush < 24:
+            return
 
         await self._flush_event_buffer()
+        self.pending_since_flush = 0
+        self.last_flush_at = now
+        if now - self.last_checkpoint_at < SNAPSHOT_CHECKPOINT_INTERVAL_SECONDS:
+            return
         await self.message_service.update_message_snapshot(
             UUID(self.assistant_message_id),
             content_text=self.snapshot.content_text,
@@ -408,8 +415,7 @@ class ChatStreamRuntime:
             last_seq=self.last_seq,
             active_stream_id=self.stream_id,
         )
-        self.pending_since_flush = 0
-        self.last_flush_at = time.monotonic()
+        self.last_checkpoint_at = now
 
     async def _save_final_snapshot(
         self,
@@ -420,7 +426,7 @@ class ChatStreamRuntime:
         if not self.assistant_message_id:
             return None
         await self._flush_event_buffer()
-        message = await self.message_service.update_message_snapshot(
+        return await self.message_service.update_message_snapshot(
             UUID(self.assistant_message_id),
             content_text=self.snapshot.content_text,
             content_render=self.snapshot.to_render(),
@@ -429,7 +435,6 @@ class ChatStreamRuntime:
             stream_status=stream_status,
             total_cost_usd=stream_result.total_cost_usd,
         )
-        return message.duration_ms if message else None
 
     async def _complete_stream(
         self,
@@ -1128,21 +1133,22 @@ class ChatStreamRuntime:
             message = await message_service.get_message(message_uuid)
             if not message or message.stream_status != MessageStreamStatus.IN_PROGRESS:
                 return
-            content_text = message.content_text
-            content_render = message.content_render
+            snapshot, last_seq = await ChatStreamRuntime._replay_past_checkpoint(
+                message_service, message
+            )
+            content_text = snapshot.content_text
+            content_render = snapshot.to_render()
             if error_message is not None:
-                render_events = list(content_render.get("events", []))
-                render_events.append(
+                content_render["events"].append(
                     StreamSnapshotAccumulator.error_event(error_message)
                 )
-                content_render = {**content_render, "events": render_events}
                 if not content_text:
                     content_text = error_message
-            updated = await message_service.update_message_snapshot(
+            duration_ms = await message_service.update_message_snapshot(
                 message_uuid,
                 content_text=content_text,
                 content_render=content_render,
-                last_seq=message.last_seq,
+                last_seq=last_seq,
                 active_stream_id=None,
                 stream_status=stream_status,
                 record_activity=record_activity,
@@ -1154,7 +1160,7 @@ class ChatStreamRuntime:
                 message_id=message_uuid,
                 stream_id=message.active_stream_id or uuid4(),
                 stream_status=stream_status,
-                duration_ms=updated.duration_ms if updated else None,
+                duration_ms=duration_ms,
                 user_id=user_id,
                 error_message=error_message,
                 record_activity=record_activity,
@@ -1165,6 +1171,27 @@ class ChatStreamRuntime:
                 assistant_message_id,
                 stream_status.value,
             )
+
+    @staticmethod
+    async def _replay_past_checkpoint(
+        message_service: MessageService, message: Message
+    ) -> tuple[StreamSnapshotAccumulator, int]:
+        # Checkpoints lag the event log; fold committed events past the
+        # checkpoint into the render before the terminal update prunes them.
+        snapshot = StreamSnapshotAccumulator.from_render(
+            message.content_render.get("events", [])
+        )
+        last_seq = message.last_seq
+        while True:
+            page = await message_service.get_message_events_after_seq(
+                message.id, last_seq, limit=EVENT_REPLAY_PAGE_SIZE
+            )
+            for event in page:
+                if event.event_type in SNAPSHOT_EVENT_KINDS:
+                    snapshot.add_event(event.event_type, event.render_payload)
+                last_seq = event.seq
+            if len(page) < EVENT_REPLAY_PAGE_SIZE:
+                return snapshot, last_seq
 
     @staticmethod
     async def _emit_terminal_for_dead_stream(

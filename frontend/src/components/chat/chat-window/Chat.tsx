@@ -245,6 +245,7 @@ export const Chat = memo(function Chat() {
               modelId={msg.model_id ?? undefined}
               durationMs={msg.duration_ms}
               checkpointId={msg.checkpoint_id}
+              toolResultsOmitted={msg.tool_results_omitted}
               // Idle-gated so prompt suggestions unmount in the send commit itself —
               // unmounting when the placeholder lands shifts the anchored turn late.
               isLastBotMessage={

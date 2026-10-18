@@ -1,5 +1,8 @@
 import { type ReactNode, useMemo } from 'react';
-import { ChatInputMessageContext } from './ChatInputMessageContextDefinition';
+import {
+  ChatInputMessageContext,
+  SetChatInputMessageContext,
+} from './ChatInputMessageContextDefinition';
 
 interface ChatInputMessageProviderProps {
   inputMessage: string;
@@ -14,6 +17,8 @@ export function ChatInputMessageProvider({
 }: ChatInputMessageProviderProps) {
   const value = useMemo(() => ({ inputMessage, setInputMessage }), [inputMessage, setInputMessage]);
   return (
-    <ChatInputMessageContext.Provider value={value}>{children}</ChatInputMessageContext.Provider>
+    <SetChatInputMessageContext.Provider value={setInputMessage}>
+      <ChatInputMessageContext.Provider value={value}>{children}</ChatInputMessageContext.Provider>
+    </SetChatInputMessageContext.Provider>
   );
 }

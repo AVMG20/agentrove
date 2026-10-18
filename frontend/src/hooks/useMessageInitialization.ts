@@ -66,6 +66,7 @@ export function useMessageInitialization({
         model_id: msg.model_id,
         duration_ms: msg.duration_ms,
         checkpoint_id: msg.checkpoint_id,
+        tool_results_omitted: msg.tool_results_omitted,
       };
     });
 

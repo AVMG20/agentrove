@@ -117,6 +117,7 @@ export function useStreamReconnect({
             duration_ms: null,
             attachments: [],
             checkpoint_id: null,
+            tool_results_omitted: false,
           };
           addMessageToCache(placeholderMessage);
           setMessages((prev) => [...prev, placeholderMessage]);

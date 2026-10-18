@@ -60,6 +60,8 @@ class Message(MessageBase):
     duration_ms: int | None = None
     attachments: list[MessageAttachment] = Field(default_factory=list)
     checkpoint_id: UUID | None = None
+    # History omits completed turns' tool results; the full render is fetched on demand.
+    tool_results_omitted: bool = False
 
 
 class ChatBase(BaseModel):

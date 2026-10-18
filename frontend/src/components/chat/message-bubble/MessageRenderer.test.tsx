@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MessageRenderer } from './MessageRenderer';
 import type { AssistantStreamEvent } from '@/types/chat.types';
 import type { ToolEventPayload } from '@/types/tools.types';
@@ -47,6 +48,10 @@ const tool = (over: Partial<ToolEventPayload> & { id: string }): ToolEventPayloa
   ...over,
 });
 
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+);
+
 function renderedOrder() {
   return screen.getAllByTestId('segment').map((el) => el.getAttribute('data-id'));
 }
@@ -60,7 +65,7 @@ describe('MessageRenderer streaming wiring', () => {
       { type: 'tool_started', tool: tool({ id: 't1' }) },
       { type: 'assistant_text', text: 'outro' },
     ];
-    render(<MessageRenderer events={events} isStreaming />);
+    render(<MessageRenderer events={events} isStreaming />, { wrapper });
     expect(renderedOrder()).toEqual(['text-0', 'tool-t1', 'text-1']);
   });
 
@@ -70,7 +75,7 @@ describe('MessageRenderer streaming wiring', () => {
       { type: 'tool_started', tool: tool({ id: 't1' }) },
       { type: 'assistant_text', text: 'live tail' },
     ];
-    render(<MessageRenderer events={events} isStreaming />);
+    render(<MessageRenderer events={events} isStreaming />, { wrapper });
 
     const segments = screen.getAllByTestId('segment');
     const byId = Object.fromEntries(segments.map((el) => [el.getAttribute('data-id'), el]));
@@ -85,6 +90,7 @@ describe('MessageRenderer streaming wiring', () => {
         events={[{ type: 'assistant_thinking', thinking: 'pondering' }]}
         isStreaming
       />,
+      { wrapper },
     );
     const segment = screen.getByTestId('segment');
     expect(segment.getAttribute('data-kind')).toBe('thinking');
@@ -96,7 +102,7 @@ describe('MessageRenderer streaming wiring', () => {
       { type: 'assistant_thinking', thinking: 'done thinking' },
       { type: 'assistant_text', text: 'final answer' },
     ];
-    render(<MessageRenderer events={events} isStreaming={false} />);
+    render(<MessageRenderer events={events} isStreaming={false} />, { wrapper });
     for (const el of screen.getAllByTestId('segment')) {
       expect(el.getAttribute('data-active-thinking')).toBe('false');
       expect(el.getAttribute('data-active-text')).toBe('false');
@@ -110,7 +116,7 @@ describe('MessageRenderer streaming wiring', () => {
       { type: 'tool_completed', tool: tool({ id: 't1', status: 'completed' }) },
       { type: 'assistant_text', text: 'the answer' },
     ];
-    render(<MessageRenderer events={events} isStreaming={false} />);
+    render(<MessageRenderer events={events} isStreaming={false} />, { wrapper });
 
     const rollup = screen.getByTestId('rollup');
     const rollupIds = within(rollup)
@@ -129,7 +135,7 @@ describe('MessageRenderer streaming wiring', () => {
       { type: 'tool_started', tool: tool({ id: 't1' }) },
       { type: 'assistant_text', text: 'streaming answer' },
     ];
-    render(<MessageRenderer events={events} isStreaming />);
+    render(<MessageRenderer events={events} isStreaming />, { wrapper });
     expect(screen.queryByTestId('rollup')).toBeNull();
     expect(renderedOrder()).toEqual(['thinking-0', 'tool-t1', 'text-0']);
   });

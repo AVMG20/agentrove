@@ -123,7 +123,19 @@ export const useInfiniteMessagesQuery = (chatId: string | undefined, limit: numb
     getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
     initialPageParam: undefined as string | undefined,
     enabled: !!chatId,
-    gcTime: 1000 * 60 * 1,
+    // Pages are small once tool results are omitted, so switching back to a
+    // recent chat can skip the download.
+    gcTime: 1000 * 60 * 10,
+  });
+};
+
+// Completed messages are immutable, so the full render never goes stale.
+export const useMessageRenderQuery = (chatId: string, messageId: string, enabled: boolean) => {
+  return useQuery({
+    queryKey: queryKeys.messageRender(messageId),
+    queryFn: () => chatService.getMessageRender(chatId, messageId),
+    enabled,
+    staleTime: Infinity,
   });
 };
 

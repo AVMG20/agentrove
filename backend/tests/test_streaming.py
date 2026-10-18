@@ -352,11 +352,11 @@ async def test_send_message_streams_full_turn_and_persists_final_snapshot(
     events = assistant_item["content_render"]["events"]
     assert [e["type"] for e in events] == [
         "assistant_text",
-        "assistant_text",
         "tool_started",
         "tool_completed",
     ]
-    assert events[3]["tool"]["status"] == "completed"
+    assert events[0]["text"] == "Hello world"
+    assert events[2]["tool"]["status"] == "completed"
 
     status_response = await client.get(
         f"/api/v1/chat/chats/{chat.id}/status", headers=headers

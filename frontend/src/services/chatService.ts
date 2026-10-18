@@ -10,6 +10,7 @@ import type {
   ChatStatusResponse,
   CreateChatRequest,
   ContextUsage,
+  Message,
 } from '@/types/chat.types';
 import type { ActiveStreamSnapshot } from '@/types/stream.types';
 import type { GitCommitResult } from '@/types/sandbox.types';
@@ -126,7 +127,8 @@ async function getMessages(
   validateId(chatId, 'Chat ID');
 
   return serviceCall(async () => {
-    const params: Record<string, string | number> = {};
+    // Tool results load on demand via getMessageRender when a trace expands.
+    const params: Record<string, string | number | boolean> = { omit_tool_results: true };
     if (pagination?.cursor) params.cursor = pagination.cursor;
     if (pagination?.limit) params.limit = pagination.limit;
 
@@ -135,6 +137,20 @@ async function getMessages(
 
     const response = await resolveChatClient(chatId).get<PaginatedMessages>(endpoint);
     return ensureResponse(response, 'Failed to fetch messages');
+  });
+}
+
+async function getMessageRender(
+  chatId: string,
+  messageId: string,
+): Promise<Message['content_render']> {
+  validateId(messageId, 'Message ID');
+
+  return serviceCall(async () => {
+    const response = await resolveChatClient(chatId).get<Message['content_render']>(
+      `/chat/messages/${messageId}/render`,
+    );
+    return ensureResponse(response, 'Failed to fetch message');
   });
 }
 
@@ -378,6 +394,7 @@ export const chatService = {
   getActiveStreams,
   stopStream,
   getMessages,
+  getMessageRender,
   listChats,
   searchChats,
   getChat,

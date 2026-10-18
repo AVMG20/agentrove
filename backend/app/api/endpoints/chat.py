@@ -481,11 +481,17 @@ async def delete_chat(
 async def get_chat_messages(
     chat_id: UUID,
     pagination: CursorPaginationParams = Depends(),
+    # Opt-in: only clients that fetch /render on demand can handle omitted results.
+    omit_tool_results: bool = False,
     current_user: User = Depends(get_current_user),
     chat_service: ChatService = Depends(get_chat_service),
 ) -> CursorPaginatedResponse[MessageSchema]:
     return await chat_service.get_chat_messages(
-        chat_id, current_user, pagination.cursor, pagination.limit
+        chat_id,
+        current_user,
+        pagination.cursor,
+        pagination.limit,
+        omit_tool_results=omit_tool_results,
     )
 
 
@@ -553,6 +559,25 @@ async def get_message_events(
     return await chat_service.message_service.get_message_events_after_seq(
         message_id, after_seq, limit=5000
     )
+
+
+@router.get("/messages/{message_id}/render", response_model=dict[str, Any])
+async def get_message_render(
+    message_id: UUID,
+    current_user: User = Depends(get_current_user),
+    chat_service: ChatService = Depends(get_chat_service),
+) -> dict[str, Any]:
+    message = await chat_service.message_service.get_message(message_id)
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    try:
+        await chat_service.get_chat(message.chat_id, current_user)
+    except ChatException:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chat not found or access denied",
+        )
+    return message.content_render
 
 
 @router.post(
