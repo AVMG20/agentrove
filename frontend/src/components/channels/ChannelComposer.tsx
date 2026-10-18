@@ -63,6 +63,8 @@ export function ChannelComposer({ channel, isBusy, onSend }: ChannelComposerProp
       // Queued messages are sent once every member is idle, without interrupting anyone.
       if (isBusy) {
         await useChannelQueueStore.getState().queueMessage(channel.id, content, sentFiles);
+        // The send event can beat the enqueue response and miss the temp id.
+        void useChannelQueueStore.getState().fetchQueue(channel.id);
       } else {
         await postMessage.mutateAsync({ channelId: channel.id, content, files: sentFiles });
       }
