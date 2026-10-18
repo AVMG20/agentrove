@@ -178,6 +178,11 @@ class AcpSession:
             return "injected"
         if outcome == "promptRequired":
             return "promptRequired"
+        if outcome == "startedNewTurn":
+            # codex-acp ignores idleBehavior and starts a turn nobody streams;
+            # cancel it so the caller's normal prompt path owns the message.
+            await self.cancel()
+            return "promptRequired"
         raise AgentException(f"Unexpected ACP steering outcome: {outcome!r}")
 
     @classmethod
@@ -554,7 +559,7 @@ class AcpSession:
             stderr_task=stderr_task,
             exit_watch_task=exit_watch_task,
             supports_steering=(
-                config.agent_kind == AgentKind.CLAUDE
+                config.agent_kind in (AgentKind.CLAUDE, AgentKind.CODEX)
                 and isinstance(
                     steering := (initialize_response.field_meta or {}).get("steering"),
                     dict,
