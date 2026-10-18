@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from 'react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MessageRenderer } from './MessageRenderer';
+import { chatService } from '@/services/chatService';
 import type { AssistantStreamEvent } from '@/types/chat.types';
 import type { ToolEventPayload } from '@/types/tools.types';
 
@@ -35,10 +36,20 @@ vi.mock('./SegmentView', () => ({
 
 // The completed-turn work trace collapses into WorkedRollup; expose it as a
 // boundary so the trace/tail split is assertable.
-vi.mock('./WorkedRollup', () => ({
-  WorkedRollup: ({ children }: { children: ReactNode }) => (
-    <div data-testid="rollup">{children}</div>
+vi.mock('./WorkedRollup', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./WorkedRollup')>()),
+  WorkedRollup: ({ children, onExpand }: { children: ReactNode; onExpand?: () => void }) => (
+    <div data-testid="rollup">
+      <button type="button" onClick={onExpand}>
+        Worked
+      </button>
+      {children}
+    </div>
   ),
+}));
+
+vi.mock('@/services/chatService', () => ({
+  chatService: { getMessageRender: vi.fn() },
 }));
 
 const tool = (over: Partial<ToolEventPayload> & { id: string }): ToolEventPayload => ({
@@ -49,7 +60,9 @@ const tool = (over: Partial<ToolEventPayload> & { id: string }): ToolEventPayloa
 });
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    {children}
+  </QueryClientProvider>
 );
 
 function renderedOrder() {
@@ -138,5 +151,44 @@ describe('MessageRenderer streaming wiring', () => {
     render(<MessageRenderer events={events} isStreaming />, { wrapper });
     expect(screen.queryByTestId('rollup')).toBeNull();
     expect(renderedOrder()).toEqual(['thinking-0', 'tool-t1', 'text-0']);
+  });
+
+  it('loads omitted tool results on expand and recovers from a failed load via Retry', async () => {
+    const getMessageRender = vi.mocked(chatService.getMessageRender);
+    const slim: AssistantStreamEvent[] = [
+      { type: 'tool_completed', tool: tool({ id: 't1', status: 'completed' }) },
+      { type: 'assistant_text', text: 'the answer' },
+    ];
+    const full: AssistantStreamEvent[] = [
+      { type: 'tool_completed', tool: tool({ id: 't1', status: 'completed', result: 'out' }) },
+      { type: 'assistant_text', text: 'the answer' },
+    ];
+    getMessageRender
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce({ events: full });
+    render(
+      <MessageRenderer
+        events={slim}
+        isStreaming={false}
+        omittedToolResults={{ chatId: 'c1', messageId: 'm1' }}
+      />,
+      { wrapper },
+    );
+
+    // Cards never render from the stripped events.
+    const rollup = screen.getByTestId('rollup');
+    expect(within(rollup).queryByTestId('segment')).toBeNull();
+    expect(getMessageRender).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Worked'));
+    const retry = await screen.findByText('Retry');
+    expect(screen.getByText('the answer')).toBeTruthy();
+    fireEvent.click(retry);
+
+    expect(await within(rollup).findByTestId('segment')).toBeTruthy();
+    expect(screen.queryByText('Retry')).toBeNull();
+    expect(screen.getByText('the answer')).toBeTruthy();
+    expect(getMessageRender).toHaveBeenCalledTimes(2);
+    expect(getMessageRender).toHaveBeenCalledWith('c1', 'm1');
   });
 });
