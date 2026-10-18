@@ -1339,6 +1339,8 @@ async def test_reconcile_folds_events_past_stale_checkpoint(
         model_id=TEST_MODEL_ID,
         stream_status=MessageStreamStatus.IN_PROGRESS,
     )
+    # The chat-scoped seq counter is already past the committed events.
+    chat.last_event_seq = 6
     db_session.add(orphan)
     await db_session.commit()
     stream_id = uuid4()
@@ -1376,7 +1378,9 @@ async def test_reconcile_folds_events_past_stale_checkpoint(
     events_response = await client.get(
         f"/api/v1/chat/messages/{orphan.id}/events", headers=headers
     )
-    assert [e["event_type"] for e in events_response.json()] == ["cancelled"]
+    assert [(e["event_type"], e["seq"]) for e in events_response.json()] == [
+        ("cancelled", 7)
+    ]
 
 
 async def test_history_omits_tool_results_only_when_requested(
