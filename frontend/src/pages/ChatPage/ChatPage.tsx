@@ -146,6 +146,14 @@ export function ChatPage() {
     useChatStore.getState().setCurrentChat(currentChat || null);
   }, [currentChat]);
 
+  // Channel member chats are only shown through their channel.
+  const channelId = currentChat?.channel_id;
+  useEffect(() => {
+    if (!channelId || !chatId) return;
+    useUIStore.getState().closeChatTab(chatId);
+    navigate(`/channels/${channelId}`, { replace: true });
+  }, [channelId, chatId, navigate]);
+
   if (prevChatIdForResetRef.current !== chatId) {
     prevChatIdForResetRef.current = chatId;
     const ui = useUIStore.getState();
@@ -220,8 +228,7 @@ export function ChatPage() {
   );
 
   if (!chatId) return <Navigate to="/" />;
-  if (currentChat?.channel_id)
-    return <Navigate to={`/channels/${currentChat.channel_id}`} replace />;
+  if (channelId) return null;
 
   return (
     <ChatProvider
