@@ -641,7 +641,9 @@ class ChannelService(BaseDbService[Channel]):
                 if item is None:
                     return
                 try:
-                    await self.send(state, item["content"], item["attachments"] or [])
+                    message = await self.new_message(
+                        state, item["content"], attachments=item["attachments"] or []
+                    )
                 except Exception:
                     await queue.requeue_message(channel_id, item)
                     logger.warning(
@@ -657,6 +659,8 @@ class ChannelService(BaseDbService[Channel]):
         except CacheError:
             logger.warning("Failed to read queued messages for channel %s", channel_id)
             return
+        await self.publish_message(state.channel, message)
+        self.fan_out(state)
         await self.publish(state.channel, "channel_queue_sent", {"id": item["id"]})
 
     async def dispatch_queued(self, channel: Channel) -> None:
