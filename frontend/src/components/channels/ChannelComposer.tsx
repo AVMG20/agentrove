@@ -56,8 +56,10 @@ export function ChannelComposer({ channel, isBusy, onSend }: ChannelComposerProp
     if (!canSend || postMessage.isPending || isEnhancing) return;
     const content = formatComposerSelections(selections, text);
     const sentFiles = files;
+    const sentSelections = selections;
     setDraft('');
     setFiles([]);
+    useUIStore.getState().clearComposerSelections(channel.anchor_chat_id);
     onSend();
     try {
       // Queued messages are sent once every member is idle, without interrupting anyone.
@@ -68,10 +70,12 @@ export function ChannelComposer({ channel, isBusy, onSend }: ChannelComposerProp
       } else {
         await postMessage.mutateAsync({ channelId: channel.id, content, files: sentFiles });
       }
-      useUIStore.getState().clearComposerSelections(channel.anchor_chat_id);
     } catch (error) {
       setDraft((current) => (current ? `${text}\n${current}` : text));
       setFiles((current) => [...sentFiles, ...current]);
+      sentSelections.forEach((selection) =>
+        useUIStore.getState().addComposerSelection(channel.anchor_chat_id, selection),
+      );
       toast.error(error instanceof Error ? error.message : 'Failed to send message');
     }
   };

@@ -56,6 +56,7 @@ from app.utils.attachment_urls import AttachmentURL
 
 logger = logging.getLogger(__name__)
 DEBOUNCE_SECONDS = 2.5
+QUEUE_RETRY_SECONDS = 5
 ACTIVITY_EPOCH = uuid4().hex
 
 INTRODUCTION = (
@@ -643,7 +644,16 @@ class ChannelService(BaseDbService[Channel]):
                     await self.send(state, item["content"], item["attachments"] or [])
                 except Exception:
                     await queue.requeue_message(channel_id, item)
-                    raise
+                    logger.warning(
+                        "Failed to send queued message for channel %s",
+                        channel_id,
+                        exc_info=True,
+                    )
+                    # The channel is idle, so nothing else would wake it to retry.
+                    self.schedule(
+                        state, asyncio.get_running_loop().time() + QUEUE_RETRY_SECONDS
+                    )
+                    return
         except CacheError:
             logger.warning("Failed to read queued messages for channel %s", channel_id)
             return
