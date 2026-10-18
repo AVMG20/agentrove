@@ -33,3 +33,7 @@
   @include type.type-default;
   color: var(--theme-text-tertiary);
 }
+
+.steering-segment {
+  margin: var(--space-3) 0;
+}

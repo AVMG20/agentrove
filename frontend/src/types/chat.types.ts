@@ -45,6 +45,12 @@ export type AssistantStreamEvent =
   | { type: 'tool_completed'; tool: ToolEventPayload }
   | { type: 'tool_failed'; tool: ToolEventPayload }
   | { type: 'user_text'; text: string }
+  | {
+      type: 'user_steering';
+      queued_message_id: string;
+      text: string;
+      attachments: MessageAttachment[];
+    }
   | { type: 'plan'; data?: { entries?: PlanEntry[] } }
   | {
       type: 'system';

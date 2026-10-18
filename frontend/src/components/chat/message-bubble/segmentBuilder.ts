@@ -1,4 +1,4 @@
-import type { AssistantStreamEvent, PlanEntry } from '@/types/chat.types';
+import type { AssistantStreamEvent, MessageAttachment, PlanEntry } from '@/types/chat.types';
 import type { ToolAggregate, ToolEventStatus } from '@/types/tools.types';
 import { PROMPT_SUGGESTIONS_RE } from '@/utils/stream';
 
@@ -8,6 +8,13 @@ export interface TextSegment {
   kind: 'text';
   id: string;
   text: string;
+}
+
+export interface SteeringSegment {
+  kind: 'steering';
+  id: string;
+  text: string;
+  attachments: MessageAttachment[];
 }
 
 export interface ThinkingSegment {
@@ -36,6 +43,7 @@ export interface PlanSegment {
 
 export type MessageSegment =
   | TextSegment
+  | SteeringSegment
   | ThinkingSegment
   | ToolSegment
   | SuggestionsSegment
@@ -65,6 +73,9 @@ export const segmentsEqual = (a: MessageSegment, b: MessageSegment): boolean => 
   // Lets MessageRenderer hand unchanged segments the same object identity across
   // flushes so memoized SegmentViews bail out instead of re-rendering.
   if (a.id !== b.id) return false;
+  if (a.kind === 'steering' && b.kind === 'steering') {
+    return a.text === b.text && a.attachments === b.attachments;
+  }
   if (a.kind === 'text' && b.kind === 'text') return a.text === b.text;
   if (a.kind === 'thinking' && b.kind === 'thinking') return a.text === b.text;
   if (a.kind === 'tool' && b.kind === 'tool') return toolsEqual(a.tool, b.tool);
@@ -385,6 +396,16 @@ export const buildSegments = (events: AssistantStreamEvent[]): MessageSegment[] 
 
   events.forEach((event) => {
     switch (event.type) {
+      case 'user_steering':
+        flushText();
+        flushThinking();
+        segments.push({
+          kind: 'steering',
+          id: `steering-${event.queued_message_id}`,
+          text: event.text,
+          attachments: event.attachments,
+        });
+        break;
       case 'assistant_text':
         flushThinking();
         pendingText += event.text;

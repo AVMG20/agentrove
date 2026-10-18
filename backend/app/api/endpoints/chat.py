@@ -801,6 +801,8 @@ async def send_now_queued_message(
             detail="Queued message not found",
         )
 
+    if await ChatStreamRuntime.steer_send_now(str(chat_id)):
+        return
     if ChatStreamRuntime.has_active_chat(
         str(chat_id)
     ) or ChatStreamRuntime.has_pending_start(str(chat_id)):

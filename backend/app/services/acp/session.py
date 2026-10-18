@@ -8,7 +8,7 @@ import shlex
 import signal
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from acp.client.connection import ClientSideConnection
 from acp.schema import (
@@ -115,6 +115,7 @@ class AcpSession:
         agent_kind: AgentKind = AgentKind.CLAUDE,
         stderr_task: asyncio.Task[None] | None = None,
         exit_watch_task: asyncio.Task[None] | None = None,
+        supports_steering: bool = False,
     ) -> None:
         self._handler = handler
         self._conn = conn
@@ -123,6 +124,7 @@ class AcpSession:
         self._agent_kind = agent_kind
         self._stderr_task = stderr_task
         self._exit_watch_task = exit_watch_task
+        self.supports_steering = supports_steering
 
     @property
     def handler(self) -> AcpClientHandler:
@@ -139,19 +141,7 @@ class AcpSession:
     ) -> None:
         self._handler.prepare_for_prompt()
 
-        prompt_blocks: list[
-            TextContentBlock | ImageContentBlock | EmbeddedResourceContentBlock
-        ] = [
-            TextContentBlock(type="text", text=content),
-        ]
-        if attachments:
-            attachment_note = self._build_attachment_note(attachments, agent_kind)
-            if attachment_note:
-                prompt_blocks.append(
-                    TextContentBlock(type="text", text=attachment_note)
-                )
-            prompt_blocks.extend(self._build_attachment_blocks(attachments, agent_kind))
-
+        prompt_blocks = self._build_prompt_blocks(content, attachments, agent_kind)
         try:
             await self._conn.prompt(
                 prompt=prompt_blocks,
@@ -163,6 +153,58 @@ class AcpSession:
             raise
         finally:
             self._handler.finish(prompt_completed=prompt_completed)
+
+    async def steer_prompt(
+        self,
+        content: str,
+        attachments: list[dict[str, Any]] | None = None,
+    ) -> Literal["injected", "promptRequired"]:
+        prompt_blocks = self._build_prompt_blocks(
+            content, attachments, self._agent_kind
+        )
+        result = await self._conn.ext_method(
+            "session/steering",
+            {
+                "sessionId": self.acp_session_id,
+                "prompt": [
+                    block.model_dump(by_alias=True, exclude_none=True)
+                    for block in prompt_blocks
+                ],
+                "_meta": {"steering": {"idleBehavior": "promptRequired"}},
+            },
+        )
+        outcome = result.get("outcome")
+        if outcome == "injected":
+            return "injected"
+        if outcome == "promptRequired":
+            return "promptRequired"
+        if outcome == "startedNewTurn":
+            # codex-acp ignores idleBehavior and starts a turn nobody streams;
+            # cancel it so the caller's normal prompt path owns the message.
+            await self.cancel()
+            return "promptRequired"
+        raise AgentException(f"Unexpected ACP steering outcome: {outcome!r}")
+
+    @classmethod
+    def _build_prompt_blocks(
+        cls,
+        content: str,
+        attachments: list[dict[str, Any]] | None,
+        agent_kind: AgentKind,
+    ) -> list[TextContentBlock | ImageContentBlock | EmbeddedResourceContentBlock]:
+        prompt_blocks: list[
+            TextContentBlock | ImageContentBlock | EmbeddedResourceContentBlock
+        ] = [
+            TextContentBlock(type="text", text=content),
+        ]
+        if attachments:
+            attachment_note = cls._build_attachment_note(attachments, agent_kind)
+            if attachment_note:
+                prompt_blocks.append(
+                    TextContentBlock(type="text", text=attachment_note)
+                )
+            prompt_blocks.extend(cls._build_attachment_blocks(attachments, agent_kind))
+        return prompt_blocks
 
     @staticmethod
     def _build_attachment_note(
@@ -391,7 +433,7 @@ class AcpSession:
         )
 
         try:
-            await conn.initialize(
+            initialize_response = await conn.initialize(
                 protocol_version=ACP_PROTOCOL_VERSION,
                 client_capabilities=ClientCapabilities(
                     elicitation=ElicitationCapabilities(
@@ -516,6 +558,14 @@ class AcpSession:
             agent_kind=config.agent_kind,
             stderr_task=stderr_task,
             exit_watch_task=exit_watch_task,
+            supports_steering=(
+                config.agent_kind in (AgentKind.CLAUDE, AgentKind.CODEX)
+                and isinstance(
+                    steering := (initialize_response.field_meta or {}).get("steering"),
+                    dict,
+                )
+                and steering.get("supported") is True
+            ),
         )
 
     @staticmethod

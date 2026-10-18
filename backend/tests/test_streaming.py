@@ -3,7 +3,7 @@ import json
 import time
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
@@ -52,6 +52,8 @@ pytestmark = pytest.mark.anyio
 # Sentinel script step: makes the fake ACP session block forever on this
 # prompt (until the runtime cancels it), simulating a long-running turn.
 BLOCK_FOREVER = object()
+# Sentinel script step: blocks the prompt until steer_prompt() injects.
+WAIT_FOR_STEER = object()
 
 
 class ConnectionCounter:
@@ -85,10 +87,15 @@ class FakeAcpSession:
         usage: dict[str, int] | None = None,
         total_cost_usd: float = 0.0,
         session_id: str = "acp-session-1",
+        steer_outcome: Literal["injected", "promptRequired"] | None = None,
     ) -> None:
         self.handler: AcpClientHandler | None = None
         self.configs: list[AcpSessionConfig] = []
         self.acp_session_id = session_id
+        self.supports_steering = steer_outcome is not None
+        self._steer_outcome = steer_outcome
+        self._steered = asyncio.Event()
+        self.steer_calls: list[str] = []
         self._scripts = scripts
         self._call_index = 0
         self.usage = usage
@@ -121,6 +128,8 @@ class FakeAcpSession:
                     await self._run_permission_step(step)
                 elif step is BLOCK_FOREVER:
                     await asyncio.Event().wait()
+                elif step is WAIT_FOR_STEER:
+                    await self._steered.wait()
                 elif isinstance(step, BaseException):
                     raise step
                 else:
@@ -146,6 +155,15 @@ class FakeAcpSession:
         option_id = getattr(outcome, "option_id", "")
         for event in step.on_response.get(option_id, []):
             self.handler.event_queue.put_nowait(event)
+
+    async def steer_prompt(
+        self, content: str, attachments: list[dict[str, Any]] | None = None
+    ) -> Literal["injected", "promptRequired"]:
+        assert self._steer_outcome is not None
+        self.steer_calls.append(content)
+        if self._steer_outcome == "injected":
+            self._steered.set()
+        return self._steer_outcome
 
     async def cancel(self) -> None:
         self.cancel_calls += 1
@@ -187,12 +205,14 @@ def streaming_runtime_state_reset() -> Iterator[None]:
     # reservation, lock, or session left by one test can't leak into the next.
     ChatStreamRuntime._background_task_chat_ids.clear()
     ChatStreamRuntime._starting_chat_ids.clear()
+    ChatStreamRuntime._active_runtimes.clear()
     QueueService._locks.clear()
     session_registry._sessions.clear()
     session_registry._pending_cancels.clear()
     yield
     ChatStreamRuntime._background_task_chat_ids.clear()
     ChatStreamRuntime._starting_chat_ids.clear()
+    ChatStreamRuntime._active_runtimes.clear()
     QueueService._locks.clear()
     session_registry._sessions.clear()
     session_registry._pending_cancels.clear()
@@ -277,6 +297,17 @@ async def wait_for_message_event_type(
                 return event
         await asyncio.sleep(0.01)
     raise AssertionError(f"event type {event_type!r} not observed for {message_id}")
+
+
+async def wait_for_steerable_runtime(chat_id: UUID, *, timeout: float = 2.0) -> None:
+    # stream_started precedes steering registration; send-now must land after it.
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        runtime = ChatStreamRuntime._active_runtimes.get(str(chat_id))
+        if runtime is not None and runtime._accepts_steering:
+            return
+        await asyncio.sleep(0.01)
+    raise AssertionError(f"runtime for chat {chat_id} never accepted steering")
 
 
 async def send_message(
@@ -740,7 +771,9 @@ async def test_queued_message_is_processed_automatically_after_stream_completes(
     assert first_events[0]["render_payload"]["content"] == "Follow-up prompt"
 
 
+@pytest.mark.parametrize("steer_outcome", [None, "promptRequired"])
 async def test_send_now_cancels_active_generation_and_starts_queued_message(
+    steer_outcome: Literal["promptRequired"] | None,
     client: AsyncClient,
     db_session: AsyncSession,
     create_user: UserFactory,
@@ -755,9 +788,12 @@ async def test_send_now_cancels_active_generation_and_starts_queued_message(
 
     first_script = [StreamEvent(type="assistant_text", text="Working"), BLOCK_FOREVER]
     second_script = [StreamEvent(type="assistant_text", text="Send-now turn done")]
-    acp_factory.queue(
-        FakeAcpSession([first_script, second_script], session_id="resumed-7")
+    acp_session = FakeAcpSession(
+        [first_script, second_script],
+        session_id="resumed-7",
+        steer_outcome=steer_outcome,
     )
+    acp_factory.queue(acp_session)
 
     queue_response = await client.post(
         f"/api/v1/chat/chats/{chat.id}/queue",
@@ -769,9 +805,7 @@ async def test_send_now_cancels_active_generation_and_starts_queued_message(
 
     first_result = await send_message(client, headers, chat, prompt="First prompt")
     first_message_id = first_result["message_id"]
-    await wait_for_message_event_type(
-        client, headers, first_message_id, "stream_started"
-    )
+    await wait_for_steerable_runtime(chat.id)
 
     send_now_response = await client.post(
         f"/api/v1/chat/chats/{chat.id}/queue/{queued_id}/send-now", headers=headers
@@ -796,6 +830,72 @@ async def test_send_now_cancels_active_generation_and_starts_queued_message(
     )
     assert second_assistant["content_text"] == "Send-now turn done"
     assert second_assistant["stream_status"] == MessageStreamStatus.COMPLETED.value
+    assert "Urgent follow-up" in acp_session.prompt_calls[-1]
+    assert len(acp_session.steer_calls) == (1 if steer_outcome else 0)
+
+    queue_list_response = await client.get(
+        f"/api/v1/chat/chats/{chat.id}/queue", headers=headers
+    )
+    assert queue_list_response.json() == []
+
+
+async def test_send_now_steers_active_turn_inline(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    create_user: UserFactory,
+    login: LoginClient,
+    acp_factory: FakeAcpSessionFactory,
+    streaming_cache: EndpointCache,
+) -> None:
+    headers, user, workspace = await create_authenticated_workspace(
+        db_session, create_user, login
+    )
+    chat = await create_chat_row(db_session, user, workspace, session_id="resumed-9")
+
+    script = [
+        StreamEvent(type="assistant_text", text="Working"),
+        WAIT_FOR_STEER,
+        StreamEvent(type="assistant_text", text="Steered reply"),
+    ]
+    acp_session = FakeAcpSession(
+        [script], session_id="resumed-9", steer_outcome="injected"
+    )
+    acp_factory.queue(acp_session)
+
+    queue_response = await client.post(
+        f"/api/v1/chat/chats/{chat.id}/queue",
+        data={"content": "Change course", "model_id": TEST_MODEL_ID},
+        headers=headers,
+    )
+    queued_id = queue_response.json()["id"]
+
+    await send_message(client, headers, chat, prompt="First prompt")
+    await wait_for_steerable_runtime(chat.id)
+
+    send_now_response = await client.post(
+        f"/api/v1/chat/chats/{chat.id}/queue/{queued_id}/send-now", headers=headers
+    )
+    assert send_now_response.status_code == 204
+
+    await run_background_task(chat.id)
+
+    assert acp_session.cancel_calls == 0
+    assert len(acp_session.prompt_calls) == 1
+    assert "Change course" in acp_session.steer_calls[0]
+
+    messages_response = await client.get(
+        f"/api/v1/chat/chats/{chat.id}/messages", headers=headers
+    )
+    items = messages_response.json()["items"]
+    assert len(items) == 2
+    assistant = next(item for item in items if item["role"] == "assistant")
+    assert assistant["stream_status"] == MessageStreamStatus.COMPLETED.value
+    events = assistant["content_render"]["events"]
+    assert [(e["type"], e.get("text")) for e in events] == [
+        ("assistant_text", "Working"),
+        ("user_steering", "Change course"),
+        ("assistant_text", "Steered reply"),
+    ]
 
     queue_list_response = await client.get(
         f"/api/v1/chat/chats/{chat.id}/queue", headers=headers

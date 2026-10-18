@@ -36,10 +36,11 @@ export const MessageRenderer = memo(function MessageRenderer({
 }: MessageRendererProps) {
   const prevSegmentsRef = React.useRef<Map<string, MessageSegment>>(new Map());
   const [fullRenderRequested, setFullRenderRequested] = React.useState(false);
+  const hasSteering = initialEvents.some((event) => event.type === 'user_steering');
   const fullRender = useMessageRenderQuery(
     omittedToolResults?.chatId ?? '',
     omittedToolResults?.messageId ?? '',
-    omittedToolResults !== undefined && fullRenderRequested,
+    omittedToolResults !== undefined && (fullRenderRequested || hasSteering),
   );
   const events = fullRender.data?.events ?? initialEvents;
   const awaitingFullRender = omittedToolResults !== undefined && !fullRender.data;
@@ -90,7 +91,7 @@ export const MessageRenderer = memo(function MessageRenderer({
 
   // Completed turns: collapsible work trace ends at last tool/thinking/plan; streaming stays flat.
   const { traceSegments, tailSegments } = React.useMemo(() => {
-    if (isStreaming) return { traceSegments: [], tailSegments: segments };
+    if (isStreaming || hasSteering) return { traceSegments: [], tailSegments: segments };
     let traceEnd = -1;
     for (let i = segments.length - 1; i >= 0; i--) {
       const kind = segments[i].kind;
@@ -104,7 +105,7 @@ export const MessageRenderer = memo(function MessageRenderer({
       traceSegments: segments.slice(0, traceEnd + 1),
       tailSegments: segments.slice(traceEnd + 1),
     };
-  }, [segments, isStreaming]);
+  }, [segments, isStreaming, hasSteering]);
   // If a turn is cut off before an answer, the trace is the only visible content —
   // unless its tool results were omitted, where showing it would mean fetching
   // the full render on chat open.
@@ -145,6 +146,9 @@ export const MessageRenderer = memo(function MessageRenderer({
   return (
     <AgentToolsContext value={agentTools}>
       <div className={className}>
+        {hasSteering && awaitingFullRender && (
+          <TraceLoadState failed={fullRender.isError} onRetry={() => void fullRender.refetch()} />
+        )}
         {rollUpTrace ? (
           <WorkedRollup durationMs={durationMs} onExpand={requestFullRender}>
             {traceNodes}
