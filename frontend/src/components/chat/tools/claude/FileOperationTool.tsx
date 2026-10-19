@@ -5,6 +5,8 @@ import { FileSearch, FileEdit as FileEditIcon, FilePlus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ToolAggregate } from '@/types/tools.types';
 import type { ToolComponent } from '@/types/ui.types';
+import type { MessageAttachment } from '@/types/chat.types';
+import { AttachmentViewer } from '@/components/ui/attachment-viewer/AttachmentViewer';
 import { ToolCard } from '../common/ToolCard/ToolCard';
 import { NumberedContent } from '../common/NumberedContent/NumberedContent';
 import { OpenInEditorButton } from '../common/OpenInEditorButton/OpenInEditorButton';
@@ -57,6 +59,26 @@ const normalizeContent = (result: unknown): string => {
   if (Array.isArray(result)) return result.join('\n');
   if (result === null || result === undefined) return '';
   return JSON.stringify(result, null, 2);
+};
+
+interface ImageBlock {
+  type: 'image';
+  source: { type: 'base64'; media_type: string; data: string };
+}
+
+const isImageBlock = (block: unknown): block is ImageBlock =>
+  typeof block === 'object' && block !== null && (block as ImageBlock).type === 'image';
+
+const toImageAttachments = (tool: ToolAggregate, filePath: string): MessageAttachment[] => {
+  if (!Array.isArray(tool.result)) return [];
+  return tool.result.filter(isImageBlock).map((block, idx) => ({
+    id: `${tool.id}-${idx}`,
+    file_url: `data:${block.source.media_type};base64,${block.source.data}`,
+    file_type: 'image',
+    filename: filePath.split('/').pop() || 'image',
+    message_id: '',
+    created_at: '',
+  }));
 };
 
 interface DiffLine {
@@ -134,6 +156,8 @@ const FileOperationTool = memo(function FileOperationTool({
     if (variant === 'read') {
       const content = normalizeContent(tool.result);
       if (!content || tool.status !== 'completed') return null;
+      const images = toImageAttachments(tool, filePath);
+      if (images.length > 0) return <AttachmentViewer attachments={images} />;
       return <NumberedContent content={content} prefixPattern={CLAUDE_READ_LINE_PREFIX} />;
     }
 
