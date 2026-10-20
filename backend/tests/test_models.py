@@ -36,6 +36,7 @@ async def test_list_models_returns_registered_models(
         "name": MODELS["haiku"].display_name,
         "agent_kind": MODELS["haiku"].agent_kind.value,
         "context_window": MODELS["haiku"].context_window,
+        "legacy": False,
         # Haiku has no effort dial in claude-agent-acp (supportsEffort false).
         "thinking_modes": [],
     } in body
@@ -233,6 +234,44 @@ async def test_list_models_rejects_invalid_agent_kind(
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid agent_kind: invalid"
+
+
+async def test_minimax_catalog_keeps_saved_models_and_lists_flash_first(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = await client.get("/api/v1/models/", headers=auth_headers)
+    assert response.status_code == 200
+    models = response.json()
+    minimax = [model for model in models if "minimax" in model["model_id"]]
+    active = [model for model in minimax if not model["legacy"]]
+    assert [model["model_id"] for model in active] == [
+        "opencode:opencode/minimax-m3.1-flash-free",
+        "opencode:opencode/minimax-m3",
+        "opencode:opencode-go/minimax-m3.1-flash-free",
+        "opencode:opencode-go/minimax-m3",
+        "opencode:openrouter/minimax/minimax-m3.1-flash:free",
+        "opencode:openrouter/minimax/minimax-m3",
+    ]
+    assert [model["context_window"] for model in active] == [
+        1_000_000,
+        512_000,
+        1_000_000,
+        1_000_000,
+        1_000_000,
+        1_048_576,
+    ]
+    assert all(model["thinking_modes"] == [] for model in minimax)
+    assert all(not model["legacy"] for model in models if model not in minimax)
+    assert len([model for model in minimax if model["legacy"]]) == 13
+    # The complete registry continues to validate explicit saved title models.
+    from app.models.schemas.settings import UserSettingsBase
+
+    for model in minimax:
+        assert (
+            UserSettingsBase(title_model_id=model["model_id"]).title_model_id
+            == model["model_id"]
+        )
 
 
 async def test_models_reject_missing_token(client: AsyncClient) -> None:

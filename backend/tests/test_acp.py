@@ -497,6 +497,61 @@ async def test_enhance_prompt_round_trips_through_real_acp_session(
 
 
 @pytest.mark.parametrize(
+    "model_id",
+    [
+        "opencode:opencode/minimax-m3.1-flash-free",
+        "opencode:opencode-go/minimax-m3.1-flash-free",
+        "opencode:openrouter/minimax/minimax-m3.1-flash:free",
+        "opencode:opencode/minimax-m3",
+        "opencode:opencode-go/minimax-m3",
+        "opencode:openrouter/minimax/minimax-m3",
+        "opencode:opencode/minimax-m2.5",
+        "opencode:opencode-go/minimax-m2.7",
+        "opencode:amazon-bedrock/minimax.minimax-m2.1",
+        "opencode:openrouter/minimax/minimax-m1",
+    ],
+)
+async def test_minimax_model_reaches_real_acp_transport_unchanged(
+    client: httpx.AsyncClient,
+    auth_workspace: tuple[dict[str, str], Workspace],
+    fake_agent: FakeAgentHandle,
+    acp_cache: EndpointCache,
+    model_id: str,
+) -> None:
+    headers, workspace = auth_workspace
+    chat = await create_chat(client, headers, workspace, model_id=model_id)
+    response = await send_message(
+        client,
+        headers,
+        chat_id=chat["id"],
+        model_id=model_id,
+        prompt="Keep this prompt unchanged",
+        permission_mode="build",
+        thinking_mode="high",
+    )
+    assert response.status_code == 200, response.text
+    message = await wait_for_message(
+        client, headers, chat_id=chat["id"], message_id=response.json()["message_id"]
+    )
+    assert message["stream_status"] == "completed"
+    assert message["model_id"] == model_id
+    # The fake subprocess receives deserialized JSON-RPC from the real ACP SDK.
+    model_calls = [
+        event
+        for event in fake_agent.events_of("set_config_option")
+        if event["config_id"] == "model"
+    ]
+    assert any(
+        event["value"] == model_id.removeprefix("opencode:") for event in model_calls
+    )
+    assert not any(
+        event["config_id"] == "reasoning_effort"
+        for event in fake_agent.events_of("set_config_option")
+    )
+    assert "Keep this prompt unchanged" in fake_agent.main_turn_prompts()[-1]["text"]
+
+
+@pytest.mark.parametrize(
     "model_id,thinking_mode,expected_effort",
     [
         ("copilot:gpt-5.4", "max", "xhigh"),

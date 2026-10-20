@@ -479,6 +479,9 @@ MODELS: dict[str, ModelInfo] = {
     "opencode:opencode/mimo-v2.6-flash-free": ModelInfo(
         "MiMo-V2.6-Flash Free (OpenCode)", AgentKind.OPENCODE, 200_000
     ),
+    "opencode:opencode/minimax-m3.1-flash-free": ModelInfo(
+        "MiniMax M3.1 Flash Free (OpenCode)", AgentKind.OPENCODE, 1_000_000
+    ),
     "opencode:opencode/minimax-m2.5": ModelInfo(
         "MiniMax-M2.5 (OpenCode)", AgentKind.OPENCODE, 204_800
     ),
@@ -589,6 +592,9 @@ MODELS: dict[str, ModelInfo] = {
     ),
     "opencode:opencode-go/mimo-v2.6-pro": ModelInfo(
         "MiMo-V2.6-Pro (Opencode Go)", AgentKind.OPENCODE, 1_048_576
+    ),
+    "opencode:opencode-go/minimax-m3.1-flash-free": ModelInfo(
+        "MiniMax M3.1 Flash Free (Opencode Go)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode-go/minimax-m2.7": ModelInfo(
         "MiniMax-M2.7 (Opencode Go)", AgentKind.OPENCODE, 204_800
@@ -2090,6 +2096,9 @@ MODELS: dict[str, ModelInfo] = {
     "opencode:openrouter/microsoft/wizardlm-2-8x22b": ModelInfo(
         "WizardLM-2 8x22B (Openrouter)", AgentKind.OPENCODE, 65_535
     ),
+    "opencode:openrouter/minimax/minimax-m3.1-flash:free": ModelInfo(
+        "MiniMax M3.1 Flash Free (Openrouter)", AgentKind.OPENCODE, 1_000_000
+    ),
     "opencode:openrouter/minimax/minimax-01": ModelInfo(
         "MiniMax-01 (Openrouter)", AgentKind.OPENCODE, 1_000_192
     ),
@@ -2972,6 +2981,26 @@ MODELS: dict[str, ModelInfo] = {
         "GLM-5.3 Highspeed (Zai Coding Plan)", AgentKind.OPENCODE, 1_000_000
     ),
 }
+
+# Keep these IDs in MODELS for saved chats, automations and explicit requests.
+# Only ordinary picker choices retire them; custom model IDs are not classified.
+LEGACY_MODEL_IDS: frozenset[str] = frozenset(
+    {
+        "opencode:opencode/minimax-m2.5",
+        "opencode:opencode/minimax-m2.7",
+        "opencode:opencode-go/minimax-m2.7",
+        "opencode:amazon-bedrock/minimax.minimax-m2",
+        "opencode:amazon-bedrock/minimax.minimax-m2.1",
+        "opencode:amazon-bedrock/minimax.minimax-m2.5",
+        "opencode:openrouter/minimax/minimax-01",
+        "opencode:openrouter/minimax/minimax-m1",
+        "opencode:openrouter/minimax/minimax-m2",
+        "opencode:openrouter/minimax/minimax-m2-her",
+        "opencode:openrouter/minimax/minimax-m2.1",
+        "opencode:openrouter/minimax/minimax-m2.5",
+        "opencode:openrouter/minimax/minimax-m2.7",
+    }
+)
 
 # Built-in slash commands per agent kind for the frontend. Claude/Codex lists
 # are filtered ACP-exposed subsets (not full CLI/TUI chrome); skills are runtime.

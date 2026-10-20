@@ -54,8 +54,8 @@ export const useModelSelection = (options?: {
     const fallback =
       initialModelId && candidates.some((m) => m.model_id === initialModelId)
         ? initialModelId
-        : candidates[0].model_id;
-    useModelStore.getState().selectModel(chatId, fallback);
+        : candidates.find((m) => !m.legacy)?.model_id;
+    if (fallback) useModelStore.getState().selectModel(chatId, fallback);
   }, [candidates, storedIsValid, chatId, initialModelId]);
 
   const selectedModel = useMemo(

@@ -8,5 +8,7 @@ class AIModelResponse(BaseModel):
     name: str
     agent_kind: AgentKind
     context_window: int | None = None
+    # Available to saved selections, but hidden from ordinary model choices.
+    legacy: bool = False
     # Effort tiers low→high; empty means no dial (thinking_mode ignored).
     thinking_modes: list[str] = []
