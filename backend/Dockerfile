@@ -27,6 +27,16 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN . /etc/os-release && \
+    curl -fsSL "https://pkgs.tailscale.com/stable/debian/${VERSION_CODENAME}.noarmor.gpg" \
+    -o /usr/share/keyrings/tailscale-archive-keyring.gpg && \
+    curl -fsSL "https://pkgs.tailscale.com/stable/debian/${VERSION_CODENAME}.tailscale-keyring.list" \
+    -o /etc/apt/sources.list.d/tailscale.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends tailscale && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN npm install -g @anthropic-ai/claude-code@2.1.303 @agentclientprotocol/claude-agent-acp@0.93.0 @agentclientprotocol/codex-acp@2.2.2 @openai/codex@0.163.0 @github/copilot@1.0.98
 
 # Cursor CLI — used for the Cursor ACP server (`cursor-agent acp`). Pinned

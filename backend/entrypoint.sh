@@ -30,10 +30,30 @@ ensure_docker_network() {
     fi
 }
 
+start_tailscale() {
+    if [ -z "${TS_AUTHKEY:-}" ]; then
+        return
+    fi
+
+    # Userspace mode needs no NET_ADMIN; state on the storage volume keeps the
+    # node identity across redeploys.
+    STATE_DIR=/data/agentrove/storage/tailscale
+    mkdir -p "$STATE_DIR"
+    tailscaled --tun=userspace-networking --statedir="$STATE_DIR" >/var/log/tailscaled.log 2>&1 &
+    for _ in $(seq 30); do
+        [ -S /var/run/tailscale/tailscaled.sock ] && break
+        sleep 1
+    done
+    tailscale up --authkey="$TS_AUTHKEY" --hostname=agentrove --operator=appuser --timeout=30s \
+        && tailscale serve --bg 3000 \
+        || echo "Tailscale failed to start; see /var/log/tailscaled.log"
+}
+
 echo "Running database migrations..."
 cd /app && python migrate.py || exit 1
 
 ensure_docker_network
+start_tailscale
 
 echo "Starting API server..."
 if [ -S /var/run/docker.sock ]; then
