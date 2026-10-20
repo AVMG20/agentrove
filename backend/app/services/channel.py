@@ -461,7 +461,9 @@ class ChannelService(BaseDbService[Channel]):
         }
         mentioned: set[str] = set()
         for match in MENTION.finditer(text):
-            name = match[1].lower().rstrip(".,:;!?")
+            name = match[1].lower()
+            while name not in ids and name[-1:] in (".", ",", ":", ";", "!", "?"):
+                name = name[:-1]
             member_id = ids.get(name)
             if member_id is None and name in BROADCAST_MENTIONS:
                 return None
