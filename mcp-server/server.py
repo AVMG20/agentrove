@@ -297,6 +297,27 @@ async def send_message(
 
 
 @mcp.tool()
+async def render_ui(title: str, html: str) -> dict[str, Any]:
+    """Render an interactive UI widget (calculator, form, chart, simulation, ...) in the chat.
+
+    `html` is a self-contained HTML fragment with inline <style> and <script> only. It
+    runs in an isolated sandbox: no network, CDNs, fetch, cookies, localStorage, or
+    parent-document access; images and fonts must be data: or blob: URLs. The host
+    styles plain button/input/select elements and provides the CSS variables
+    --color-text-primary, --color-background-secondary, --color-border-tertiary,
+    --font-sans and --border-radius-md. Keep calculations, filters and other local
+    interactions inside the widget. On an explicit user action, call
+    window.agentrove.sendMessage(text) to put text in the user's composer — it is not
+    sent until the user presses Send, so never call it on load. Form submit handlers
+    must call preventDefault(); form actions are blocked. Do not implement the MCP Apps
+    handshake yourself; the host supplies it. The widget is rendered from this call's
+    arguments once the call completes (it does not stream), so the result carries
+    nothing to act on. Returns {"rendered": true, "title": title}.
+    """
+    return {"rendered": True, "title": title}
+
+
+@mcp.tool()
 async def stop_chat(chat_id: str) -> dict[str, Any]:
     """Stop the in-progress agent turn in a chat, e.g. a sub-thread started with send_message.
 

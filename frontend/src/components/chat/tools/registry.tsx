@@ -119,6 +119,8 @@ const webSearchLoader: ToolModuleLoader = () =>
   import('./claude/WebSearch').then((m) => ({ default: m.WebSearch }));
 const agentRoveLoader: ToolModuleLoader = () =>
   import('./agentrove/AgentRoveTool').then((m) => ({ default: m.AgentRoveTool }));
+const renderUiLoader: ToolModuleLoader = () =>
+  import('./agentrove/RenderUiTool').then((m) => ({ default: m.RenderUiTool }));
 
 const lazyToolComponents = new Map<string, ToolComponent>();
 
@@ -131,6 +133,10 @@ const getOrCreateLazy = (key: string, loader: ToolModuleLoader) => {
 };
 
 export const getToolComponent = (toolName: string, agentKind?: AgentKind): ToolComponent => {
+  if (toolName === 'mcp__agentrove__render_ui') {
+    return getOrCreateLazy(toolName, renderUiLoader);
+  }
+
   // Same ACP kind names across agents, different rawInput/rawOutput — prefer agent-specific loaders.
   if (agentKind === 'antigravity') {
     const loader = antigravityToolLoaders[toolName] ?? mcpLoader;

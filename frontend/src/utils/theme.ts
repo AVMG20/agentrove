@@ -115,7 +115,7 @@ const toTokens = (def: PaletteDef): PaletteTokens => ({
   textTertiary: def.textTertiary,
 });
 
-// Hex tokens for Monaco/xterm/VisualWidget (they can't read CSS vars).
+// Hex tokens for Monaco/xterm/sandboxed frames (they can't read CSS vars).
 export const CUSTOM_PALETTE_TOKENS = Object.fromEntries(
   CUSTOM_PALETTE_KEYS.map((p) => [p, toTokens(PALETTES[p])]),
 ) as Record<CustomPalette, PaletteTokens>;

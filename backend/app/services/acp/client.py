@@ -220,7 +220,7 @@ class AcpClientHandler:
         # Emit permission_request and block until the user responds via SSE.
         request_id = tool_call.tool_call_id
         tool_name = self._extract_tool_name(tool_call)
-        tool_input = self._extract_raw_input(tool_call.raw_input)
+        tool_input = self._extract_tool_input(tool_call)
 
         option_dicts = []
         for opt in options:
@@ -541,7 +541,7 @@ class AcpClientHandler:
             title=tc.title,
             status=ToolStatus.STARTED.value,
             parent_id=self._extract_parent_tool_id(tc),
-            input=self._extract_raw_input(tc.raw_input),
+            input=self._extract_tool_input(tc),
         )
         # Codex attaches edit diffs as content blocks on the initial tool_call
         # (and re-sent tool_call updates), while its terminal tool_call_update
@@ -611,7 +611,7 @@ class AcpClientHandler:
             existing["title"] = tc.title
             changed = True
         if tc.raw_input is not None:
-            parsed_input = self._extract_raw_input(tc.raw_input)
+            parsed_input = self._extract_tool_input(tc)
             if parsed_input != existing.get("input"):
                 existing["input"] = parsed_input
                 changed = True
@@ -701,6 +701,8 @@ class AcpClientHandler:
         claude_meta = meta.get("claudeCode", {})
         if tool_name := claude_meta.get("toolName"):
             return str(tool_name)
+        if mcp_call := self._extract_mcp_call(tc):
+            return mcp_call[0]
         if self.agent_kind == AgentKind.OPENCODE:
             if title := getattr(tc, "title", None):
                 return str(title)
@@ -711,6 +713,43 @@ class AcpClientHandler:
         if kind:
             return str(kind)
         return str(getattr(tc, "title", None) or "unknown")
+
+    def _extract_mcp_call(self, tc: Any) -> tuple[str, dict[str, Any]] | None:
+        # Codex and Grok wrap MCP tool calls in their own envelopes; unwrap them
+        # to Claude's `mcp__<server>__<tool>` name and bare arguments so the
+        # frontend's MCP renderers (agentrove tools, render_ui) apply to every
+        # agent. Codex: title "mcp.<server>.<tool>" with raw_input
+        # {server, tool, arguments}. Grok: a `use_tool` call with raw_input
+        # {tool_name: "<server>__<tool>", tool_input}.
+        raw_input = self._extract_raw_input(getattr(tc, "raw_input", None))
+        if not raw_input:
+            return None
+        meta = getattr(tc, "field_meta", None) or {}
+        if self.agent_kind == AgentKind.CODEX and meta.get("is_mcp_tool_call"):
+            server, tool = raw_input.get("server"), raw_input.get("tool")
+            if isinstance(server, str) and isinstance(tool, str):
+                arguments = raw_input.get("arguments")
+                return (
+                    f"mcp__{server}__{tool}",
+                    arguments if isinstance(arguments, dict) else {},
+                )
+        if (
+            self.agent_kind == AgentKind.GROK
+            and meta.get("x.ai/tool", {}).get("name") == "use_tool"
+        ):
+            tool_name = raw_input.get("tool_name")
+            if isinstance(tool_name, str) and "__" in tool_name:
+                tool_input = raw_input.get("tool_input")
+                return (
+                    f"mcp__{tool_name}",
+                    tool_input if isinstance(tool_input, dict) else {},
+                )
+        return None
+
+    def _extract_tool_input(self, tc: Any) -> dict[str, Any] | None:
+        if mcp_call := self._extract_mcp_call(tc):
+            return mcp_call[1]
+        return self._extract_raw_input(getattr(tc, "raw_input", None))
 
     @staticmethod
     def _extract_raw_input(raw_input: Any) -> dict[str, Any] | None:
