@@ -3,7 +3,6 @@ import clsx from 'clsx';
 import { CheckCircle2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/primitives/Button/Button';
 import { Tooltip } from '@/components/ui/Tooltip/Tooltip';
-import { useChatSessionActions } from '@/hooks/useChatSessionContext';
 import { useChatCopiedMessageContext } from '@/hooks/useChatCopiedMessageContext';
 import styles from './MessageActions.module.scss';
 
@@ -23,8 +22,7 @@ export const MessageActions = memo(function MessageActions({
   // Read from the dedicated context, not ChatSessionState — the session state
   // object changes on every stream flush, which would re-render every visible
   // message's action bar for the whole turn.
-  const { copiedMessageId } = useChatCopiedMessageContext();
-  const { onCopy } = useChatSessionActions();
+  const { copiedMessageId, onCopy } = useChatCopiedMessageContext();
 
   const button = (
     <Button

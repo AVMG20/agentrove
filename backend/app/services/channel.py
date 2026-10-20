@@ -26,6 +26,7 @@ from app.models.db_models.chat import Chat, ChatCheckpoint, Message
 from app.models.db_models.user import User
 from app.models.db_models.workspace import Workspace
 from app.models.schemas.channel import (
+    BROADCAST_MENTIONS,
     ChannelCreate,
     ChannelMemberActivity,
     ChannelMemberRead,
@@ -57,6 +58,7 @@ from app.utils.attachment_urls import AttachmentURL
 logger = logging.getLogger(__name__)
 DEBOUNCE_SECONDS = 2.5
 QUEUE_RETRY_SECONDS = 5
+MENTION = re.compile(r"(?:^|(?<=\s))@(\S+)")
 ACTIVITY_EPOCH = uuid4().hex
 
 INTRODUCTION = (
@@ -71,6 +73,11 @@ INTRODUCTION = (
     "Never echo or agree just to agree. When the discussion has reached a conclusion "
     "and nothing remains for you, reply `PASS`. Your reply is either exactly `PASS` "
     "or a chat message, never both. Write like Slack: short, no headers."
+)
+ROUTING_NOTE = (
+    'A line like "[author → @name]: text" is addressed only to those members; '
+    "the rest see it as context. Never `PASS` on a line addressed to you; answer it. "
+    "@mention members by name to address only them."
 )
 
 
@@ -160,7 +167,7 @@ class ChannelService(BaseDbService[Channel]):
 
     async def create(self, user: User, data: ChannelCreate) -> Channel:
         display_names: list[str] = []
-        used_names: set[str] = set()
+        used_names = set(BROADCAST_MENTIONS)
         for item in data.members:
             model = MODELS[item.model_id]
             kind = model.agent_kind
@@ -428,6 +435,9 @@ class ChannelService(BaseDbService[Channel]):
                 tool_call_count=tool_call_count,
                 content=content,
                 status="streaming" if member_id else "completed",
+                audience=None
+                if member_id
+                else self.mentions(state.channel, content) or None,
                 attachments=[
                     ChannelMessageAttachment(**attachment)
                     for attachment in attachments or []
@@ -440,6 +450,45 @@ class ChannelService(BaseDbService[Channel]):
             await db.commit()
             state.channel.updated_at = now
         return message
+
+    @staticmethod
+    def mentions(
+        channel: Channel, text: str, author_id: UUID | None = None
+    ) -> list[str] | None:
+        # None means @all/@everyone; an empty list means no member was mentioned.
+        ids = {
+            member.display_name.lower(): str(member.id) for member in channel.members
+        }
+        mentioned: set[str] = set()
+        for match in MENTION.finditer(text):
+            name = match[1].lower().rstrip(".,:;!?")
+            member_id = ids.get(name)
+            if member_id is None and name in BROADCAST_MENTIONS:
+                return None
+            if member_id is not None and member_id != str(author_id):
+                mentioned.add(member_id)
+        return sorted(mentioned)
+
+    @staticmethod
+    def addressed(message: ChannelMessage, member: ChannelMember) -> bool:
+        return message.audience is None or str(member.id) in message.audience
+
+    def reply_audience(self, state: ChannelState, turn: MemberTurn) -> list[str] | None:
+        member_id = str(turn.member.id)
+        explicit = self.mentions(state.channel, turn.text, turn.member.id)
+        if explicit is None or explicit:
+            return explicit
+        audience: set[str] = set()
+        for message in turn.batch:
+            if not self.addressed(message, turn.member):
+                continue
+            if message.audience is None:
+                return None
+            audience.update(message.audience)
+            if message.member_id is not None:
+                audience.add(str(message.member_id))
+        audience.discard(member_id)
+        return sorted(audience)
 
     @staticmethod
     def unseen(member: ChannelMember) -> Select[tuple[ChannelMessage]]:
@@ -536,9 +585,17 @@ class ChannelService(BaseDbService[Channel]):
                     if state.deleted:
                         raise HTTPException(404, "Channel not found")
                     state.paused = True
-                    state.retries.clear()
-                    turns = list(state.turns.values())
-                    await self.cancel_active(state)
+                    audience = self.mentions(channel, content) or None
+                    turns = [
+                        turn
+                        for turn in state.turns.values()
+                        if audience is None or str(turn.member.id) in audience
+                    ]
+                    if audience is None:
+                        state.retries.clear()
+                    for member_id in audience or []:
+                        state.retries.pop(UUID(member_id), None)
+                    await self.cancel_active(state, turns)
                     message = await self.send(state, content, attachments)
             finally:
                 try:
@@ -549,8 +606,7 @@ class ChannelService(BaseDbService[Channel]):
                         self.schedule(state)
             return message
 
-    async def cancel_active(self, state: ChannelState) -> list[MemberTurn]:
-        turns = list(state.turns.values())
+    async def cancel_active(self, state: ChannelState, turns: list[MemberTurn]) -> None:
         for turn in turns:
             if turn.status is not TurnStatus.FINISHED:
                 turn.status = TurnStatus.CANCELLED
@@ -558,7 +614,6 @@ class ChannelService(BaseDbService[Channel]):
             if turn.task is not None and turn.task.done():
                 state.turns.pop(turn.member.id)
         await self.publish_activity(state)
-        return turns
 
     async def cancel_turns(self, turns: list[MemberTurn]) -> None:
         await asyncio.gather(
@@ -604,7 +659,9 @@ class ChannelService(BaseDbService[Channel]):
                         state.turns.pop(member.id)
                     async with self.session_factory() as db:
                         batch = list((await db.scalars(self.unseen(member))).all())
-                        if not batch:
+                        if not any(
+                            self.addressed(message, member) for message in batch
+                        ):
                             continue
                 except Exception as exc:
                     self.backoff(state, member, exc)
@@ -705,9 +762,11 @@ class ChannelService(BaseDbService[Channel]):
     def prompt(self, state: ChannelState, turn: MemberTurn) -> str:
         names = {member.id: member.display_name for member in state.channel.members}
         lines = [
-            f"[{names[message.member_id] if message.member_id else 'user'}]: {message.content}"
+            f"[{self.label(message, names)}]: {message.content}"
             for message in turn.batch
         ]
+        if any(message.audience is not None for message in turn.batch):
+            lines.insert(0, ROUTING_NOTE)
         if not turn.member.introduced:
             others = (
                 ", ".join(
@@ -721,6 +780,14 @@ class ChannelService(BaseDbService[Channel]):
                 0, INTRODUCTION.format(name=turn.member.display_name, others=others)
             )
         return "\n".join(lines)
+
+    @staticmethod
+    def label(message: ChannelMessage, names: dict[UUID, str]) -> str:
+        author = names[message.member_id] if message.member_id else "user"
+        if message.audience is None:
+            return author
+        targets = [f"@{names[UUID(member_id)]}" for member_id in message.audience]
+        return f"{author} → {', '.join(targets) or 'user'}"
 
     async def run_turn(self, state: ChannelState, turn: MemberTurn) -> None:
         member = turn.member
@@ -882,6 +949,7 @@ class ChannelService(BaseDbService[Channel]):
                 version=message.version,
                 tool_call_count=message.tool_call_count,
                 duration_ms=message.duration_ms,
+                audience=message.audience,
             )
         )
 
@@ -938,6 +1006,8 @@ class ChannelService(BaseDbService[Channel]):
                                 * 1000
                             )
                         )
+                    if successful:
+                        message.audience = self.reply_audience(state, turn)
                     await self.write_message(
                         db,
                         message,
@@ -968,7 +1038,8 @@ class ChannelService(BaseDbService[Channel]):
                 state.timer.cancel()
                 state.timer = None
             state.retries.clear()
-            turns = await self.cancel_active(state)
+            turns = list(state.turns.values())
+            await self.cancel_active(state, turns)
             async with self.session_factory() as db:
                 for member in state.channel.members:
                     batch = list((await db.scalars(self.unseen(member))).all())
@@ -1055,7 +1126,7 @@ class ChannelService(BaseDbService[Channel]):
                 state.paused = True
                 if state.timer is not None:
                     state.timer.cancel()
-                await self.cancel_active(state)
+                await self.cancel_active(state, list(state.turns.values()))
         await asyncio.gather(
             *(
                 self.cancel_turns(list(state.turns.values()))

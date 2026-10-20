@@ -44,6 +44,7 @@ import styles from './CreateChannelDialog.module.scss';
 
 const MEMBER_NAME_MAX_LENGTH = 32;
 const MEMBER_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/;
+const BROADCAST_MENTIONS = new Set(['all', 'everyone']);
 
 interface MemberDraft {
   key: string;
@@ -104,6 +105,9 @@ function resolveMemberNames(members: MemberDraft[], models: Model[]): MemberName
           name,
           error: 'Use up to 32 letters, digits, ".", "_" or "-", starting with a letter or digit',
         };
+      }
+      if (BROADCAST_MENTIONS.has(name.toLowerCase())) {
+        return { name, error: `@${name} is reserved for mentioning everyone` };
       }
       if (taken.has(name.toLowerCase())) {
         return { name, error: 'Another member already has this name' };

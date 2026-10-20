@@ -1,11 +1,15 @@
-import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import toast from 'react-hot-toast';
 import { AttachButton } from '@/components/chat/message-input/AttachButton';
 import { ComposerAttachmentSlots } from '@/components/chat/message-input/ComposerAttachmentSlots';
 import { ComposerField } from '@/components/chat/message-input/ComposerField';
 import { EnhanceButton } from '@/components/chat/message-input/EnhanceButton';
 import { SendButton, type SendButtonStatus } from '@/components/chat/message-input/SendButton';
+import { MentionSuggestionsPanel } from '@/components/chat/message-input/MentionSuggestionsPanel';
 import { Textarea } from '@/components/chat/message-input/Textarea';
+import { useChatContext } from '@/hooks/useChatContext';
+import { useInsertToken, useTokenDeleteKeyDown } from '@/hooks/useComposerTokens';
+import { useMentionSuggestions } from '@/hooks/useMentionSuggestions';
 import { useInputAttachments } from '@/hooks/useInputAttachments';
 import { useInputEnhance } from '@/hooks/useInputEnhance';
 import {
@@ -17,8 +21,10 @@ import { useChannelQueueStore } from '@/store/messageQueueStore';
 import { useUIStore, type ComposerSelection } from '@/store/uiStore';
 import { formatComposerSelections } from '@/utils/composerSelections';
 import type { Channel } from '@/types/channel.types';
+import type { Chat } from '@/types/chat.types';
 
 const NO_SELECTIONS: ComposerSelection[] = [];
+const NO_CHATS: Chat[] = [];
 
 interface ChannelComposerProps {
   channel: Channel;
@@ -39,6 +45,22 @@ export function ChannelComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const { fileStructure } = useChatContext();
+  const memberNames = useMemo(
+    () => [...channel.members.map((member) => member.display_name), 'all'],
+    [channel.members],
+  );
+  const insertTokenAt = useInsertToken(draftRef, setDraft, setCursorPosition, textareaRef);
+  const handleTokenDeleteKeyDown = useTokenDeleteKeyDown(draftRef, textareaRef);
+  const mentions = useMentionSuggestions({
+    message: draft,
+    cursorPosition,
+    fileStructure,
+    chats: NO_CHATS,
+    members: memberNames,
+    onSelect: (item, startPos, endPos) => insertTokenAt(`@${item.path}`, startPos, endPos),
+  });
 
   const postMessage = usePostChannelMessageMutation();
   const stopChannel = useStopChannelMutation();
@@ -134,20 +156,33 @@ export function ChannelComposer({
         </>
       }
       textarea={
-        <Textarea
-          ref={textareaRef}
-          message={draft}
-          setMessage={setDraft}
-          placeholder={`Message #${channel.name}`}
-          isLoading={postMessage.isPending}
-          onPaste={attachments.handlePaste}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              void handleSend();
-            }
-          }}
-        />
+        <>
+          <Textarea
+            ref={textareaRef}
+            message={draft}
+            setMessage={setDraft}
+            placeholder={`Message #${channel.name}`}
+            isLoading={postMessage.isPending}
+            onPaste={attachments.handlePaste}
+            onCursorPositionChange={setCursorPosition}
+            onKeyDown={(e) => {
+              if (mentions.handleKeyDown(e) || handleTokenDeleteKeyDown(e)) return;
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                void handleSend();
+              }
+            }}
+          />
+          {mentions.isActive && (
+            <MentionSuggestionsPanel
+              members={mentions.filteredMembers}
+              files={mentions.filteredFiles}
+              chats={mentions.filteredChats}
+              highlightedIndex={mentions.highlightedIndex}
+              onSelect={mentions.selectItem}
+            />
+          )}
+        </>
       }
       actions={
         <>

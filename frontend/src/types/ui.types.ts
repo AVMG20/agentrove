@@ -40,7 +40,7 @@ export type ResolvedTheme = 'light' | 'dark';
 // Palette = Theme without `system`; for Monaco/xterm which can't read CSS vars.
 export type Palette = Exclude<Theme, 'system'>;
 
-type MentionType = 'file' | 'chat';
+type MentionType = 'file' | 'chat' | 'member';
 
 export interface MentionItem {
   type: MentionType;

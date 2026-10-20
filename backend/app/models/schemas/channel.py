@@ -11,6 +11,8 @@ from app.models.schemas.chat import MessageAttachment
 from app.models.types import PermissionMode
 from app.utils.sandbox import BaseBranch
 
+BROADCAST_MENTIONS = {"all", "everyone"}
+
 
 class ChannelMemberCreate(BaseModel):
     model_id: str
@@ -29,6 +31,10 @@ class ChannelMemberCreate(BaseModel):
             raise ValueError(
                 "Display name must be 1–32 characters, start with a letter or digit, "
                 "and contain only letters, digits, dots, underscores, or hyphens"
+            )
+        if value.lower() in BROADCAST_MENTIONS:
+            raise ValueError(
+                f"Display name '{value}' is reserved for @{value} mentions"
             )
         return value
 
@@ -101,6 +107,7 @@ class ChannelMessageRead(BaseModel):
     content: str
     tool_call_count: int
     duration_ms: int | None
+    audience: list[UUID] | None
     attachments: list[MessageAttachment]
     status: Literal["streaming", "completed", "cancelled", "deleted"]
     created_at: datetime

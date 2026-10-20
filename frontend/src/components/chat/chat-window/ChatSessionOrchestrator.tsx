@@ -263,7 +263,6 @@ export function ChatSessionOrchestrator({
     () => ({
       onSubmit: streamingState.handleMessageSend,
       onStopStream: streamingState.handleStop,
-      onCopy: streamingState.handleCopy,
       onAttach: streamingState.setInputFiles,
       onModelChange: selectModel,
       fetchNextPage: messagesQuery.fetchNextPage,
@@ -276,7 +275,6 @@ export function ChatSessionOrchestrator({
     [
       streamingState.handleMessageSend,
       streamingState.handleStop,
-      streamingState.handleCopy,
       streamingState.setInputFiles,
       selectModel,
       messagesQuery.fetchNextPage,
@@ -290,7 +288,10 @@ export function ChatSessionOrchestrator({
 
   return (
     <ChatSessionProvider state={chatSessionState} actions={chatSessionActions}>
-      <ChatCopiedMessageProvider copiedMessageId={streamingState.copiedMessageId}>
+      <ChatCopiedMessageProvider
+        copiedMessageId={streamingState.copiedMessageId}
+        onCopy={streamingState.handleCopy}
+      >
         <ChatInputMessageProvider
           inputMessage={streamingState.inputMessage}
           setInputMessage={streamingState.setInputMessage}
