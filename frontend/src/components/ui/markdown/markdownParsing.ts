@@ -6,21 +6,11 @@ import { MENTION_PILL_CLASSNAME } from '../shared/HighlightedText/HighlightedTex
 
 export const MATH_PATTERN = /(^|[^\\])(\$\$[\s\S]*?\$\$|\\\(|\\\[)/;
 
-// Unclosed ```visualizer at stream end — partial body for live preview.
-const UNCLOSED_VISUALIZER_RE = /```visualizer\n([\s\S]*)$/;
-
-// Opening fence only (no newline after "visualizer").
-const OPENING_VISUALIZER_RE = /```visualizer$/;
-
-const CLOSED_VISUALIZER_RE = /```visualizer\n([\s\S]*?)```/g;
-
 // Safe to start a new block; indented/list/blockquote lines must stay attached.
 const SAFE_BLOCK_START_RE = /^(?![ \t]|[-*+] |\d+[.)] |>)\S/;
 // Fence marker + info string separate — closer must match opener, not any 3+ fence.
 const CODE_FENCE_LINE_RE = /^\s*(`{3,}|~{3,})(.*)$/;
 const MATH_FENCE_LINE_RE = /^\s*\$\$\s*$/;
-
-export type MarkdownSegment = { type: 'md' | 'visualizer'; content: string };
 
 export const createImageAttachment = (url: string, alt?: string): MessageAttachment => {
   return {
@@ -32,37 +22,6 @@ export const createImageAttachment = (url: string, alt?: string): MessageAttachm
     created_at: '',
   };
 };
-
-// Split md vs visualizer blocks; completed visualizers stay keyed outside react-markdown
-// so streaming parent re-renders don't remount iframes.
-export function splitVisualizerBlocks(raw: string): MarkdownSegment[] {
-  const segments: MarkdownSegment[] = [];
-  let lastIndex = 0;
-
-  for (const match of raw.matchAll(CLOSED_VISUALIZER_RE)) {
-    const before = raw.slice(lastIndex, match.index);
-    if (before) segments.push({ type: 'md', content: before });
-    segments.push({ type: 'visualizer', content: match[1] });
-    lastIndex = match.index! + match[0].length;
-  }
-
-  const remainder = raw.slice(lastIndex);
-
-  const unclosedMatch = remainder.match(UNCLOSED_VISUALIZER_RE);
-  if (unclosedMatch) {
-    const before = remainder.slice(0, unclosedMatch.index);
-    if (before) segments.push({ type: 'md', content: before });
-    if (unclosedMatch[1]) segments.push({ type: 'visualizer', content: unclosedMatch[1] });
-  } else if (OPENING_VISUALIZER_RE.test(remainder)) {
-    // Opening fence only — strip it from markdown
-    const before = remainder.replace(OPENING_VISUALIZER_RE, '');
-    if (before) segments.push({ type: 'md', content: before });
-  } else {
-    if (remainder) segments.push({ type: 'md', content: remainder });
-  }
-
-  return segments;
-}
 
 // Chunk at blank lines outside fences so streaming keeps completed blocks byte-identical
 // (memo skips re-parse). Isolation breaks cross-block refs — only use while streaming.

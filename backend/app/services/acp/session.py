@@ -96,9 +96,7 @@ class AcpSessionConfig:
     system_prompt_is_full_replace: bool = False
     reasoning_effort: str | None = None
     session_meta: dict[str, Any] = field(default_factory=dict)
-    # Codex-only: absolute path to a model_instructions_file written before spawn
-    # when doing a full system prompt replacement (personas, one-shot text tasks).
-    codex_instructions_file_path: str | None = None
+    instructions_file_path: str | None = None
     # Codex-only: 1.5x speed service tier via set_config_option("fast-mode").
     fast_mode: bool = False
 
@@ -395,22 +393,23 @@ class AcpSession:
         )
         spawn_config = replace(config, cwd=provider.resolve_workspace_path(config.cwd))
 
-        # Codex ignores base_instructions for full system prompt replacement, so
-        # we write the prompt to a file and point Codex at it via
-        # model_instructions_file (emitted by the Codex adapter). The file goes to
-        # a temp path outside the workspace — create() rewrites it on every spawn
-        # (including resume), so nothing needs to persist in the user's project.
-        if (
-            config.system_prompt_is_full_replace
-            and config.system_prompt
-            and config.agent_kind == AgentKind.CODEX
+        # These adapters need an instruction file outside the user's workspace.
+        if config.system_prompt and (
+            (
+                config.agent_kind == AgentKind.CODEX
+                and config.system_prompt_is_full_replace
+            )
+            or (
+                config.agent_kind == AgentKind.OPENCODE
+                and not config.system_prompt_is_full_replace
+            )
         ):
             instructions_abs_path = await provider.write_temp_file(
                 config.sandbox_id, config.system_prompt
             )
             spawn_config = replace(
                 spawn_config,
-                codex_instructions_file_path=instructions_abs_path,
+                instructions_file_path=instructions_abs_path,
             )
 
         process = await cls._spawn_process(spawn_config)
@@ -647,7 +646,7 @@ class AcpSession:
         return adapter.build_launch_config(
             system_prompt=config.system_prompt,
             system_prompt_is_full_replace=config.system_prompt_is_full_replace,
-            instructions_file_path=config.codex_instructions_file_path,
+            instructions_file_path=config.instructions_file_path,
             reasoning_effort=config.reasoning_effort,
             permission_mode=config.permission_mode,
         )

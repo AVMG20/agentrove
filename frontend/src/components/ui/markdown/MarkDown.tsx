@@ -3,20 +3,12 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { useMemo, memo, Suspense } from 'react';
-import { lazyNamed } from '@/utils/lazyNamed';
+import { useMemo, memo } from 'react';
 import type { Options } from 'react-markdown';
 import clsx from 'clsx';
 import { MARKDOWN_COMPONENTS } from './markdownComponents';
-import {
-  MATH_PATTERN,
-  rehypeMentionPills,
-  splitMarkdownBlocks,
-  splitVisualizerBlocks,
-} from './markdownParsing';
+import { MATH_PATTERN, rehypeMentionPills, splitMarkdownBlocks } from './markdownParsing';
 import styles from './MarkDown.module.scss';
-
-const VisualWidget = lazyNamed(() => import('../VisualWidget/VisualWidget'), 'VisualWidget');
 
 function markdownUrlTransform(url: string, key: string): string {
   const colon = url.indexOf(':');
@@ -64,15 +56,7 @@ export const MarkDown = memo(function MarkDown({
   highlightMentions = false,
 }: MarkDownProps) {
   const blocks = useMemo(
-    () =>
-      splitVisualizerBlocks(content).flatMap((seg) =>
-        seg.type === 'md' && streaming
-          ? splitMarkdownBlocks(seg.content).map((chunk) => ({
-              type: 'md' as const,
-              content: chunk,
-            }))
-          : [seg],
-      ),
+    () => (streaming ? splitMarkdownBlocks(content) : [content]),
     [content, streaming],
   );
 
@@ -91,27 +75,14 @@ export const MarkDown = memo(function MarkDown({
 
   return (
     <div className={clsx(styles.markdown, className)}>
-      {blocks.map((seg, i) =>
-        seg.type === 'visualizer' ? (
-          <Suspense
-            key={`viz-${i}`}
-            fallback={
-              <div className={styles['viz-fallback']}>
-                <span className={styles['viz-fallback-text']}>Loading visualization...</span>
-              </div>
-            }
-          >
-            <VisualWidget code={seg.content} />
-          </Suspense>
-        ) : (
-          <MarkdownBlock
-            key={`md-${i}`}
-            content={seg.content}
-            remarkPlugins={remarkPlugins}
-            rehypePlugins={rehypePlugins}
-          />
-        ),
-      )}
+      {blocks.map((block, i) => (
+        <MarkdownBlock
+          key={i}
+          content={block}
+          remarkPlugins={remarkPlugins}
+          rehypePlugins={rehypePlugins}
+        />
+      ))}
     </div>
   );
 });

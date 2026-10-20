@@ -513,6 +513,26 @@ class OpencodeAgentAdapter(AgentAdapter):
     session_modes = frozenset({"build", "plan"})
     fallback_session_mode = "plan"
 
+    def build_launch_config(
+        self,
+        *,
+        system_prompt: str | None,
+        system_prompt_is_full_replace: bool,
+        instructions_file_path: str | None = None,
+        reasoning_effort: str | None = None,
+        permission_mode: str | None = None,
+    ) -> LaunchConfig:
+        env = (
+            {
+                "OPENCODE_CONFIG_CONTENT": json.dumps(
+                    {"instructions": [instructions_file_path]}
+                )
+            }
+            if instructions_file_path
+            else {}
+        )
+        return LaunchConfig(binary=self.binary, cli_args=list(self.cli_args), env=env)
+
     def build_session_config(
         self,
         *,
