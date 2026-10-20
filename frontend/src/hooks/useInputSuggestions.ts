@@ -1,7 +1,7 @@
 import { useCallback, type RefObject } from 'react';
 import { useSlashCommandSuggestions } from '@/hooks/useSlashCommandSuggestions';
 import { useMentionSuggestions } from '@/hooks/useMentionSuggestions';
-import { insertToken } from '@/utils/mentionParser';
+import { useInsertToken } from '@/hooks/useComposerTokens';
 import type { MentionItem, SlashCommand } from '@/types/ui.types';
 import type { CustomSkill } from '@/types/user.types';
 import type { AgentKind, Chat } from '@/types/chat.types';
@@ -36,23 +36,7 @@ export function useInputSuggestions({
   builtinSlashCommands,
   agentKind,
 }: UseInputSuggestionsOptions) {
-  const insertTokenAt = useCallback(
-    (tokenText: string, startPos: number, endPos: number) => {
-      const { text, cursor } = insertToken(messageRef.current, tokenText, startPos, endPos);
-
-      setMessage(text);
-
-      setTimeout(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-          textarea.focus();
-          textarea.setSelectionRange(cursor, cursor);
-          setCursorPosition(cursor);
-        }
-      }, 0);
-    },
-    [messageRef, setCursorPosition, setMessage, textareaRef],
-  );
+  const insertTokenAt = useInsertToken(messageRef, setMessage, setCursorPosition, textareaRef);
 
   const handleSlashCommandSelect = useCallback(
     (command: SlashCommand, startPos: number, endPos: number) => {

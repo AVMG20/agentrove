@@ -14,7 +14,7 @@ import {
   DEFAULT_PERSONA,
 } from '@/store/chatSettingsStore';
 import { resolvePersona } from '@/utils/settings';
-import { getHighlightTokenRanges } from '@/utils/mentionParser';
+import { useTokenDeleteKeyDown } from '@/hooks/useComposerTokens';
 import type { Persona } from '@/types/user.types';
 import type { AgentKind } from '@/types/chat.types';
 
@@ -170,33 +170,7 @@ export function useInputSubmit({
     [chatId],
   );
 
-  const handleTokenDeleteKeyDown = useCallback(
-    (event: React.KeyboardEvent<Element>) => {
-      // First Backspace/Delete at a pill's boundary selects token + separator space;
-      // the next keystroke deletes it natively (undo intact). Backspace triggers only
-      // after the separator — at the bare token end the user is still composing.
-      if (event.key !== 'Backspace' && event.key !== 'Delete') return false;
-      const textarea = textareaRef.current;
-      if (!textarea) return false;
-      const { selectionStart, selectionEnd } = textarea;
-      if (selectionStart !== selectionEnd) return false;
-      const message = messageRef.current;
-      for (const [start, end] of getHighlightTokenRanges(message)) {
-        const hasSeparator = message[end] === ' ';
-        const atEdge =
-          event.key === 'Backspace'
-            ? hasSeparator && selectionStart === end + 1
-            : selectionStart === start;
-        if (atEdge) {
-          event.preventDefault();
-          textarea.setSelectionRange(start, hasSeparator ? end + 1 : end);
-          return true;
-        }
-      }
-      return false;
-    },
-    [messageRef, textareaRef],
-  );
+  const handleTokenDeleteKeyDown = useTokenDeleteKeyDown(messageRef, textareaRef);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<Element>) => {

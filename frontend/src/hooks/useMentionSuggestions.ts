@@ -8,6 +8,7 @@ import { parseTokenQuery } from '@/utils/mentionParser';
 import { fuzzySearch } from '@/utils/fuzzySearch';
 
 const CHAT_SUGGESTION_LIMIT = 10;
+const NO_MEMBERS: string[] = [];
 
 interface UseMentionOptions {
   message: string;
@@ -15,6 +16,7 @@ interface UseMentionOptions {
   fileStructure: FileStructure[];
   chats: Chat[];
   currentChatId?: string;
+  members?: string[];
   onSelect: (item: MentionItem, mentionStartPos: number, mentionEndPos: number) => void;
 }
 
@@ -48,8 +50,13 @@ export const useMentionSuggestions = ({
   fileStructure,
   chats,
   currentChatId,
+  members = NO_MEMBERS,
   onSelect,
 }: UseMentionOptions) => {
+  const allMembers = useMemo(
+    () => members.map((name) => ({ type: 'member' as const, name, path: name })),
+    [members],
+  );
   const allFiles = useMemo(() => convertFilesToMentions(fileStructure), [fileStructure]);
   const allChats = useMemo(
     () => convertChatsToMentions(chats, currentChatId),
@@ -65,6 +72,13 @@ export const useMentionSuggestions = ({
 
   const deferredQuery = useDeferredValue(query);
 
+  const filteredMembers = useMemo(() => {
+    if (!isActive) {
+      return [];
+    }
+    return fuzzySearch(deferredQuery, allMembers, { keys: ['name'], limit: CHAT_SUGGESTION_LIMIT });
+  }, [isActive, deferredQuery, allMembers]);
+
   const filteredFiles = useMemo(() => {
     if (!isActive) {
       return [];
@@ -79,10 +93,10 @@ export const useMentionSuggestions = ({
     return fuzzySearch(deferredQuery, allChats, { keys: ['name'], limit: CHAT_SUGGESTION_LIMIT });
   }, [isActive, deferredQuery, allChats]);
 
-  // Order must match the panel's sections — the keyboard index is global across both.
+  // Order must match the panel's sections — the keyboard index is global across them.
   const suggestions = useMemo(
-    () => [...filteredFiles, ...filteredChats],
-    [filteredFiles, filteredChats],
+    () => [...filteredMembers, ...filteredFiles, ...filteredChats],
+    [filteredMembers, filteredFiles, filteredChats],
   );
 
   const hasSuggestions = suggestions.length > 0;
@@ -107,6 +121,7 @@ export const useMentionSuggestions = ({
   });
 
   return {
+    filteredMembers,
     filteredFiles,
     filteredChats,
     highlightedIndex,

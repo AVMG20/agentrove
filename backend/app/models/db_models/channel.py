@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -72,6 +73,8 @@ class ChannelMessage(Base):
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     content: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(10))
+    # Member ids that should respond; NULL broadcasts to every member.
+    audience: Mapped[list[str] | None] = mapped_column(JSON)
     attachments: Mapped[list["ChannelMessageAttachment"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True, lazy="selectin"
     )

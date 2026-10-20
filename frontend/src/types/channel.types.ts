@@ -52,6 +52,8 @@ export interface ChannelMessage {
   member_id: string | null;
   content: string;
   status: ChannelMessageStatus;
+  // Member ids the message is addressed to; null broadcasts to every member.
+  audience: string[] | null;
   attachments: MessageAttachment[];
   tool_call_count: number;
   duration_ms: number | null;

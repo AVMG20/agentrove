@@ -469,6 +469,43 @@ async def test_running_turn_is_interrupted_by_owner(
         )
 
 
+async def test_mentions_wake_only_addressed_members_and_keep_the_rest_as_context(
+    client: AsyncClient,
+    owner: tuple[dict[str, str], User, Workspace],
+    channel_data: dict[str, Any],
+    channel_runtime: ScriptedTurns,
+) -> None:
+    channel_data["members"] = [
+        {"model_id": TEST_MODEL_ID, "display_name": name} for name in ("alpha", "beta")
+    ]
+    response = await client.post(
+        "/api/v1/channels", json=channel_data, headers=owner[0]
+    )
+    assert response.status_code == 201, response.text
+    state = channel_service.states[UUID(response.json()["id"])]
+    alpha, beta = state.channel.members
+    targeted = await channel_service.new_message(
+        state, "@alpha check @beta/file.ts and https://x.dev/@beta"
+    )
+    assert targeted.audience == [str(alpha.id)]
+
+    channel_runtime.events = [("assistant_text", {"text": "On it"})]
+    await channel_runtime.wake(state)
+    await channel_runtime.wake(state)
+    assert [request.chat_id for request in channel_runtime.requests] == [alpha.chat_id]
+
+    await channel_service.new_message(state, "@everyone thoughts?")
+    channel_runtime.events = [("assistant_text", {"text": "PASS"})]
+    await channel_runtime.wake(state)
+    prompts = {request.chat_id: request.prompt for request in channel_runtime.requests}
+    assert prompts[beta.chat_id].endswith(
+        "[user → @alpha]: @alpha check @beta/file.ts and https://x.dev/@beta\n"
+        "[alpha → user]: On it\n"
+        "[user]: @everyone thoughts?"
+    )
+    assert prompts[alpha.chat_id] == "[user]: @everyone thoughts?"
+
+
 async def test_stop_marks_all_messages_seen_for_every_member(
     client: AsyncClient,
     owner: tuple[dict[str, str], User, Workspace],
@@ -887,6 +924,7 @@ async def test_default_permission_modes_follow_each_provider(
         ([{"display_name": "-leading"}], 422),
         ([{"display_name": "a" * 33}], 422),
         ([{"display_name": ""}], 422),
+        ([{"display_name": "Everyone"}], 422),
         ([{"permission_mode": "default"}], 400),
         ([{"model_id": "unknown-model"}], 422),
     ],
@@ -897,6 +935,7 @@ async def test_default_permission_modes_follow_each_provider(
         "leading-hyphen",
         "too-long",
         "empty",
+        "reserved-name",
         "provider-mode",
         "unknown-model",
     ],

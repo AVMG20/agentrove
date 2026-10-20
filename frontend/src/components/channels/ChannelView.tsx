@@ -13,12 +13,14 @@ import { InlinePermission } from '@/components/chat/chat-window/ChatInlinePermis
 import { StatusIndicator } from '@/components/chat/chat-window/StatusTypewriter';
 import { useChatScroll } from '@/components/chat/chat-window/useChatScroll';
 import { MessageRow, MessageText, UserBubble } from '@/components/chat/message-bubble/Message';
+import { MessageActions } from '@/components/chat/message-bubble/MessageActions';
 import { MessageAttachments } from '@/components/chat/message-bubble/MessageAttachments';
 import { MessageRenderer } from '@/components/chat/message-bubble/MessageRenderer';
 import { ToolLoadingFallback } from '@/components/chat/message-bubble/SegmentView';
 import { WorkedRollup } from '@/components/chat/message-bubble/WorkedRollup';
 import { useChannelMessageActivityQuery } from '@/hooks/queries/useChannelQueries';
 import { useChannelLive } from '@/hooks/useChannelLive';
+import { useClipboard } from '@/hooks/useClipboard';
 import { useSmoothText } from '@/hooks/useSmoothText';
 import { permissionService } from '@/services/permissionService';
 import {
@@ -37,6 +39,7 @@ import type {
   ChannelMessage,
   ChannelPermissionRequest,
 } from '@/types/channel.types';
+import { ChatCopiedMessageProvider } from '@/contexts/ChatCopiedMessageContext';
 import { SetChatInputMessageContext } from '@/contexts/ChatInputMessageContextDefinition';
 import { ChannelComposer } from './ChannelComposer';
 import styles from './ChannelView.module.scss';
@@ -117,6 +120,11 @@ const AgentChannelMessage = memo(function AgentChannelMessage({
         </WorkedRollup>
       )}
       {isInterrupted ? <div className={styles['interrupted-text']}>{text}</div> : text}
+      {!isStreaming && message.content.trim() && (
+        <div className={styles['actions-slot']}>
+          <MessageActions messageId={message.id} contentText={message.content} />
+        </div>
+      )}
     </MessageRow>
   );
 });
@@ -237,6 +245,7 @@ function ChannelEmptyState({ channel }: { channel: Channel }) {
 export function ChannelView({ channel }: { channel: Channel }) {
   useChannelLive(channel.id);
   const [draft, setDraft] = useState('');
+  const { copiedMessageId, handleCopy } = useClipboard({ chatId: channel.id });
 
   const messagesById = useChannelStore(
     (state) => state.channels[channel.id]?.messages ?? EMPTY_MESSAGES,
@@ -319,77 +328,86 @@ export function ChannelView({ channel }: { channel: Channel }) {
 
   return (
     <SetChatInputMessageContext.Provider value={setDraft}>
-      <ConversationLayout
-        showScrollButton={showScrollButton}
-        onScrollToBottom={scrollToBottom}
-        composerBanner={
-          <ChatQueueBanner
-            messages={queuedMessages}
-            onCancel={handleCancelQueued}
-            onEdit={handleEditQueued}
-            onSendNow={handleSendQueuedNow}
-          />
-        }
-        composer={
-          <ChannelComposer
-            channel={channel}
-            isBusy={isBusy}
-            onSend={scrollToBottom}
-            draft={draft}
-            setDraft={setDraft}
-          />
-        }
-      >
-        {messages.length === 0 ? (
-          isSynced ? (
-            <ChannelEmptyState channel={channel} />
+      <ChatCopiedMessageProvider copiedMessageId={copiedMessageId} onCopy={handleCopy}>
+        <ConversationLayout
+          showScrollButton={showScrollButton}
+          onScrollToBottom={scrollToBottom}
+          composerBanner={
+            <ChatQueueBanner
+              messages={queuedMessages}
+              onCancel={handleCancelQueued}
+              onEdit={handleEditQueued}
+              onSendNow={handleSendQueuedNow}
+            />
+          }
+          composer={
+            <ChannelComposer
+              channel={channel}
+              isBusy={isBusy}
+              onSend={scrollToBottom}
+              draft={draft}
+              setDraft={setDraft}
+            />
+          }
+        >
+          {messages.length === 0 ? (
+            isSynced ? (
+              <ChannelEmptyState channel={channel} />
+            ) : (
+              <ChatSkeleton messageCount={3} />
+            )
           ) : (
-            <ChatSkeleton messageCount={3} />
-          )
-        ) : (
-          <ConversationScroller ref={containerRefCallback}>
-            {visibleMessages.map((message) => (
-              <ConversationColumn key={message.id}>
-                {message.author_type === 'user' ? (
-                  <MessageRow>
-                    <UserBubble>
-                      <MessageAttachments
-                        attachments={message.attachments}
-                        className={styles.attachments}
-                      />
-                      <MarkDown content={message.content} highlightMentions />
-                    </UserBubble>
-                  </MessageRow>
-                ) : (
-                  <AgentChannelMessage
-                    message={message}
-                    member={message.member_id ? membersById.get(message.member_id) : undefined}
+            <ConversationScroller ref={containerRefCallback}>
+              {visibleMessages.map((message) => (
+                <ConversationColumn key={message.id}>
+                  {message.author_type === 'user' ? (
+                    <MessageRow>
+                      <UserBubble>
+                        <MessageAttachments
+                          attachments={message.attachments}
+                          className={styles.attachments}
+                        />
+                        <MarkDown content={message.content} highlightMentions />
+                      </UserBubble>
+                      {message.content.trim() && (
+                        <div className={styles['actions-slot']}>
+                          <MessageActions messageId={message.id} contentText={message.content} />
+                        </div>
+                      )}
+                    </MessageRow>
+                  ) : (
+                    <AgentChannelMessage
+                      message={message}
+                      member={message.member_id ? membersById.get(message.member_id) : undefined}
+                    />
+                  )}
+                </ConversationColumn>
+              ))}
+              {permissions.map((permission) => (
+                <ConversationColumn
+                  key={`${permission.member_id}:${permission.request.request_id}`}
+                >
+                  <ChannelApproval
+                    channelId={channel.id}
+                    permission={permission}
+                    member={membersById.get(permission.member_id)}
                   />
-                )}
-              </ConversationColumn>
-            ))}
-            {permissions.map((permission) => (
-              <ConversationColumn key={`${permission.member_id}:${permission.request.request_id}`}>
-                <ChannelApproval
-                  channelId={channel.id}
-                  permission={permission}
-                  member={membersById.get(permission.member_id)}
-                />
-              </ConversationColumn>
-            ))}
-            {isBusy && (
-              <ConversationColumn>
-                <ChannelTypingRow
-                  thinking={thinkingMembers}
-                  typing={typingMembers}
-                  waiting={waitingMembers}
-                  retrying={retryingMembers}
-                />
-              </ConversationColumn>
-            )}
-          </ConversationScroller>
-        )}
-      </ConversationLayout>
+                </ConversationColumn>
+              ))}
+              {isBusy && (
+                <ConversationColumn>
+                  <ChannelTypingRow
+                    thinking={thinkingMembers}
+                    typing={typingMembers}
+                    waiting={waitingMembers}
+                    retrying={retryingMembers}
+                  />
+                </ConversationColumn>
+              )}
+            </ConversationScroller>
+          )}
+        </ConversationLayout>
+      </ChatCopiedMessageProvider>
     </SetChatInputMessageContext.Provider>
   );
 }

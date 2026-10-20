@@ -29,7 +29,6 @@ export interface ChatSessionState {
 export interface ChatSessionActions {
   onSubmit: (e: React.FormEvent) => void;
   onStopStream: () => void;
-  onCopy: (content: string, id: string) => void;
   onAttach: (files: File[]) => void;
   onModelChange: (modelId: string) => void;
   fetchNextPage: () => void;
