@@ -34,8 +34,8 @@ bump_npm @agentclientprotocol/codex-acp CODEX_ACP_VERSION
 bump_npm @openai/codex
 bump_npm @github/copilot
 
-opencode=$(latest_npm opencode-ai)
-sed -i -E "s#(opencode\.ai/install \| bash -s -- --version )[0-9.]+#\1${opencode}#" "${DOCKERFILES[@]}"
+opencode=$(latest_npm @opencode/cli)
+sed -i -E "s#(opencode\.ai/v2/install \| bash -s -- --version )[0-9.]+#\1${opencode}#" "${DOCKERFILES[@]}"
 
 cursor_install=$(curl -fsSL https://cursor.com/install)
 cursor=$(grep -m1 -oE 'downloads\.cursor\.com/lab/[^/]+' <<<"$cursor_install" | cut -d/ -f3)

@@ -506,12 +506,22 @@ class OpencodeAgentAdapter(AgentAdapter):
     cli_args = ("acp",)
     model_id_namespace = "opencode:"
     # OpenCode's built-in primary agents double as ACP session modes; `plan`
-    # restricts edits to `.opencode/plans/*.md`, `build` has full tool access.
+    # (built-in) restricts edits to `~/.opencode/plan/*`, `build` has full access.
     # Unknown modes fall back to plan so switching agents never silently widens
     # permissions — e.g. a chat left in Codex's read-only mode shouldn't become
     # opencode full-access just because the string doesn't map.
     session_modes = frozenset({"build", "plan"})
     fallback_session_mode = "plan"
+    # OpenCode 2 allows external directories by default; restore v1's ask
+    # (host-mode sessions share the real HOME). Built-in plan writes here.
+    BASE_CONFIG: dict[str, Any] = {
+        "permission": {
+            "external_directory": {"*": "ask", "~/.opencode/plan/*": "allow"}
+        }
+    }
+
+    def build_session_env(self, model_id: str) -> dict[str, str]:
+        return {"OPENCODE_CONFIG_CONTENT": json.dumps(self.BASE_CONFIG)}
 
     def build_launch_config(
         self,
@@ -569,6 +579,7 @@ class OpencodeAgentAdapter(AgentAdapter):
         )
         config_content = json.dumps(
             {
+                **self.BASE_CONFIG,
                 "agent": {
                     agent_name: {
                         "description": "Agentrove persona",

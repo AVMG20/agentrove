@@ -125,9 +125,8 @@ RUN set -eux; \
     ln -sf "$dir/cursor-agent" /home/user/.local/bin/agent
 
 # OpenCode CLI (installs `opencode` to ~/.opencode/bin; symlink into ~/.local/bin
-# so the ACP binary resolves without modifying PATH). Pinned: the unpinned path
-# resolves "latest" via the rate-limited GitHub API.
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --version 1.19.3 && \
+# so the ACP binary resolves without modifying PATH). Pinned for reproducible builds.
+RUN curl -fsSL https://opencode.ai/v2/install | bash -s -- --version 2.1.1 && \
     mkdir -p /home/user/.local/bin && \
     ln -sf /home/user/.opencode/bin/opencode /home/user/.local/bin/opencode
 

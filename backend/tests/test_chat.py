@@ -38,7 +38,7 @@ from tests.helpers import (
 )
 
 
-TEST_MODEL_ID = "opencode:google-vertex-anthropic/claude-sonnet-4-5@20250929"
+TEST_MODEL_ID = "opencode:google-vertex/claude-sonnet-4-5@20250929"
 
 pytestmark = pytest.mark.anyio
 
