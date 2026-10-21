@@ -10,6 +10,7 @@ class ModelInfo(NamedTuple):
     display_name: str
     agent_kind: AgentKind
     context_window: int | None
+    legacy: bool = False
 
 
 REDIS_KEY_USER_STREAMS_LIVE: Final[str] = "user:{user_id}:streams:live"
@@ -483,10 +484,10 @@ MODELS: dict[str, ModelInfo] = {
         "MiniMax M3.1 Flash Free (OpenCode)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode/minimax-m2.5": ModelInfo(
-        "MiniMax-M2.5 (OpenCode)", AgentKind.OPENCODE, 204_800
+        "MiniMax-M2.5 (OpenCode)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:opencode/minimax-m2.7": ModelInfo(
-        "MiniMax-M2.7 (OpenCode)", AgentKind.OPENCODE, 204_800
+        "MiniMax-M2.7 (OpenCode)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:opencode/minimax-m3": ModelInfo(
         "MiniMax-M3 (OpenCode)", AgentKind.OPENCODE, 512_000
@@ -597,7 +598,7 @@ MODELS: dict[str, ModelInfo] = {
         "MiniMax M3.1 Flash Free (Opencode Go)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode-go/minimax-m2.7": ModelInfo(
-        "MiniMax-M2.7 (Opencode Go)", AgentKind.OPENCODE, 204_800
+        "MiniMax-M2.7 (Opencode Go)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:opencode-go/minimax-m3": ModelInfo(
         "MiniMax-M3 (Opencode Go)", AgentKind.OPENCODE, 1_000_000
@@ -939,13 +940,13 @@ MODELS: dict[str, ModelInfo] = {
         "Llama 4 Scout 17B Instruct (Amazon Bedrock)", AgentKind.OPENCODE, 10_000_000
     ),
     "opencode:amazon-bedrock/minimax.minimax-m2": ModelInfo(
-        "MiniMax-M2 (Amazon Bedrock)", AgentKind.OPENCODE, 204_608
+        "MiniMax-M2 (Amazon Bedrock)", AgentKind.OPENCODE, 204_608, legacy=True
     ),
     "opencode:amazon-bedrock/minimax.minimax-m2.1": ModelInfo(
-        "MiniMax-M2.1 (Amazon Bedrock)", AgentKind.OPENCODE, 196_608
+        "MiniMax-M2.1 (Amazon Bedrock)", AgentKind.OPENCODE, 196_608, legacy=True
     ),
     "opencode:amazon-bedrock/minimax.minimax-m2.5": ModelInfo(
-        "MiniMax-M2.5 (Amazon Bedrock)", AgentKind.OPENCODE, 196_608
+        "MiniMax-M2.5 (Amazon Bedrock)", AgentKind.OPENCODE, 196_608, legacy=True
     ),
     "opencode:amazon-bedrock/mistral.devstral-2-123b": ModelInfo(
         "Devstral 2 123B (Amazon Bedrock)", AgentKind.OPENCODE, 262_144
@@ -2100,25 +2101,25 @@ MODELS: dict[str, ModelInfo] = {
         "MiniMax M3.1 Flash Free (Openrouter)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:openrouter/minimax/minimax-01": ModelInfo(
-        "MiniMax-01 (Openrouter)", AgentKind.OPENCODE, 1_000_192
+        "MiniMax-01 (Openrouter)", AgentKind.OPENCODE, 1_000_192, legacy=True
     ),
     "opencode:openrouter/minimax/minimax-m1": ModelInfo(
-        "MiniMax M1 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "MiniMax M1 (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/minimax/minimax-m2": ModelInfo(
-        "MiniMax-M2 (Openrouter)", AgentKind.OPENCODE, 204_800
+        "MiniMax-M2 (Openrouter)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:openrouter/minimax/minimax-m2-her": ModelInfo(
-        "MiniMax-M2 Her (Openrouter)", AgentKind.OPENCODE, 65_536
+        "MiniMax-M2 Her (Openrouter)", AgentKind.OPENCODE, 65_536, legacy=True
     ),
     "opencode:openrouter/minimax/minimax-m2.1": ModelInfo(
-        "MiniMax-M2.1 (Openrouter)", AgentKind.OPENCODE, 204_800
+        "MiniMax-M2.1 (Openrouter)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:openrouter/minimax/minimax-m2.5": ModelInfo(
-        "MiniMax-M2.5 (Openrouter)", AgentKind.OPENCODE, 204_800
+        "MiniMax-M2.5 (Openrouter)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:openrouter/minimax/minimax-m2.7": ModelInfo(
-        "MiniMax-M2.7 (Openrouter)", AgentKind.OPENCODE, 204_800
+        "MiniMax-M2.7 (Openrouter)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:openrouter/minimax/minimax-m3": ModelInfo(
         "MiniMax-M3 (Openrouter)", AgentKind.OPENCODE, 1_048_576
@@ -2981,26 +2982,6 @@ MODELS: dict[str, ModelInfo] = {
         "GLM-5.3 Highspeed (Zai Coding Plan)", AgentKind.OPENCODE, 1_000_000
     ),
 }
-
-# Keep these IDs in MODELS for saved chats, automations and explicit requests.
-# Only ordinary picker choices retire them; custom model IDs are not classified.
-LEGACY_MODEL_IDS: frozenset[str] = frozenset(
-    {
-        "opencode:opencode/minimax-m2.5",
-        "opencode:opencode/minimax-m2.7",
-        "opencode:opencode-go/minimax-m2.7",
-        "opencode:amazon-bedrock/minimax.minimax-m2",
-        "opencode:amazon-bedrock/minimax.minimax-m2.1",
-        "opencode:amazon-bedrock/minimax.minimax-m2.5",
-        "opencode:openrouter/minimax/minimax-01",
-        "opencode:openrouter/minimax/minimax-m1",
-        "opencode:openrouter/minimax/minimax-m2",
-        "opencode:openrouter/minimax/minimax-m2-her",
-        "opencode:openrouter/minimax/minimax-m2.1",
-        "opencode:openrouter/minimax/minimax-m2.5",
-        "opencode:openrouter/minimax/minimax-m2.7",
-    }
-)
 
 # Built-in slash commands per agent kind for the frontend. Claude/Codex lists
 # are filtered ACP-exposed subsets (not full CLI/TUI chrome); skills are runtime.

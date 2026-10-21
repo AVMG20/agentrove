@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.core.security import get_current_user
 from app.models.db_models.user import User
 from app.models.schemas.ai_model import AIModelResponse
-from app.constants import LEGACY_MODEL_IDS, MODELS
+from app.constants import MODELS
 from app.services.acp.adapters import AGENT_ADAPTERS, THINKING_MODE_ORDER, AgentKind
 
 router = APIRouter()
@@ -30,7 +30,7 @@ async def list_models(
             name=info.display_name,
             agent_kind=info.agent_kind,
             context_window=info.context_window,
-            legacy=mid in LEGACY_MODEL_IDS,
+            legacy=info.legacy,
             thinking_modes=sorted(
                 AGENT_ADAPTERS[info.agent_kind].valid_thinking_modes(mid),
                 key=THINKING_MODE_ORDER.index,
