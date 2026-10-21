@@ -16,7 +16,7 @@ import {
 import { resolvePersona } from '@/utils/settings';
 import { useTokenDeleteKeyDown } from '@/hooks/useComposerTokens';
 import type { Persona } from '@/types/user.types';
-import type { AgentKind } from '@/types/chat.types';
+import type { AgentKind, Model } from '@/types/chat.types';
 
 interface UseInputSubmitOptions {
   disabled: boolean;
@@ -28,6 +28,7 @@ interface UseInputSubmitOptions {
   isLoading: boolean;
   chatId?: string;
   selectedModelId: string;
+  selectedModel: Model | undefined;
   agentKind: AgentKind;
   personas: Persona[];
   attachedSelections: ComposerSelection[];
@@ -53,6 +54,7 @@ export function useInputSubmit({
   isLoading,
   chatId,
   selectedModelId,
+  selectedModel,
   agentKind,
   personas,
   attachedSelections,
@@ -99,7 +101,7 @@ export function useInputSubmit({
       const thinkingMode = coerceThinkingModeForAgent(
         settings.thinkingModeByChat[chatId] ?? DEFAULT_THINKING_MODE,
         agentKind,
-        selectedModelId,
+        selectedModel,
       );
       const worktree = settings.worktreeByChat[chatId] ?? DEFAULT_WORKTREE;
       const baseBranch = settings.worktreeBaseBranchByChat[chatId];
@@ -157,6 +159,7 @@ export function useInputSubmit({
     onAttach,
     agentKind,
     selectedModelId,
+    selectedModel,
     personas,
     formRef,
     messageRef,

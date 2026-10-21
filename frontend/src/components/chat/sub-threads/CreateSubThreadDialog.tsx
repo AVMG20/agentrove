@@ -64,13 +64,13 @@ export function CreateSubThreadDialog({ parentChat, onClose }: CreateSubThreadDi
   const selectedModel = models.find((m) => m.model_id === selectedModelId);
   const agentKind = selectedModel?.agent_kind ?? 'claude';
   const permissionModes = MODES_BY_AGENT[agentKind];
-  const thinkingModes = getThinkingModesForAgent(agentKind, selectedModelId);
+  const thinkingModes = getThinkingModesForAgent(agentKind, selectedModel);
   const effectivePermissionMode = coercePermissionModeForAgent(permissionMode, agentKind);
   const selectedPermissionOption = getPermissionModeOption(permissionMode, agentKind);
   const effectiveThinkingMode = coerceThinkingModeForAgent(
     thinkingMode.value,
     agentKind,
-    selectedModelId,
+    selectedModel,
   );
   const selectedThinkingOption =
     thinkingModes.find((mode) => mode.value === effectiveThinkingMode) ?? thinkingModes[0];

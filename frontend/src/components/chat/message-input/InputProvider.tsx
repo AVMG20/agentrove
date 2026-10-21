@@ -53,8 +53,8 @@ export function InputProvider({
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const modelMap = useModelMap(isAuthenticated);
   const { data: recentChats } = useRecentChatsQuery(isAuthenticated);
-  const agentKind =
-    modelMap.get(selectedModelId)?.agent_kind ?? getAgentKindForModelId(selectedModelId);
+  const selectedModel = modelMap.get(selectedModelId);
+  const agentKind = selectedModel?.agent_kind ?? getAgentKindForModelId(selectedModelId);
   // Hide the context-usage indicator for agents whose ACP servers never emit
   // UsageUpdate notifications — without those events the value stays 0 and
   // the bar is misleading.
@@ -146,6 +146,7 @@ export function InputProvider({
       isLoading,
       chatId,
       selectedModelId,
+      selectedModel,
       agentKind,
       personas,
       attachedSelections,

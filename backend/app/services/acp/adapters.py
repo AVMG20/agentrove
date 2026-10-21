@@ -128,6 +128,8 @@ class SessionConfig:
     meta: dict[str, Any] = field(default_factory=dict)
     env_overrides: dict[str, str] = field(default_factory=dict)
     reasoning_effort: str | None = None
+    # True when the user picked the tier; an agent default is best-effort.
+    effort_explicit: bool = False
     session_mode: str = "default"
 
 
@@ -145,6 +147,9 @@ class AgentAdapter:
     # Session config option that takes the reasoning effort, for agents that
     # expose one; None = effort is delivered another way (or not at all).
     effort_config_id: str | None = None
+    # Value that resets effort when the user picks none; resumed sessions
+    # otherwise keep the last tier. None = nothing to send.
+    unset_effort_value: str | None = None
 
     def build_launch_config(
         self,
@@ -166,12 +171,19 @@ class AgentAdapter:
         thinking_mode: str | None,
         permission_mode: str,
     ) -> SessionConfig:
+        effort = self.reasoning_effort(model_id, thinking_mode)
         return SessionConfig(
             meta=self.build_session_meta(system_prompt, system_prompt_is_full_replace),
             env_overrides=self.build_session_env(model_id),
-            reasoning_effort=self.reasoning_effort(model_id, thinking_mode),
+            reasoning_effort=effort,
+            effort_explicit=self.effort_explicit(model_id, thinking_mode, effort),
             session_mode=self.map_session_mode(permission_mode),
         )
+
+    def effort_explicit(
+        self, model_id: str, thinking_mode: str | None, effort: str | None
+    ) -> bool:
+        return effort is not None and bool(thinking_mode)
 
     def build_session_meta(
         self, system_prompt: str | None, system_prompt_is_full_replace: bool
@@ -379,6 +391,14 @@ class AntigravityAgentAdapter(AgentAdapter):
         ("gemini-3.1-pro", "low"): "gemini-3.1-pro-low",
     }
 
+    def reasoning_effort(self, model_id: str, thinking_mode: str | None) -> str:
+        # Every Antigravity model has tiers, and its model IDs encode one.
+        return resolve_thinking_mode(
+            thinking_mode,
+            self.valid_thinking_modes(model_id),
+            self.default_thinking_mode,
+        )
+
     def map_model_id(self, model_id: str, reasoning_effort: str | None = None) -> str:
         effort = self.reasoning_effort(model_id, reasoning_effort)
         server_model_id = model_id.removeprefix(self.model_id_namespace)
@@ -408,6 +428,7 @@ class OpencodeAgentAdapter(AgentAdapter):
     session_modes = frozenset({"build", "plan"})
     fallback_session_mode = "plan"
     effort_config_id = "effort"
+    unset_effort_value = "default"
     # OpenCode 2 allows external directories by default; restore v1's ask
     # (host-mode sessions share the real HOME). Built-in plan writes here.
     BASE_CONFIG: dict[str, Any] = {
@@ -426,6 +447,13 @@ class OpencodeAgentAdapter(AgentAdapter):
         if thinking_mode in (None, "", "default") or not modes:
             return None
         return resolve_thinking_mode(thinking_mode, modes)
+
+    def effort_explicit(
+        self, model_id: str, thinking_mode: str | None, effort: str | None
+    ) -> bool:
+        # Picking "Default" resets a resumed session's tier, so its failure
+        # must stop the turn like any other explicit choice.
+        return bool(thinking_mode) and bool(self.valid_thinking_modes(model_id))
 
     def build_launch_config(
         self,
@@ -495,8 +523,11 @@ class OpencodeAgentAdapter(AgentAdapter):
                 "default_agent": agent_name,
             }
         )
+        effort = self.reasoning_effort(model_id, thinking_mode)
         return SessionConfig(
             env_overrides={"OPENCODE_CONFIG_CONTENT": config_content},
+            reasoning_effort=effort,
+            effort_explicit=self.effort_explicit(model_id, thinking_mode, effort),
             session_mode=agent_name,
         )
 

@@ -110,6 +110,9 @@ class FakeAcpSession:
     def is_alive(self) -> bool:
         return self.alive
 
+    def ensure_effort_supported(self, reasoning_effort: str | None) -> None:
+        return None
+
     async def send_prompt(
         self,
         content: str,
@@ -169,7 +172,10 @@ class FakeAcpSession:
         self.cancel_calls += 1
 
     async def set_model(
-        self, model_id: str, reasoning_effort: str | None = None
+        self,
+        model_id: str,
+        reasoning_effort: str | None = None,
+        effort_explicit: bool = False,
     ) -> None:
         self.set_model_calls.append((model_id, reasoning_effort))
 

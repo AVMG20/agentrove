@@ -1,6 +1,3 @@
-import { queryKeys } from '@/hooks/queries/queryKeys';
-import { useModelsQuery } from '@/hooks/queries/useModelQueries';
-import { queryClient } from '@/lib/queryClient';
 import type { AgentKind, Model } from '@/types/chat.types';
 
 export interface ThinkingModeOption {
@@ -40,11 +37,8 @@ const DEFAULT_BY_AGENT: Record<AgentKind, string> = {
 // hides the selector.
 export function getThinkingModesForAgent(
   agentKind: AgentKind,
-  modelId?: string,
+  model: Model | undefined,
 ): ThinkingModeOption[] {
-  const model = queryClient
-    .getQueryData<Model[]>([queryKeys.models])
-    ?.find((candidate) => candidate.model_id === modelId);
   if (!model?.thinking_modes.length) return EMPTY_THINKING_MODES;
   const modes = model.thinking_modes.map((value) => ({
     value,
@@ -53,21 +47,15 @@ export function getThinkingModesForAgent(
   return agentKind === 'opencode' ? [OPENCODE_DEFAULT_THINKING_MODE, ...modes] : modes;
 }
 
-// Subscribes to the models query so the selector appears once tiers load.
-export function useThinkingModes(agentKind: AgentKind, modelId?: string): ThinkingModeOption[] {
-  useModelsQuery();
-  return getThinkingModesForAgent(agentKind, modelId);
-}
-
 export function coerceThinkingModeForAgent(
   thinkingMode: string,
   agentKind: AgentKind,
-  modelId?: string,
+  model: Model | undefined,
 ): string {
-  const modes = getThinkingModesForAgent(agentKind, modelId);
+  const modes = getThinkingModesForAgent(agentKind, model);
   if (
     agentKind === 'antigravity' &&
-    modelId === 'antigravity:gemini-3.1-pro' &&
+    model?.model_id === 'antigravity:gemini-3.1-pro' &&
     thinkingMode === 'medium'
   ) {
     return 'high';
@@ -90,11 +78,11 @@ export function coerceThinkingModeForAgent(
 export function getThinkingModeOption(
   thinkingMode: string,
   agentKind: AgentKind,
-  modelId?: string,
+  model: Model | undefined,
 ): ThinkingModeOption | null {
-  const modes = getThinkingModesForAgent(agentKind, modelId);
+  const modes = getThinkingModesForAgent(agentKind, model);
   if (modes.length === 0) return null;
-  const effectiveMode = coerceThinkingModeForAgent(thinkingMode, agentKind, modelId);
+  const effectiveMode = coerceThinkingModeForAgent(thinkingMode, agentKind, model);
   const selectedMode = modes.find((mode) => mode.value === effectiveMode);
 
   if (!selectedMode) {

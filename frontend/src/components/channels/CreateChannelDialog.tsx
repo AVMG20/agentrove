@@ -74,7 +74,8 @@ function resolveMember(member: MemberDraft, models: Model[]) {
     modelId,
     modelName: model?.name ?? modelId,
     agentKind,
-    hasThinking: getThinkingModesForAgent(agentKind, modelId).length > 0,
+    model,
+    hasThinking: getThinkingModesForAgent(agentKind, model).length > 0,
     supportsPersona: PERSONAS_SUPPORTED_AGENTS.has(agentKind),
   };
 }
@@ -169,7 +170,7 @@ function MemberChip({
   const { isOpen, dropdownRef, setIsOpen } = useDropdown();
   const popoverRef = useRef<HTMLDivElement>(null);
   const fit = usePanelFit(dropdownRef, popoverRef, isOpen);
-  const { modelId, modelName, agentKind, hasThinking, supportsPersona } = resolveMember(
+  const { modelId, model, modelName, agentKind, hasThinking, supportsPersona } = resolveMember(
     member,
     models,
   );
@@ -253,7 +254,7 @@ function MemberChip({
                 value={member.thinkingMode}
                 onChange={(thinkingMode) => onChange({ thinkingMode })}
                 agentKind={agentKind}
-                modelId={modelId}
+                model={model}
                 dropdownPosition="auto"
                 dropdownAlign="right"
                 variant="text"
@@ -363,12 +364,15 @@ export function CreateChannelDialog({
     }
 
     const requestMembers: ChannelMemberCreateRequest[] = members.map((member) => {
-      const { modelId, agentKind, hasThinking, supportsPersona } = resolveMember(member, models);
+      const { modelId, model, agentKind, hasThinking, supportsPersona } = resolveMember(
+        member,
+        models,
+      );
       return {
         model_id: modelId,
         persona: supportsPersona && member.persona !== DEFAULT_PERSONA ? member.persona : null,
         thinking_mode: hasThinking
-          ? coerceThinkingModeForAgent(member.thinkingMode, agentKind, modelId)
+          ? coerceThinkingModeForAgent(member.thinkingMode, agentKind, model)
           : null,
         permission_mode: coercePermissionModeForAgent(member.permissionMode, agentKind),
         display_name: member.customName || undefined,

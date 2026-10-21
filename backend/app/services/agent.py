@@ -600,6 +600,7 @@ class AgentService:
             system_prompt=system_prompt,
             system_prompt_is_full_replace=system_prompt_is_full_replace,
             reasoning_effort=session_config.reasoning_effort,
+            effort_explicit=session_config.effort_explicit,
             session_meta=session_config.meta,
             fast_mode=fast_mode,
         )

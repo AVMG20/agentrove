@@ -31,11 +31,11 @@ export function buildAgentChatFields(
   raw: RawChatSettings,
   personas: Persona[],
 ): AgentChatFields {
-  const agentKind =
-    modelMap.get(selectedModelId)?.agent_kind ?? getAgentKindForModelId(selectedModelId);
+  const model = modelMap.get(selectedModelId);
+  const agentKind = model?.agent_kind ?? getAgentKindForModelId(selectedModelId);
   return {
     permission_mode: coercePermissionModeForAgent(raw.permissionMode, agentKind),
-    thinking_mode: coerceThinkingModeForAgent(raw.thinkingMode, agentKind, selectedModelId),
+    thinking_mode: coerceThinkingModeForAgent(raw.thinkingMode, agentKind, model),
     worktree: raw.worktree ? true : undefined,
     // Only meaningful when this turn creates a worktree; omit otherwise so a stale
     // base can't leak onto a turn that isn't cutting one.

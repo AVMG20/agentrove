@@ -101,6 +101,7 @@ class AcpSessionConfig:
     system_prompt: str | None = None
     system_prompt_is_full_replace: bool = False
     reasoning_effort: str | None = None
+    effort_explicit: bool = False
     session_meta: dict[str, Any] = field(default_factory=dict)
     instructions_file_path: str | None = None
     # Codex-only: 1.5x speed service tier via set_config_option("fast-mode").
@@ -300,7 +301,10 @@ class AcpSession:
             logger.warning("Failed to send ACP cancel", exc_info=True)
 
     async def set_model(
-        self, model_id: str, reasoning_effort: str | None = None
+        self,
+        model_id: str,
+        reasoning_effort: str | None = None,
+        effort_explicit: bool = False,
     ) -> None:
         try:
             config_options = await self._set_model_on_conn(
@@ -322,6 +326,7 @@ class AcpSession:
             self.acp_session_id,
             reasoning_effort,
             self.effort_levels,
+            effort_explicit,
         )
 
     def ensure_effort_supported(self, reasoning_effort: str | None) -> None:
@@ -525,6 +530,7 @@ class AcpSession:
                 acp_session_id,
                 config.reasoning_effort,
                 effort_levels,
+                config.effort_explicit,
             )
 
             # Fast mode is per-turn service tier state inside codex-acp; default
@@ -643,25 +649,27 @@ class AcpSession:
         session_id: str,
         reasoning_effort: str | None,
         effort_levels: tuple[str, ...] | None,
+        effort_explicit: bool,
     ) -> None:
         # Only for agents whose effort is a session config option; it must be
         # applied after new_session/load_session. Others carry effort in the
         # model ID (Codex, Antigravity) or launch flags (Grok). An unadvertised
         # level is left for ensure_effort_supported to reject before the prompt.
-        config_id = AGENT_ADAPTERS[agent_kind].effort_config_id
-        if config_id is None or not reasoning_effort:
+        adapter = AGENT_ADAPTERS[agent_kind]
+        value = reasoning_effort or adapter.unset_effort_value
+        if adapter.effort_config_id is None or not value:
             return
-        if effort_levels is not None and reasoning_effort not in effort_levels:
+        if effort_levels is not None and value not in effort_levels:
             return
-        # A failed set would run the turn at a tier the user didn't pick.
         try:
             await conn.set_config_option(
-                config_id=config_id, session_id=session_id, value=reasoning_effort
+                config_id=adapter.effort_config_id, session_id=session_id, value=value
             )
         except Exception as exc:
-            raise AgentException(
-                f"Failed to set effort `{reasoning_effort}`: {exc}"
-            ) from exc
+            # A user-picked tier must not silently fall back; a default may.
+            if effort_explicit:
+                raise AgentException(f"Failed to set effort `{value}`: {exc}") from exc
+            logger.warning("Failed to set default effort: %s", value, exc_info=True)
 
     @staticmethod
     async def _set_fast_mode_on_conn(

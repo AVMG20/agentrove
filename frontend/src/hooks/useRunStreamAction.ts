@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { chatService } from '@/services/chatService';
 import { useCreateSubThreadMutation } from '@/hooks/queries/useChatQueries';
+import { useModelMap } from '@/hooks/queries/useModelQueries';
 import { useModelStore } from '@/store/modelStore';
 import { useStreamStore } from '@/store/streamStore';
 import { useChatSettingsStore } from '@/store/chatSettingsStore';
@@ -16,18 +17,16 @@ import type { StreamAction } from '@/types/user.types';
 export function useRunStreamAction(parentChat: Chat | undefined) {
   const navigate = useNavigate();
   const createSubThread = useCreateSubThreadMutation(parentChat?.id ?? '');
+  const modelMap = useModelMap();
 
   return useCallback(
     async (action: StreamAction) => {
       if (!parentChat) return;
 
-      const agentKind = getAgentKindForModelId(action.model_id);
+      const model = modelMap.get(action.model_id);
+      const agentKind = model?.agent_kind ?? getAgentKindForModelId(action.model_id);
       const permissionMode = coercePermissionModeForAgent(action.permission_mode, agentKind);
-      const thinkingMode = coerceThinkingModeForAgent(
-        action.thinking_mode,
-        agentKind,
-        action.model_id,
-      );
+      const thinkingMode = coerceThinkingModeForAgent(action.thinking_mode, agentKind, model);
 
       try {
         const newChat = await createSubThread.mutateAsync({
@@ -67,6 +66,6 @@ export function useRunStreamAction(parentChat: Chat | undefined) {
         toast.error(error instanceof Error ? error.message : `Failed to start "${action.label}"`);
       }
     },
-    [parentChat, createSubThread, navigate],
+    [parentChat, createSubThread, navigate, modelMap],
   );
 }

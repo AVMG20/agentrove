@@ -1,7 +1,7 @@
 import { PermissionModeSelector } from '@/components/chat/permission-mode-selector/PermissionModeSelector';
 import { ModelSelector } from '@/components/chat/model-selector/ModelSelector';
 import { ThinkingModeSelector } from '@/components/chat/thinking-mode-selector/ThinkingModeSelector';
-import { useThinkingModes } from '@/components/chat/thinking-mode-selector/thinkingModes';
+import { getThinkingModesForAgent } from '@/components/chat/thinking-mode-selector/thinkingModes';
 import { FastModeSelector } from '@/components/chat/fast-mode-selector/FastModeSelector';
 import { PersonaSelector } from '@/components/chat/persona-selector/PersonaSelector';
 import { PERSONAS_SUPPORTED_AGENTS } from '@/components/chat/persona-selector/personaSupport';
@@ -21,7 +21,8 @@ export function InputControls() {
   // `/models/` is auth-protected; gate so the public landing composer doesn't 401.
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const modelMap = useModelMap(isAuthenticated);
-  const agentKind = modelMap.get(state.selectedModelId)?.agent_kind;
+  const selectedModel = modelMap.get(state.selectedModelId);
+  const agentKind = selectedModel?.agent_kind;
   const { data: chat } = useChatQuery(state.chatId, { enabled: !!state.chatId });
   const lockedAgentKind = chat?.session_agent_kind ?? null;
 
@@ -37,8 +38,9 @@ export function InputControls() {
     branchesData.branches.length > 0;
   // Model-aware: some agents only expose a reasoning dial on specific models
   // (e.g. Claude's Haiku has none), so the base per-agent list isn't enough.
-  const thinkingModes = useThinkingModes(agentKind ?? 'claude', state.selectedModelId);
-  const showThinking = agentKind ? thinkingModes.length > 0 : true;
+  const showThinking = agentKind
+    ? getThinkingModesForAgent(agentKind, selectedModel).length > 0
+    : true;
   const showFastMode = agentKind === 'codex';
 
   return (
@@ -60,7 +62,7 @@ export function InputControls() {
           <ThinkingModeSelector
             chatId={state.chatId}
             agentKind={agentKind}
-            modelId={state.selectedModelId}
+            model={selectedModel}
             dropdownPosition={state.dropdownPosition}
             dropdownAlign="right"
             disabled={state.isLoading}
