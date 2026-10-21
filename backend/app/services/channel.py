@@ -76,10 +76,10 @@ INTRODUCTION = (
 )
 ROUTING_NOTE = (
     'A line like "[author → @name]: text" is addressed only to those members; '
-    "the rest see it as context. If a line addressed to you asks a question or requests "
-    "action or a decision from you, answer it; if it's only an acknowledgment or status "
-    "note, reply `PASS`. @mention a member only when you need something from them — "
-    "never to acknowledge or close a thread."
+    "the rest see it as context. Answer a line addressed to you when it asks a question "
+    "or requests action or a decision from you; reply `PASS` to acknowledgments, status "
+    "notes, and closing messages, even when you're named. @mention a member only when "
+    "you need something from them, never to acknowledge."
 )
 
 
