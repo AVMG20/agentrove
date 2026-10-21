@@ -30,6 +30,7 @@ async def list_models(
             name=info.display_name,
             agent_kind=info.agent_kind,
             context_window=info.context_window,
+            legacy=info.legacy,
             thinking_modes=sorted(
                 AGENT_ADAPTERS[info.agent_kind].valid_thinking_modes(mid),
                 key=THINKING_MODE_ORDER.index,

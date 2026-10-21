@@ -36,6 +36,7 @@ async def test_list_models_returns_registered_models(
         "name": MODELS["haiku"].display_name,
         "agent_kind": MODELS["haiku"].agent_kind.value,
         "context_window": MODELS["haiku"].context_window,
+        "legacy": False,
         # Haiku has no effort dial in claude-agent-acp (supportsEffort false).
         "thinking_modes": [],
     } in body
@@ -233,6 +234,19 @@ async def test_list_models_rejects_invalid_agent_kind(
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid agent_kind: invalid"
+
+
+async def test_list_models_exposes_legacy_flag(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> None:
+    response = await client.get("/api/v1/models/", headers=auth_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    legacy_ids = {item["model_id"] for item in body if item["legacy"]}
+    assert legacy_ids
+    assert legacy_ids == {mid for mid, info in MODELS.items() if info.legacy}
 
 
 async def test_models_reject_missing_token(client: AsyncClient) -> None:

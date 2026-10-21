@@ -47,8 +47,13 @@ export const ModelSelector = memo(function ModelSelector({
   const [agentFilter, setAgentFilter] = useState<AgentKind | null>(null);
 
   const filteredModels = useMemo(
-    () => (lockedAgentKind ? models.filter((m) => m.agent_kind === lockedAgentKind) : models),
-    [models, lockedAgentKind],
+    () =>
+      models.filter(
+        (m) =>
+          (!lockedAgentKind || m.agent_kind === lockedAgentKind) &&
+          (!m.legacy || m.model_id === selectedModelId || favoriteModelIds.includes(m.model_id)),
+      ),
+    [models, lockedAgentKind, selectedModelId, favoriteModelIds],
   );
 
   const favoriteIdSet = useMemo(() => new Set(favoriteModelIds), [favoriteModelIds]);

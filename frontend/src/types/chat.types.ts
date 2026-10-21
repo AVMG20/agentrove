@@ -165,6 +165,7 @@ export interface Model {
   name: string;
   agent_kind: AgentKind;
   context_window: number | null;
+  legacy?: boolean;
 }
 
 const CODEX_MODEL_IDS = new Set([
