@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { coerceThinkingModeForAgent } from '@/components/chat/thinking-mode-selector/thinkingModes';
+import { queryKeys } from '@/hooks/queries/queryKeys';
+import { queryClient } from '@/lib/queryClient';
 import { buildAgentChatFields } from './chatRequest';
 import type { Model } from '@/types/chat.types';
 import type { Persona } from '@/types/user.types';
@@ -21,6 +23,29 @@ const raw = (over: Partial<Parameters<typeof buildAgentChatFields>[2]> = {}) => 
   fastMode: false,
   persona: 'Default',
   ...over,
+});
+
+beforeEach(() => {
+  queryClient.setQueryData<Model[]>(
+    [queryKeys.models],
+    [
+      model({
+        model_id: 'claude-sonnet-5',
+        agent_kind: 'claude',
+        thinking_modes: ['low', 'medium', 'high', 'xhigh', 'max'],
+      }),
+      model({
+        model_id: 'gpt-5.5',
+        agent_kind: 'codex',
+        thinking_modes: ['low', 'medium', 'high', 'xhigh'],
+      }),
+      model({
+        model_id: 'copilot:gpt-5.4',
+        agent_kind: 'copilot',
+        thinking_modes: ['low', 'medium', 'high', 'xhigh'],
+      }),
+    ],
+  );
 });
 
 describe('coerceThinkingModeForAgent', () => {

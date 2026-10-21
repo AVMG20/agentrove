@@ -183,7 +183,8 @@ class AgentAdapter:
 
     def valid_thinking_modes(self, model_id: str) -> frozenset[str]:
         # Accepted thinking tiers; empty = no effort dial (thinking_mode ignored).
-        return frozenset()
+        info = MODELS.get(model_id)
+        return frozenset(info.effort_levels) if info else frozenset()
 
     def reasoning_effort(self, model_id: str, thinking_mode: str | None) -> str | None:
         modes = self.valid_thinking_modes(model_id)
@@ -205,20 +206,6 @@ class ClaudeAgentAdapter(AgentAdapter):
     session_modes = frozenset({"default", "acceptEdits", "plan", "bypassPermissions"})
     binary = "claude-agent-acp"
     effort_config_id = "effort"
-    XHIGH_MODEL_IDS = frozenset(
-        {
-            "claude-fable-5-1",
-            "claude-fable-5",
-            "claude-opus-5-5",
-            "claude-opus-5",
-            "claude-sonnet-5-5",
-            "claude-haiku-5-5",
-        }
-    )
-    # claude-agent-acp only advertises the "effort" config option for models that
-    # report supportsEffort — the generic haiku alias doesn't, so
-    # set_config_option("effort") fails with "Unknown config option: effort".
-    NO_EFFORT_MODEL_IDS = frozenset({"haiku"})
 
     def build_launch_config(
         self,
@@ -246,13 +233,6 @@ class ClaudeAgentAdapter(AgentAdapter):
     def build_session_env(self, model_id: str) -> dict[str, str]:
         return {"ANTHROPIC_MODEL": model_id}
 
-    def valid_thinking_modes(self, model_id: str) -> frozenset[str]:
-        if model_id in self.NO_EFFORT_MODEL_IDS:
-            return frozenset()
-        if model_id in self.XHIGH_MODEL_IDS:
-            return frozenset({"low", "medium", "high", "xhigh", "max"})
-        return frozenset({"low", "medium", "high", "max"})
-
     def map_session_mode(self, permission_mode: str) -> str:
         return permission_mode
 
@@ -266,22 +246,6 @@ class CodexAgentAdapter(AgentAdapter):
         "full-access": "agent-full-access",
     }
     session_modes = frozenset(SESSION_MODE_IDS)
-    MAX_MODEL_IDS = frozenset(
-        {
-            "gpt-6.1-sol",
-            "gpt-6-astra",
-            "gpt-6-sol",
-            "gpt-6-luna",
-            "gpt-5.6-sol",
-            "gpt-5.6-terra",
-            "gpt-5.6-luna",
-        }
-    )
-    # Per Codex's model registry, `ultra` (max reasoning + automatic task
-    # delegation) is supported by Astra/Sol/Terra but not Luna.
-    ULTRA_MODEL_IDS = frozenset(
-        {"gpt-6.1-sol", "gpt-6-astra", "gpt-6-sol", "gpt-5.6-sol", "gpt-5.6-terra"}
-    )
 
     def build_launch_config(
         self,
@@ -313,13 +277,6 @@ class CodexAgentAdapter(AgentAdapter):
     ) -> dict[str, Any]:
         return {}
 
-    def valid_thinking_modes(self, model_id: str) -> frozenset[str]:
-        if model_id in self.ULTRA_MODEL_IDS:
-            return frozenset({"low", "medium", "high", "xhigh", "max", "ultra"})
-        if model_id in self.MAX_MODEL_IDS:
-            return frozenset({"low", "medium", "high", "xhigh", "max"})
-        return frozenset({"low", "medium", "high", "xhigh"})
-
     def map_session_mode(self, permission_mode: str) -> str:
         # Invalid modes indicate a caller bug; fail here so the session
         # doesn't silently start with broader or different permissions.
@@ -345,59 +302,6 @@ class CopilotCliAdapter(AgentAdapter):
     default_thinking_mode = "high"
     effort_config_id = "reasoning_effort"
     SESSION_MODE_BASE_URL = "https://agentclientprotocol.com/protocol/session-modes"
-    MAX_MODEL_IDS = frozenset(
-        {
-            "copilot:claude-sonnet-5",
-            "copilot:claude-fable-5",
-            "copilot:claude-opus-5",
-            "copilot:claude-opus-4.8",
-            "copilot:claude-opus-4.8-fast",
-            "copilot:claude-opus-4.7",
-            "copilot:gpt-6.1-sol",
-            "copilot:gpt-6-astra",
-            "copilot:gpt-6-sol",
-            "copilot:gpt-6-luna",
-            "copilot:gpt-5.6-sol",
-            "copilot:gpt-5.6-terra",
-            "copilot:gpt-5.6-luna",
-        }
-    )
-    NO_XHIGH_MODEL_IDS = frozenset(
-        {"copilot:claude-sonnet-4.6", "copilot:claude-opus-4.6"}
-    )
-    XHIGH_MODEL_IDS = frozenset(
-        {
-            "copilot:gpt-5.5",
-            "copilot:gpt-5.4",
-            "copilot:gpt-5.4-mini",
-            "copilot:gpt-5.3-codex",
-        }
-    )
-    REASONING_MODEL_IDS = frozenset(
-        {
-            "copilot:gpt-5-mini",
-            "copilot:mai-code-1-flash-picker",
-            "copilot:gemini-4-argon",
-            "copilot:gemini-3.8-flash",
-            "copilot:gemini-3.6-flash",
-            "copilot:gemini-3.5-flash",
-            "copilot:gemini-3.1-pro-preview",
-            "copilot:grok-4.5",
-        }
-    )
-
-    def valid_thinking_modes(self, model_id: str) -> frozenset[str]:
-        if model_id in self.MAX_MODEL_IDS:
-            return frozenset({"low", "medium", "high", "xhigh", "max"})
-        if model_id in self.NO_XHIGH_MODEL_IDS:
-            return frozenset({"low", "medium", "high", "max"})
-        if model_id in self.XHIGH_MODEL_IDS:
-            return frozenset({"low", "medium", "high", "xhigh"})
-        if model_id in self.REASONING_MODEL_IDS:
-            return frozenset({"low", "medium", "high"})
-        if model_id == "copilot:kimi-k3":
-            return frozenset({"low", "high", "max"})
-        return frozenset()
 
     def map_session_mode(self, permission_mode: str) -> str:
         return (
@@ -426,10 +330,6 @@ class GrokAgentAdapter(AgentAdapter):
     # `code` mode never prompted, so it falls back to always-approve.
     session_modes = frozenset({"auto", "always-approve", "plan"})
     fallback_session_mode = "always-approve"
-    # Grok 4.5 exposes low/medium/high reasoning effort; 4.6+ add xhigh.
-    # The effort launch flag is skipped for models outside these allowlists.
-    REASONING_MODEL_IDS = frozenset({"grok:grok-4.5", "grok:grok-4.6", "grok:grok-4.7"})
-    XHIGH_MODEL_IDS = frozenset({"grok:grok-4.6", "grok:grok-4.7"})
 
     def build_launch_config(
         self,
@@ -463,13 +363,6 @@ class GrokAgentAdapter(AgentAdapter):
             return {"systemPromptOverride": system_prompt}
         return {"rules": system_prompt}
 
-    def valid_thinking_modes(self, model_id: str) -> frozenset[str]:
-        if model_id in self.XHIGH_MODEL_IDS:
-            return frozenset({"low", "medium", "high", "xhigh"})
-        if model_id in self.REASONING_MODEL_IDS:
-            return frozenset({"low", "medium", "high"})
-        return frozenset()
-
 
 class AntigravityAgentAdapter(AgentAdapter):
     binary = "agy-acp-server"
@@ -477,7 +370,6 @@ class AntigravityAgentAdapter(AgentAdapter):
     session_modes = frozenset({"default", "auto_edit", "yolo"})
     fallback_session_mode = "yolo"
     default_thinking_mode = "high"
-    PRO_MODEL_ID = "antigravity:gemini-3.1-pro"
     # OAuth-path server IDs; API-key auth advertises different unsupported IDs.
     OAUTH_MODEL_IDS = {
         ("gemini-3.5-flash", "high"): "gemini-3-flash-agent",
@@ -486,18 +378,6 @@ class AntigravityAgentAdapter(AgentAdapter):
         ("gemini-3.1-pro", "high"): "gemini-pro-agent",
         ("gemini-3.1-pro", "low"): "gemini-3.1-pro-low",
     }
-
-    def valid_thinking_modes(self, model_id: str) -> frozenset[str]:
-        if model_id == self.PRO_MODEL_ID:
-            return frozenset({"low", "high"})
-        return frozenset({"low", "medium", "high"})
-
-    def reasoning_effort(self, model_id: str, thinking_mode: str | None) -> str:
-        return resolve_thinking_mode(
-            thinking_mode,
-            self.valid_thinking_modes(model_id),
-            self.default_thinking_mode,
-        )
 
     def map_model_id(self, model_id: str, reasoning_effort: str | None = None) -> str:
         effort = self.reasoning_effort(model_id, reasoning_effort)
@@ -538,10 +418,6 @@ class OpencodeAgentAdapter(AgentAdapter):
 
     def build_session_env(self, model_id: str) -> dict[str, str]:
         return {"OPENCODE_CONFIG_CONTENT": json.dumps(self.BASE_CONFIG)}
-
-    def valid_thinking_modes(self, model_id: str) -> frozenset[str]:
-        info = MODELS.get(model_id)
-        return frozenset(info.effort_levels) if info else frozenset()
 
     def reasoning_effort(self, model_id: str, thinking_mode: str | None) -> str | None:
         # Unlike other agents, an unset level (or the selector's "default")

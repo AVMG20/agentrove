@@ -9,7 +9,7 @@ import {
 } from '@/store/chatSettingsStore';
 import { useIsSplitMode } from '@/hooks/useIsSplitMode';
 import type { AgentKind } from '@/types/chat.types';
-import { getThinkingModesForAgent, getThinkingModeOption } from './thinkingModes';
+import { getThinkingModeOption, useThinkingModes } from './thinkingModes';
 import styles from './ThinkingModeSelector.module.scss';
 
 interface ThinkingModeControlProps {
@@ -39,7 +39,7 @@ export const ThinkingModeDropdown = memo(function ThinkingModeDropdown({
   const resolvedAgentKind = agentKind ?? 'claude';
   const isSplitMode = useIsSplitMode();
 
-  const modes = getThinkingModesForAgent(resolvedAgentKind, modelId);
+  const modes = useThinkingModes(resolvedAgentKind, modelId);
   const selectedMode = getThinkingModeOption(value, resolvedAgentKind, modelId);
 
   // Some agents (e.g. Cursor) don't expose a thinking-mode control because

@@ -11,7 +11,8 @@ class ModelInfo(NamedTuple):
     agent_kind: AgentKind
     context_window: int | None
     legacy: bool = False
-    # OpenCode only: per-model effort levels from models.dev `reasoning_options`.
+    # Effort tiers the model accepts (OpenCode's from models.dev
+    # `reasoning_options`); empty = no effort dial.
     effort_levels: tuple[str, ...] = ()
 
 
@@ -138,52 +139,204 @@ SANDBOX_BASHRC_PATH: Final[str] = "/home/user/.bashrc"
 
 
 MODELS: dict[str, ModelInfo] = {
-    "sonnet": ModelInfo("Sonnet", AgentKind.CLAUDE, 1_000_000),
-    "claude-sonnet-5-5": ModelInfo("Sonnet 5.5", AgentKind.CLAUDE, 1_000_000),
+    "sonnet": ModelInfo(
+        "Sonnet",
+        AgentKind.CLAUDE,
+        1_000_000,
+        effort_levels=("low", "medium", "high", "max"),
+    ),
+    "claude-sonnet-5-5": ModelInfo(
+        "Sonnet 5.5",
+        AgentKind.CLAUDE,
+        1_000_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
     "haiku": ModelInfo("Haiku", AgentKind.CLAUDE, 200_000),
-    "claude-haiku-5-5": ModelInfo("Haiku 5.5", AgentKind.CLAUDE, 1_000_000),
-    "claude-fable-5-1": ModelInfo("Fable 5.1", AgentKind.CLAUDE, 1_000_000),
-    "claude-fable-5": ModelInfo("Fable 5", AgentKind.CLAUDE, 1_000_000, legacy=True),
-    "claude-opus-5-5": ModelInfo("Opus 5.5", AgentKind.CLAUDE, 1_000_000),
-    "claude-opus-5": ModelInfo("Opus 5", AgentKind.CLAUDE, 1_000_000, legacy=True),
+    "claude-haiku-5-5": ModelInfo(
+        "Haiku 5.5",
+        AgentKind.CLAUDE,
+        1_000_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
+    "claude-fable-5-1": ModelInfo(
+        "Fable 5.1",
+        AgentKind.CLAUDE,
+        1_000_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
+    "claude-fable-5": ModelInfo(
+        "Fable 5",
+        AgentKind.CLAUDE,
+        1_000_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
+    "claude-opus-5-5": ModelInfo(
+        "Opus 5.5",
+        AgentKind.CLAUDE,
+        1_000_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
+    "claude-opus-5": ModelInfo(
+        "Opus 5",
+        AgentKind.CLAUDE,
+        1_000_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
     # Codex CLI clamps model_context_window to its bundled catalog max — 272k for
     # these slugs — then sessions report ~95% of the resolved window (e.g. 258,400).
     # gpt-5.4's catalog max is 1M via config opt-in; raise it here once a live
     # session verifies the opt-in survives our app-server launch path.
     # Live-reported window still wins over these fallbacks.
-    "gpt-6.1-sol": ModelInfo("GPT 6.1 Sol", AgentKind.CODEX, 500_000),
-    "gpt-6-astra": ModelInfo("GPT 6 Astra", AgentKind.CODEX, 272_000),
-    "gpt-6-sol": ModelInfo("GPT 6 Sol", AgentKind.CODEX, 272_000, legacy=True),
-    "gpt-6-luna": ModelInfo("GPT 6 Luna", AgentKind.CODEX, 272_000),
-    "gpt-5.6-sol": ModelInfo("GPT 5.6 Sol", AgentKind.CODEX, 272_000, legacy=True),
-    "gpt-5.6-terra": ModelInfo("GPT 5.6 Terra", AgentKind.CODEX, 272_000),
-    "gpt-5.6-luna": ModelInfo("GPT 5.6 Luna", AgentKind.CODEX, 272_000, legacy=True),
-    "gpt-5.5": ModelInfo("GPT 5.5", AgentKind.CODEX, 272_000),
-    "gpt-5.4": ModelInfo("GPT 5.4", AgentKind.CODEX, 272_000, legacy=True),
-    "gpt-5.4-mini": ModelInfo("GPT 5.4 Mini", AgentKind.CODEX, 272_000),
-    "gpt-5.3-codex": ModelInfo("GPT 5.3 Codex", AgentKind.CODEX, 400_000),
-    "gpt-5.2-codex": ModelInfo("GPT 5.2 Codex", AgentKind.CODEX, 400_000, legacy=True),
-    "gpt-5.2": ModelInfo("GPT 5.2", AgentKind.CODEX, 272_000, legacy=True),
-    "gpt-5.1-codex-max": ModelInfo("GPT 5.1 Codex Max", AgentKind.CODEX, 400_000),
-    "gpt-5.1-codex-mini": ModelInfo("GPT 5.1 Codex Mini", AgentKind.CODEX, 400_000),
+    "gpt-6.1-sol": ModelInfo(
+        "GPT 6.1 Sol",
+        AgentKind.CODEX,
+        500_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max", "ultra"),
+    ),
+    "gpt-6-astra": ModelInfo(
+        "GPT 6 Astra",
+        AgentKind.CODEX,
+        272_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max", "ultra"),
+    ),
+    "gpt-6-sol": ModelInfo(
+        "GPT 6 Sol",
+        AgentKind.CODEX,
+        272_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh", "max", "ultra"),
+    ),
+    "gpt-6-luna": ModelInfo(
+        "GPT 6 Luna",
+        AgentKind.CODEX,
+        272_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
+    "gpt-5.6-sol": ModelInfo(
+        "GPT 5.6 Sol",
+        AgentKind.CODEX,
+        272_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh", "max", "ultra"),
+    ),
+    "gpt-5.6-terra": ModelInfo(
+        "GPT 5.6 Terra",
+        AgentKind.CODEX,
+        272_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max", "ultra"),
+    ),
+    "gpt-5.6-luna": ModelInfo(
+        "GPT 5.6 Luna",
+        AgentKind.CODEX,
+        272_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
+    "gpt-5.5": ModelInfo(
+        "GPT 5.5",
+        AgentKind.CODEX,
+        272_000,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "gpt-5.4": ModelInfo(
+        "GPT 5.4",
+        AgentKind.CODEX,
+        272_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "gpt-5.4-mini": ModelInfo(
+        "GPT 5.4 Mini",
+        AgentKind.CODEX,
+        272_000,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "gpt-5.3-codex": ModelInfo(
+        "GPT 5.3 Codex",
+        AgentKind.CODEX,
+        400_000,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "gpt-5.2-codex": ModelInfo(
+        "GPT 5.2 Codex",
+        AgentKind.CODEX,
+        400_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "gpt-5.2": ModelInfo(
+        "GPT 5.2",
+        AgentKind.CODEX,
+        272_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "gpt-5.1-codex-max": ModelInfo(
+        "GPT 5.1 Codex Max",
+        AgentKind.CODEX,
+        400_000,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "gpt-5.1-codex-mini": ModelInfo(
+        "GPT 5.1 Codex Mini",
+        AgentKind.CODEX,
+        400_000,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
     "copilot:auto": ModelInfo("Auto", AgentKind.COPILOT, None),
-    "copilot:claude-sonnet-5": ModelInfo("Sonnet 5", AgentKind.COPILOT, 160_000),
-    "copilot:claude-fable-5": ModelInfo("Fable 5", AgentKind.COPILOT, 160_000),
-    "copilot:claude-opus-5": ModelInfo("Opus 5", AgentKind.COPILOT, 160_000),
+    "copilot:claude-sonnet-5": ModelInfo(
+        "Sonnet 5",
+        AgentKind.COPILOT,
+        160_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
+    "copilot:claude-fable-5": ModelInfo(
+        "Fable 5",
+        AgentKind.COPILOT,
+        160_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
+    "copilot:claude-opus-5": ModelInfo(
+        "Opus 5",
+        AgentKind.COPILOT,
+        160_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
     "copilot:claude-opus-4.8": ModelInfo(
-        "Opus 4.8", AgentKind.COPILOT, 160_000, legacy=True
+        "Opus 4.8",
+        AgentKind.COPILOT,
+        160_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
     ),
     "copilot:claude-opus-4.8-fast": ModelInfo(
-        "Opus 4.8 Fast", AgentKind.COPILOT, 160_000
+        "Opus 4.8 Fast",
+        AgentKind.COPILOT,
+        160_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
     ),
     "copilot:claude-opus-4.7": ModelInfo(
-        "Opus 4.7", AgentKind.COPILOT, 160_000, legacy=True
+        "Opus 4.7",
+        AgentKind.COPILOT,
+        160_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
     ),
     "copilot:claude-sonnet-4.6": ModelInfo(
-        "Sonnet 4.6", AgentKind.COPILOT, 160_000, legacy=True
+        "Sonnet 4.6",
+        AgentKind.COPILOT,
+        160_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "max"),
     ),
     "copilot:claude-opus-4.6": ModelInfo(
-        "Opus 4.6", AgentKind.COPILOT, 160_000, legacy=True
+        "Opus 4.6",
+        AgentKind.COPILOT,
+        160_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "max"),
     ),
     "copilot:claude-sonnet-4.5": ModelInfo(
         "Sonnet 4.5", AgentKind.COPILOT, 160_000, legacy=True
@@ -192,44 +345,127 @@ MODELS: dict[str, ModelInfo] = {
         "Opus 4.5", AgentKind.COPILOT, 160_000, legacy=True
     ),
     "copilot:claude-haiku-4.5": ModelInfo("Haiku 4.5", AgentKind.COPILOT, 160_000),
-    "copilot:gpt-6.1-sol": ModelInfo("GPT 6.1 Sol", AgentKind.COPILOT, 304_000),
-    "copilot:gpt-6-astra": ModelInfo("GPT 6 Astra", AgentKind.COPILOT, 304_000),
+    "copilot:gpt-6.1-sol": ModelInfo(
+        "GPT 6.1 Sol",
+        AgentKind.COPILOT,
+        304_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
+    "copilot:gpt-6-astra": ModelInfo(
+        "GPT 6 Astra",
+        AgentKind.COPILOT,
+        304_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
     "copilot:gpt-6-sol": ModelInfo(
-        "GPT 6 Sol", AgentKind.COPILOT, 304_000, legacy=True
+        "GPT 6 Sol",
+        AgentKind.COPILOT,
+        304_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
     ),
-    "copilot:gpt-6-luna": ModelInfo("GPT 6 Luna", AgentKind.COPILOT, 304_000),
+    "copilot:gpt-6-luna": ModelInfo(
+        "GPT 6 Luna",
+        AgentKind.COPILOT,
+        304_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
     "copilot:gpt-5.6-sol": ModelInfo(
-        "GPT 5.6 Sol", AgentKind.COPILOT, 304_000, legacy=True
+        "GPT 5.6 Sol",
+        AgentKind.COPILOT,
+        304_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
     ),
-    "copilot:gpt-5.6-terra": ModelInfo("GPT 5.6 Terra", AgentKind.COPILOT, 304_000),
+    "copilot:gpt-5.6-terra": ModelInfo(
+        "GPT 5.6 Terra",
+        AgentKind.COPILOT,
+        304_000,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
+    ),
     "copilot:gpt-5.6-luna": ModelInfo(
-        "GPT 5.6 Luna", AgentKind.COPILOT, 304_000, legacy=True
+        "GPT 5.6 Luna",
+        AgentKind.COPILOT,
+        304_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh", "max"),
     ),
-    "copilot:gpt-5.5": ModelInfo("GPT 5.5", AgentKind.COPILOT, 304_000),
-    "copilot:gpt-5.4": ModelInfo("GPT 5.4", AgentKind.COPILOT, 304_000, legacy=True),
-    "copilot:gpt-5.4-mini": ModelInfo("GPT 5.4 Mini", AgentKind.COPILOT, 304_000),
-    "copilot:gpt-5.3-codex": ModelInfo("GPT 5.3 Codex", AgentKind.COPILOT, 304_000),
+    "copilot:gpt-5.5": ModelInfo(
+        "GPT 5.5",
+        AgentKind.COPILOT,
+        304_000,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "copilot:gpt-5.4": ModelInfo(
+        "GPT 5.4",
+        AgentKind.COPILOT,
+        304_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "copilot:gpt-5.4-mini": ModelInfo(
+        "GPT 5.4 Mini",
+        AgentKind.COPILOT,
+        304_000,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "copilot:gpt-5.3-codex": ModelInfo(
+        "GPT 5.3 Codex",
+        AgentKind.COPILOT,
+        304_000,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
     "copilot:gpt-5-mini": ModelInfo(
-        "GPT 5 Mini", AgentKind.COPILOT, 160_000, legacy=True
+        "GPT 5 Mini",
+        AgentKind.COPILOT,
+        160_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high"),
     ),
     "copilot:mai-code-1-flash-picker": ModelInfo(
-        "MAI Code 1 Flash", AgentKind.COPILOT, 128_000
+        "MAI Code 1 Flash",
+        AgentKind.COPILOT,
+        128_000,
+        effort_levels=("low", "medium", "high"),
     ),
-    "copilot:gemini-4-argon": ModelInfo("Gemini 4 Argon", AgentKind.COPILOT, 1_000_000),
+    "copilot:gemini-4-argon": ModelInfo(
+        "Gemini 4 Argon",
+        AgentKind.COPILOT,
+        1_000_000,
+        effort_levels=("low", "medium", "high"),
+    ),
     "copilot:gemini-3.8-flash": ModelInfo(
-        "Gemini 3.8 Flash", AgentKind.COPILOT, 1_000_000
+        "Gemini 3.8 Flash",
+        AgentKind.COPILOT,
+        1_000_000,
+        effort_levels=("low", "medium", "high"),
     ),
     "copilot:gemini-3.6-flash": ModelInfo(
-        "Gemini 3.6 Flash", AgentKind.COPILOT, 1_000_000, legacy=True
+        "Gemini 3.6 Flash",
+        AgentKind.COPILOT,
+        1_000_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high"),
     ),
     "copilot:gemini-3.5-flash": ModelInfo(
-        "Gemini 3.5 Flash", AgentKind.COPILOT, 1_000_000, legacy=True
+        "Gemini 3.5 Flash",
+        AgentKind.COPILOT,
+        1_000_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high"),
     ),
     "copilot:gemini-3.1-pro-preview": ModelInfo(
-        "Gemini 3.1 Pro Preview", AgentKind.COPILOT, 200_000
+        "Gemini 3.1 Pro Preview",
+        AgentKind.COPILOT,
+        200_000,
+        effort_levels=("low", "medium", "high"),
     ),
-    "copilot:grok-4.5": ModelInfo("Grok 4.5", AgentKind.COPILOT, 256_000),
-    "copilot:kimi-k3": ModelInfo("Kimi K3", AgentKind.COPILOT, 256_000),
+    "copilot:grok-4.5": ModelInfo(
+        "Grok 4.5", AgentKind.COPILOT, 256_000, effort_levels=("low", "medium", "high")
+    ),
+    "copilot:kimi-k3": ModelInfo(
+        "Kimi K3", AgentKind.COPILOT, 256_000, effort_levels=("low", "high", "max")
+    ),
     "copilot:kimi-k2.7-code": ModelInfo("Kimi K2.7 Code", AgentKind.COPILOT, 256_000),
     "cursor:auto": ModelInfo("Auto", AgentKind.CURSOR, None),
     "cursor:composer-2.5-fast": ModelInfo(
@@ -283,26 +519,64 @@ MODELS: dict[str, ModelInfo] = {
         "Grok 4.20 Thinking", AgentKind.CURSOR, 200_000
     ),
     "cursor:kimi-k2.5": ModelInfo("Kimi K2.5", AgentKind.CURSOR, 262_000),
-    "grok:grok-4.7": ModelInfo("Grok 4.7", AgentKind.GROK, 500_000),
-    "grok:grok-4.6": ModelInfo("Grok 4.6", AgentKind.GROK, 500_000, legacy=True),
-    "grok:grok-4.5": ModelInfo("Grok 4.5", AgentKind.GROK, 500_000, legacy=True),
+    "grok:grok-4.7": ModelInfo(
+        "Grok 4.7",
+        AgentKind.GROK,
+        500_000,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "grok:grok-4.6": ModelInfo(
+        "Grok 4.6",
+        AgentKind.GROK,
+        500_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high", "xhigh"),
+    ),
+    "grok:grok-4.5": ModelInfo(
+        "Grok 4.5",
+        AgentKind.GROK,
+        500_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high"),
+    ),
     "antigravity:gemini-4-argon": ModelInfo(
-        "Gemini 4 Argon", AgentKind.ANTIGRAVITY, 1_000_000
+        "Gemini 4 Argon",
+        AgentKind.ANTIGRAVITY,
+        1_000_000,
+        effort_levels=("low", "medium", "high"),
     ),
     "antigravity:gemini-3.8-flash": ModelInfo(
-        "Gemini 3.8 Flash", AgentKind.ANTIGRAVITY, 1_000_000
+        "Gemini 3.8 Flash",
+        AgentKind.ANTIGRAVITY,
+        1_000_000,
+        effort_levels=("low", "medium", "high"),
     ),
     "antigravity:gemini-3.7-flash": ModelInfo(
-        "Gemini 3.7 Flash", AgentKind.ANTIGRAVITY, 1_000_000, legacy=True
+        "Gemini 3.7 Flash",
+        AgentKind.ANTIGRAVITY,
+        1_000_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high"),
     ),
     "antigravity:gemini-3.6-flash": ModelInfo(
-        "Gemini 3.6 Flash", AgentKind.ANTIGRAVITY, 1_000_000, legacy=True
+        "Gemini 3.6 Flash",
+        AgentKind.ANTIGRAVITY,
+        1_000_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high"),
     ),
     "antigravity:gemini-3.5-flash": ModelInfo(
-        "Gemini 3.5 Flash", AgentKind.ANTIGRAVITY, 1_000_000, legacy=True
+        "Gemini 3.5 Flash",
+        AgentKind.ANTIGRAVITY,
+        1_000_000,
+        legacy=True,
+        effort_levels=("low", "medium", "high"),
     ),
     "antigravity:gemini-3.1-pro": ModelInfo(
-        "Gemini 3.1 Pro", AgentKind.ANTIGRAVITY, 1_000_000
+        "Gemini 3.1 Pro",
+        AgentKind.ANTIGRAVITY,
+        1_000_000,
+        effort_levels=("low", "high"),
     ),
     "opencode:opencode/big-pickle": ModelInfo(
         "Big Pickle (OpenCode)", AgentKind.OPENCODE, 200_000

@@ -1,7 +1,7 @@
 import { PermissionModeSelector } from '@/components/chat/permission-mode-selector/PermissionModeSelector';
 import { ModelSelector } from '@/components/chat/model-selector/ModelSelector';
 import { ThinkingModeSelector } from '@/components/chat/thinking-mode-selector/ThinkingModeSelector';
-import { getThinkingModesForAgent } from '@/components/chat/thinking-mode-selector/thinkingModes';
+import { useThinkingModes } from '@/components/chat/thinking-mode-selector/thinkingModes';
 import { FastModeSelector } from '@/components/chat/fast-mode-selector/FastModeSelector';
 import { PersonaSelector } from '@/components/chat/persona-selector/PersonaSelector';
 import { PERSONAS_SUPPORTED_AGENTS } from '@/components/chat/persona-selector/personaSupport';
@@ -37,9 +37,8 @@ export function InputControls() {
     branchesData.branches.length > 0;
   // Model-aware: some agents only expose a reasoning dial on specific models
   // (e.g. Claude's Haiku has none), so the base per-agent list isn't enough.
-  const showThinking = agentKind
-    ? getThinkingModesForAgent(agentKind, state.selectedModelId).length > 0
-    : true;
+  const thinkingModes = useThinkingModes(agentKind ?? 'claude', state.selectedModelId);
+  const showThinking = agentKind ? thinkingModes.length > 0 : true;
   const showFastMode = agentKind === 'codex';
 
   return (
