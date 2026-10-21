@@ -316,18 +316,13 @@ class AcpSession:
         # Effort options are model-scoped for some agents, so re-read and
         # re-apply them after a switch.
         self.effort_levels = self._advertised_effort(self._agent_kind, config_options)
-        try:
-            await self._set_effort_on_conn(
-                self._conn,
-                self._agent_kind,
-                self.acp_session_id,
-                reasoning_effort,
-                self.effort_levels,
-            )
-        except Exception:
-            logger.warning(
-                "Failed to set ACP effort: %s", reasoning_effort, exc_info=True
-            )
+        await self._set_effort_on_conn(
+            self._conn,
+            self._agent_kind,
+            self.acp_session_id,
+            reasoning_effort,
+            self.effort_levels,
+        )
 
     def ensure_effort_supported(self, reasoning_effort: str | None) -> None:
         if (
@@ -524,20 +519,13 @@ class AcpSession:
                     )
 
             effort_levels = cls._advertised_effort(config.agent_kind, config_options)
-            try:
-                await cls._set_effort_on_conn(
-                    conn,
-                    config.agent_kind,
-                    acp_session_id,
-                    config.reasoning_effort,
-                    effort_levels,
-                )
-            except Exception:
-                logger.warning(
-                    "Failed to set initial effort: %s",
-                    config.reasoning_effort,
-                    exc_info=True,
-                )
+            await cls._set_effort_on_conn(
+                conn,
+                config.agent_kind,
+                acp_session_id,
+                config.reasoning_effort,
+                effort_levels,
+            )
 
             # Fast mode is per-turn service tier state inside codex-acp; default
             # is off so only enable when the user opted in.
@@ -665,9 +653,15 @@ class AcpSession:
             return
         if effort_levels is not None and reasoning_effort not in effort_levels:
             return
-        await conn.set_config_option(
-            config_id=config_id, session_id=session_id, value=reasoning_effort
-        )
+        # A failed set would run the turn at a tier the user didn't pick.
+        try:
+            await conn.set_config_option(
+                config_id=config_id, session_id=session_id, value=reasoning_effort
+            )
+        except Exception as exc:
+            raise AgentException(
+                f"Failed to set effort `{reasoning_effort}`: {exc}"
+            ) from exc
 
     @staticmethod
     async def _set_fast_mode_on_conn(
