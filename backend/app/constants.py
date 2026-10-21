@@ -141,9 +141,9 @@ MODELS: dict[str, ModelInfo] = {
     "haiku": ModelInfo("Haiku", AgentKind.CLAUDE, 200_000),
     "claude-haiku-5-5": ModelInfo("Haiku 5.5", AgentKind.CLAUDE, 1_000_000),
     "claude-fable-5-1": ModelInfo("Fable 5.1", AgentKind.CLAUDE, 1_000_000),
-    "claude-fable-5": ModelInfo("Fable 5", AgentKind.CLAUDE, 1_000_000),
+    "claude-fable-5": ModelInfo("Fable 5", AgentKind.CLAUDE, 1_000_000, legacy=True),
     "claude-opus-5-5": ModelInfo("Opus 5.5", AgentKind.CLAUDE, 1_000_000),
-    "claude-opus-5": ModelInfo("Opus 5", AgentKind.CLAUDE, 1_000_000),
+    "claude-opus-5": ModelInfo("Opus 5", AgentKind.CLAUDE, 1_000_000, legacy=True),
     # Codex CLI clamps model_context_window to its bundled catalog max — 272k for
     # these slugs — then sessions report ~95% of the resolved window (e.g. 258,400).
     # gpt-5.4's catalog max is 1M via config opt-in; raise it here once a live
@@ -151,45 +151,65 @@ MODELS: dict[str, ModelInfo] = {
     # Live-reported window still wins over these fallbacks.
     "gpt-6.1-sol": ModelInfo("GPT 6.1 Sol", AgentKind.CODEX, 500_000),
     "gpt-6-astra": ModelInfo("GPT 6 Astra", AgentKind.CODEX, 272_000),
-    "gpt-6-sol": ModelInfo("GPT 6 Sol", AgentKind.CODEX, 272_000),
+    "gpt-6-sol": ModelInfo("GPT 6 Sol", AgentKind.CODEX, 272_000, legacy=True),
     "gpt-6-luna": ModelInfo("GPT 6 Luna", AgentKind.CODEX, 272_000),
-    "gpt-5.6-sol": ModelInfo("GPT 5.6 Sol", AgentKind.CODEX, 272_000),
+    "gpt-5.6-sol": ModelInfo("GPT 5.6 Sol", AgentKind.CODEX, 272_000, legacy=True),
     "gpt-5.6-terra": ModelInfo("GPT 5.6 Terra", AgentKind.CODEX, 272_000),
-    "gpt-5.6-luna": ModelInfo("GPT 5.6 Luna", AgentKind.CODEX, 272_000),
+    "gpt-5.6-luna": ModelInfo("GPT 5.6 Luna", AgentKind.CODEX, 272_000, legacy=True),
     "gpt-5.5": ModelInfo("GPT 5.5", AgentKind.CODEX, 272_000),
-    "gpt-5.4": ModelInfo("GPT 5.4", AgentKind.CODEX, 272_000),
+    "gpt-5.4": ModelInfo("GPT 5.4", AgentKind.CODEX, 272_000, legacy=True),
     "gpt-5.4-mini": ModelInfo("GPT 5.4 Mini", AgentKind.CODEX, 272_000),
     "gpt-5.3-codex": ModelInfo("GPT 5.3 Codex", AgentKind.CODEX, 400_000),
-    "gpt-5.2-codex": ModelInfo("GPT 5.2 Codex", AgentKind.CODEX, 400_000),
-    "gpt-5.2": ModelInfo("GPT 5.2", AgentKind.CODEX, 272_000),
+    "gpt-5.2-codex": ModelInfo("GPT 5.2 Codex", AgentKind.CODEX, 400_000, legacy=True),
+    "gpt-5.2": ModelInfo("GPT 5.2", AgentKind.CODEX, 272_000, legacy=True),
     "gpt-5.1-codex-max": ModelInfo("GPT 5.1 Codex Max", AgentKind.CODEX, 400_000),
     "gpt-5.1-codex-mini": ModelInfo("GPT 5.1 Codex Mini", AgentKind.CODEX, 400_000),
     "copilot:auto": ModelInfo("Auto", AgentKind.COPILOT, None),
     "copilot:claude-sonnet-5": ModelInfo("Sonnet 5", AgentKind.COPILOT, 160_000),
     "copilot:claude-fable-5": ModelInfo("Fable 5", AgentKind.COPILOT, 160_000),
     "copilot:claude-opus-5": ModelInfo("Opus 5", AgentKind.COPILOT, 160_000),
-    "copilot:claude-opus-4.8": ModelInfo("Opus 4.8", AgentKind.COPILOT, 160_000),
+    "copilot:claude-opus-4.8": ModelInfo(
+        "Opus 4.8", AgentKind.COPILOT, 160_000, legacy=True
+    ),
     "copilot:claude-opus-4.8-fast": ModelInfo(
         "Opus 4.8 Fast", AgentKind.COPILOT, 160_000
     ),
-    "copilot:claude-opus-4.7": ModelInfo("Opus 4.7", AgentKind.COPILOT, 160_000),
-    "copilot:claude-sonnet-4.6": ModelInfo("Sonnet 4.6", AgentKind.COPILOT, 160_000),
-    "copilot:claude-opus-4.6": ModelInfo("Opus 4.6", AgentKind.COPILOT, 160_000),
-    "copilot:claude-sonnet-4.5": ModelInfo("Sonnet 4.5", AgentKind.COPILOT, 160_000),
-    "copilot:claude-opus-4.5": ModelInfo("Opus 4.5", AgentKind.COPILOT, 160_000),
+    "copilot:claude-opus-4.7": ModelInfo(
+        "Opus 4.7", AgentKind.COPILOT, 160_000, legacy=True
+    ),
+    "copilot:claude-sonnet-4.6": ModelInfo(
+        "Sonnet 4.6", AgentKind.COPILOT, 160_000, legacy=True
+    ),
+    "copilot:claude-opus-4.6": ModelInfo(
+        "Opus 4.6", AgentKind.COPILOT, 160_000, legacy=True
+    ),
+    "copilot:claude-sonnet-4.5": ModelInfo(
+        "Sonnet 4.5", AgentKind.COPILOT, 160_000, legacy=True
+    ),
+    "copilot:claude-opus-4.5": ModelInfo(
+        "Opus 4.5", AgentKind.COPILOT, 160_000, legacy=True
+    ),
     "copilot:claude-haiku-4.5": ModelInfo("Haiku 4.5", AgentKind.COPILOT, 160_000),
     "copilot:gpt-6.1-sol": ModelInfo("GPT 6.1 Sol", AgentKind.COPILOT, 304_000),
     "copilot:gpt-6-astra": ModelInfo("GPT 6 Astra", AgentKind.COPILOT, 304_000),
-    "copilot:gpt-6-sol": ModelInfo("GPT 6 Sol", AgentKind.COPILOT, 304_000),
+    "copilot:gpt-6-sol": ModelInfo(
+        "GPT 6 Sol", AgentKind.COPILOT, 304_000, legacy=True
+    ),
     "copilot:gpt-6-luna": ModelInfo("GPT 6 Luna", AgentKind.COPILOT, 304_000),
-    "copilot:gpt-5.6-sol": ModelInfo("GPT 5.6 Sol", AgentKind.COPILOT, 304_000),
+    "copilot:gpt-5.6-sol": ModelInfo(
+        "GPT 5.6 Sol", AgentKind.COPILOT, 304_000, legacy=True
+    ),
     "copilot:gpt-5.6-terra": ModelInfo("GPT 5.6 Terra", AgentKind.COPILOT, 304_000),
-    "copilot:gpt-5.6-luna": ModelInfo("GPT 5.6 Luna", AgentKind.COPILOT, 304_000),
+    "copilot:gpt-5.6-luna": ModelInfo(
+        "GPT 5.6 Luna", AgentKind.COPILOT, 304_000, legacy=True
+    ),
     "copilot:gpt-5.5": ModelInfo("GPT 5.5", AgentKind.COPILOT, 304_000),
-    "copilot:gpt-5.4": ModelInfo("GPT 5.4", AgentKind.COPILOT, 304_000),
+    "copilot:gpt-5.4": ModelInfo("GPT 5.4", AgentKind.COPILOT, 304_000, legacy=True),
     "copilot:gpt-5.4-mini": ModelInfo("GPT 5.4 Mini", AgentKind.COPILOT, 304_000),
     "copilot:gpt-5.3-codex": ModelInfo("GPT 5.3 Codex", AgentKind.COPILOT, 304_000),
-    "copilot:gpt-5-mini": ModelInfo("GPT 5 Mini", AgentKind.COPILOT, 160_000),
+    "copilot:gpt-5-mini": ModelInfo(
+        "GPT 5 Mini", AgentKind.COPILOT, 160_000, legacy=True
+    ),
     "copilot:mai-code-1-flash-picker": ModelInfo(
         "MAI Code 1 Flash", AgentKind.COPILOT, 128_000
     ),
@@ -198,10 +218,10 @@ MODELS: dict[str, ModelInfo] = {
         "Gemini 3.8 Flash", AgentKind.COPILOT, 1_000_000
     ),
     "copilot:gemini-3.6-flash": ModelInfo(
-        "Gemini 3.6 Flash", AgentKind.COPILOT, 1_000_000
+        "Gemini 3.6 Flash", AgentKind.COPILOT, 1_000_000, legacy=True
     ),
     "copilot:gemini-3.5-flash": ModelInfo(
-        "Gemini 3.5 Flash", AgentKind.COPILOT, 1_000_000
+        "Gemini 3.5 Flash", AgentKind.COPILOT, 1_000_000, legacy=True
     ),
     "copilot:gemini-3.1-pro-preview": ModelInfo(
         "Gemini 3.1 Pro Preview", AgentKind.COPILOT, 200_000
@@ -214,8 +234,12 @@ MODELS: dict[str, ModelInfo] = {
         "Composer 2.5 Fast", AgentKind.CURSOR, 200_000
     ),
     "cursor:composer-2.5": ModelInfo("Composer 2.5", AgentKind.CURSOR, 200_000),
-    "cursor:composer-2-fast": ModelInfo("Composer 2", AgentKind.CURSOR, 200_000),
-    "cursor:composer-1.5": ModelInfo("Composer 1.5", AgentKind.CURSOR, 200_000),
+    "cursor:composer-2-fast": ModelInfo(
+        "Composer 2", AgentKind.CURSOR, 200_000, legacy=True
+    ),
+    "cursor:composer-1.5": ModelInfo(
+        "Composer 1.5", AgentKind.CURSOR, 200_000, legacy=True
+    ),
     "cursor:gpt-5.4-medium": ModelInfo("GPT 5.4", AgentKind.CURSOR, 272_000),
     "cursor:gpt-5.4-mini-medium": ModelInfo("GPT 5.4 Mini", AgentKind.CURSOR, 272_000),
     "cursor:gpt-5.4-nano-medium": ModelInfo("GPT 5.4 Nano", AgentKind.CURSOR, 272_000),
@@ -224,8 +248,10 @@ MODELS: dict[str, ModelInfo] = {
         "Codex 5.3 Spark", AgentKind.CURSOR, 272_000
     ),
     "cursor:gpt-5.2": ModelInfo("GPT 5.2", AgentKind.CURSOR, 272_000),
-    "cursor:gpt-5.2-codex": ModelInfo("GPT 5.2 Codex", AgentKind.CURSOR, 272_000),
-    "cursor:gpt-5.1": ModelInfo("GPT 5.1", AgentKind.CURSOR, 272_000),
+    "cursor:gpt-5.2-codex": ModelInfo(
+        "GPT 5.2 Codex", AgentKind.CURSOR, 272_000, legacy=True
+    ),
+    "cursor:gpt-5.1": ModelInfo("GPT 5.1", AgentKind.CURSOR, 272_000, legacy=True),
     "cursor:gpt-5.1-codex-max-medium": ModelInfo(
         "GPT 5.1 Codex Max", AgentKind.CURSOR, 272_000
     ),
@@ -237,10 +263,10 @@ MODELS: dict[str, ModelInfo] = {
         "Opus 4.7 Thinking", AgentKind.CURSOR, 200_000
     ),
     "cursor:claude-4.6-opus-high-thinking": ModelInfo(
-        "Opus 4.6 Thinking", AgentKind.CURSOR, 200_000
+        "Opus 4.6 Thinking", AgentKind.CURSOR, 200_000, legacy=True
     ),
     "cursor:claude-4.5-opus-high-thinking": ModelInfo(
-        "Opus 4.5 Thinking", AgentKind.CURSOR, 200_000
+        "Opus 4.5 Thinking", AgentKind.CURSOR, 200_000, legacy=True
     ),
     "cursor:claude-4.6-sonnet-medium-thinking": ModelInfo(
         "Sonnet 4.6 Thinking", AgentKind.CURSOR, 200_000
@@ -256,8 +282,8 @@ MODELS: dict[str, ModelInfo] = {
     ),
     "cursor:kimi-k2.5": ModelInfo("Kimi K2.5", AgentKind.CURSOR, 262_000),
     "grok:grok-4.7": ModelInfo("Grok 4.7", AgentKind.GROK, 500_000),
-    "grok:grok-4.6": ModelInfo("Grok 4.6", AgentKind.GROK, 500_000),
-    "grok:grok-4.5": ModelInfo("Grok 4.5", AgentKind.GROK, 500_000),
+    "grok:grok-4.6": ModelInfo("Grok 4.6", AgentKind.GROK, 500_000, legacy=True),
+    "grok:grok-4.5": ModelInfo("Grok 4.5", AgentKind.GROK, 500_000, legacy=True),
     "antigravity:gemini-4-argon": ModelInfo(
         "Gemini 4 Argon", AgentKind.ANTIGRAVITY, 1_000_000
     ),
@@ -265,13 +291,13 @@ MODELS: dict[str, ModelInfo] = {
         "Gemini 3.8 Flash", AgentKind.ANTIGRAVITY, 1_000_000
     ),
     "antigravity:gemini-3.7-flash": ModelInfo(
-        "Gemini 3.7 Flash", AgentKind.ANTIGRAVITY, 1_000_000
+        "Gemini 3.7 Flash", AgentKind.ANTIGRAVITY, 1_000_000, legacy=True
     ),
     "antigravity:gemini-3.6-flash": ModelInfo(
-        "Gemini 3.6 Flash", AgentKind.ANTIGRAVITY, 1_000_000
+        "Gemini 3.6 Flash", AgentKind.ANTIGRAVITY, 1_000_000, legacy=True
     ),
     "antigravity:gemini-3.5-flash": ModelInfo(
-        "Gemini 3.5 Flash", AgentKind.ANTIGRAVITY, 1_000_000
+        "Gemini 3.5 Flash", AgentKind.ANTIGRAVITY, 1_000_000, legacy=True
     ),
     "antigravity:gemini-3.1-pro": ModelInfo(
         "Gemini 3.1 Pro", AgentKind.ANTIGRAVITY, 1_000_000
@@ -283,52 +309,52 @@ MODELS: dict[str, ModelInfo] = {
         "Cat Jam Free (OpenCode)", AgentKind.OPENCODE, 262_144
     ),
     "opencode:opencode/claude-fable-5": ModelInfo(
-        "Claude Fable 5 (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "Claude Fable 5 (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/claude-fable-5-1": ModelInfo(
         "Claude Fable 5.1 (OpenCode)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode/claude-haiku-4-5": ModelInfo(
-        "Claude Haiku 4.5 (OpenCode)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (OpenCode)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:opencode/claude-haiku-5-5": ModelInfo(
         "Claude Haiku 5.5 (OpenCode)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode/claude-opus-4-5": ModelInfo(
-        "Claude Opus 4.5 (OpenCode)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.5 (OpenCode)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:opencode/claude-opus-4-6": ModelInfo(
-        "Claude Opus 4.6 (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.6 (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/claude-opus-4-7": ModelInfo(
-        "Claude Opus 4.7 (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.7 (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/claude-opus-4-8": ModelInfo(
-        "Claude Opus 4.8 (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.8 (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/claude-opus-5": ModelInfo(
-        "Claude Opus 5 (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/claude-opus-5-5": ModelInfo(
         "Claude Opus 5.5 (OpenCode)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode/claude-sonnet-4": ModelInfo(
-        "Claude Sonnet 4 (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4 (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/claude-sonnet-4-5": ModelInfo(
-        "Claude Sonnet 4.5 (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.5 (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/claude-sonnet-4-6": ModelInfo(
-        "Claude Sonnet 4.6 (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.6 (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/claude-sonnet-5": ModelInfo(
-        "Claude Sonnet 5 (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 5 (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/claude-sonnet-5-5": ModelInfo(
         "Claude Sonnet 5.5 (OpenCode)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode/deepseek-v4-flash": ModelInfo(
-        "DeepSeek V4 Flash (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "DeepSeek V4 Flash (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/deepseek-v4-flash-vision-exp": ModelInfo(
         "DeepSeek V4 Flash Vision Exp (OpenCode)", AgentKind.OPENCODE, 1_000_000
@@ -340,22 +366,22 @@ MODELS: dict[str, ModelInfo] = {
         "DeepSeek V4.1 Flash (OpenCode)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode/gemini-3-flash": ModelInfo(
-        "Gemini 3 Flash (OpenCode)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3 Flash (OpenCode)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:opencode/gemini-3.1-pro": ModelInfo(
         "Gemini 3.1 Pro Preview (OpenCode)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:opencode/gemini-3.5-flash": ModelInfo(
-        "Gemini 3.5 Flash (OpenCode)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.5 Flash (OpenCode)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:opencode/gemini-3.5-flash-lite": ModelInfo(
         "Gemini 3.5 Flash Lite (OpenCode)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:opencode/gemini-3.6-flash": ModelInfo(
-        "Gemini 3.6 Flash (OpenCode)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.6 Flash (OpenCode)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:opencode/gemini-3.7-flash": ModelInfo(
-        "Gemini 3.7 Flash (OpenCode)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.7 Flash (OpenCode)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:opencode/gemini-3.8-flash": ModelInfo(
         "Gemini 3.8 Flash (OpenCode)", AgentKind.OPENCODE, 1_048_576
@@ -364,13 +390,13 @@ MODELS: dict[str, ModelInfo] = {
         "Gemini 4 Argon (OpenCode)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:opencode/glm-5": ModelInfo(
-        "GLM-5 (OpenCode)", AgentKind.OPENCODE, 204_800
+        "GLM-5 (OpenCode)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:opencode/glm-5.1": ModelInfo(
-        "GLM-5.1 (OpenCode)", AgentKind.OPENCODE, 204_800
+        "GLM-5.1 (OpenCode)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:opencode/glm-5.2": ModelInfo(
-        "GLM-5.2 (OpenCode)", AgentKind.OPENCODE, 1_000_000
+        "GLM-5.2 (OpenCode)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode/glm-5.3": ModelInfo(
         "GLM-5.3 (OpenCode)", AgentKind.OPENCODE, 1_000_000
@@ -379,19 +405,19 @@ MODELS: dict[str, ModelInfo] = {
         "GLM-5.3-Flash (OpenCode)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode/gpt-5": ModelInfo(
-        "GPT-5 (OpenCode)", AgentKind.OPENCODE, 400_000
+        "GPT-5 (OpenCode)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:opencode/gpt-5-codex": ModelInfo(
-        "GPT-5 Codex (OpenCode)", AgentKind.OPENCODE, 400_000
+        "GPT-5 Codex (OpenCode)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:opencode/gpt-5-nano": ModelInfo(
-        "GPT-5 Nano (OpenCode)", AgentKind.OPENCODE, 400_000
+        "GPT-5 Nano (OpenCode)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:opencode/gpt-5.1": ModelInfo(
-        "GPT-5.1 (OpenCode)", AgentKind.OPENCODE, 400_000
+        "GPT-5.1 (OpenCode)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:opencode/gpt-5.1-codex": ModelInfo(
-        "GPT-5.1 Codex (OpenCode)", AgentKind.OPENCODE, 400_000
+        "GPT-5.1 Codex (OpenCode)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:opencode/gpt-5.1-codex-max": ModelInfo(
         "GPT-5.1 Codex Max (OpenCode)", AgentKind.OPENCODE, 400_000
@@ -400,10 +426,10 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.1 Codex Mini (OpenCode)", AgentKind.OPENCODE, 400_000
     ),
     "opencode:opencode/gpt-5.2": ModelInfo(
-        "GPT-5.2 (OpenCode)", AgentKind.OPENCODE, 400_000
+        "GPT-5.2 (OpenCode)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:opencode/gpt-5.2-codex": ModelInfo(
-        "GPT-5.2 Codex (OpenCode)", AgentKind.OPENCODE, 400_000
+        "GPT-5.2 Codex (OpenCode)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:opencode/gpt-5.3-codex": ModelInfo(
         "GPT-5.3 Codex (OpenCode)", AgentKind.OPENCODE, 400_000
@@ -412,7 +438,7 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.3 Codex Spark (OpenCode)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:opencode/gpt-5.4": ModelInfo(
-        "GPT-5.4 (OpenCode)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.4 (OpenCode)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:opencode/gpt-5.4-mini": ModelInfo(
         "GPT-5.4 Mini (OpenCode)", AgentKind.OPENCODE, 400_000
@@ -421,7 +447,7 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.4 Nano (OpenCode)", AgentKind.OPENCODE, 400_000
     ),
     "opencode:opencode/gpt-5.4-pro": ModelInfo(
-        "GPT-5.4 Pro (OpenCode)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.4 Pro (OpenCode)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:opencode/gpt-5.5": ModelInfo(
         "GPT-5.5 (OpenCode)", AgentKind.OPENCODE, 1_050_000
@@ -430,10 +456,10 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.5 Pro (OpenCode)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:opencode/gpt-5.6-luna": ModelInfo(
-        "GPT-5.6 Luna (OpenCode)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Luna (OpenCode)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:opencode/gpt-5.6-sol": ModelInfo(
-        "GPT-5.6 Sol (OpenCode)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Sol (OpenCode)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:opencode/gpt-5.6-terra": ModelInfo(
         "GPT-5.6 Terra (OpenCode)", AgentKind.OPENCODE, 1_050_000
@@ -445,16 +471,16 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-6 Luna (OpenCode)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:opencode/gpt-6-sol": ModelInfo(
-        "GPT-6 Sol (OpenCode)", AgentKind.OPENCODE, 1_050_000
+        "GPT-6 Sol (OpenCode)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:opencode/gpt-6.1-sol": ModelInfo(
         "GPT-6.1 Sol (OpenCode)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:opencode/grok-4.5": ModelInfo(
-        "Grok 4.5 (OpenCode)", AgentKind.OPENCODE, 500_000
+        "Grok 4.5 (OpenCode)", AgentKind.OPENCODE, 500_000, legacy=True
     ),
     "opencode:opencode/grok-4.6": ModelInfo(
-        "Grok 4.6 (OpenCode)", AgentKind.OPENCODE, 500_000
+        "Grok 4.6 (OpenCode)", AgentKind.OPENCODE, 500_000, legacy=True
     ),
     "opencode:opencode/grok-4.7": ModelInfo(
         "Grok 4.7 (OpenCode)", AgentKind.OPENCODE, 500_000
@@ -463,10 +489,10 @@ MODELS: dict[str, ModelInfo] = {
         "Grok Build 0.1 (OpenCode)", AgentKind.OPENCODE, 256_000
     ),
     "opencode:opencode/kimi-k2.5": ModelInfo(
-        "Kimi K2.5 (OpenCode)", AgentKind.OPENCODE, 262_144
+        "Kimi K2.5 (OpenCode)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:opencode/kimi-k2.6": ModelInfo(
-        "Kimi K2.6 (OpenCode)", AgentKind.OPENCODE, 262_144
+        "Kimi K2.6 (OpenCode)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:opencode/kimi-k2.7-code": ModelInfo(
         "Kimi K2.7 Code (OpenCode)", AgentKind.OPENCODE, 262_144
@@ -496,7 +522,7 @@ MODELS: dict[str, ModelInfo] = {
         "Mistral Large 4 (OpenCode)", AgentKind.OPENCODE, 524_288
     ),
     "opencode:opencode/muse-spark-1.2": ModelInfo(
-        "Muse Spark 1.2 (OpenCode)", AgentKind.OPENCODE, 1_048_576
+        "Muse Spark 1.2 (OpenCode)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:opencode/muse-spark-1.3": ModelInfo(
         "Muse Spark 1.3 (OpenCode)", AgentKind.OPENCODE, 1_048_576
@@ -511,7 +537,7 @@ MODELS: dict[str, ModelInfo] = {
         "Nemotron 3.5 Lightning Free (OpenCode)", AgentKind.OPENCODE, 262_144
     ),
     "opencode:opencode/qwen3.5-plus": ModelInfo(
-        "Qwen3.5 Plus (OpenCode)", AgentKind.OPENCODE, 262_144
+        "Qwen3.5 Plus (OpenCode)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:opencode/qwen3.6-plus": ModelInfo(
         "Qwen3.6 Plus (OpenCode)", AgentKind.OPENCODE, 262_144
@@ -544,7 +570,7 @@ MODELS: dict[str, ModelInfo] = {
         "Gemini 4 Argon Contributor (Opencode Go)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:opencode-go/glm-5.2": ModelInfo(
-        "GLM-5.2 (Opencode Go)", AgentKind.OPENCODE, 1_000_000
+        "GLM-5.2 (Opencode Go)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:opencode-go/glm-5.3": ModelInfo(
         "GLM-5.3 (Opencode Go)", AgentKind.OPENCODE, 1_000_000
@@ -553,19 +579,19 @@ MODELS: dict[str, ModelInfo] = {
         "GLM-5.3-Flash (Opencode Go)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode-go/gpt-5.6-luna": ModelInfo(
-        "GPT-5.6 Luna (Opencode Go)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Luna (Opencode Go)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:opencode-go/gpt-6-luna": ModelInfo(
         "GPT-6 Luna (Opencode Go)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:opencode-go/grok-4.6": ModelInfo(
-        "Grok 4.6 (Opencode Go)", AgentKind.OPENCODE, 500_000
+        "Grok 4.6 (Opencode Go)", AgentKind.OPENCODE, 500_000, legacy=True
     ),
     "opencode:opencode-go/grok-4.7": ModelInfo(
         "Grok 4.7 (Opencode Go)", AgentKind.OPENCODE, 500_000
     ),
     "opencode:opencode-go/hy3": ModelInfo(
-        "Hy3 (Opencode Go)", AgentKind.OPENCODE, 256_000
+        "Hy3 (Opencode Go)", AgentKind.OPENCODE, 256_000, legacy=True
     ),
     "opencode:opencode-go/hy4-preview": ModelInfo(
         "Hy4 preview (Opencode Go)", AgentKind.OPENCODE, 1_024_000
@@ -586,7 +612,7 @@ MODELS: dict[str, ModelInfo] = {
         "MiMo V2.5 (Opencode Go)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode-go/mimo-v2.5-pro": ModelInfo(
-        "MiMo V2.5 Pro (Opencode Go)", AgentKind.OPENCODE, 1_048_576
+        "MiMo V2.5 Pro (Opencode Go)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:opencode-go/mimo-v2.6-flash": ModelInfo(
         "MiMo-V2.6-Flash (Opencode Go)", AgentKind.OPENCODE, 1_048_576
@@ -604,7 +630,10 @@ MODELS: dict[str, ModelInfo] = {
         "MiniMax-M3 (Opencode Go)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:opencode-go/muse-spark-1.2-contributor": ModelInfo(
-        "Muse Spark 1.2 Contributor (Opencode Go)", AgentKind.OPENCODE, 1_048_576
+        "Muse Spark 1.2 Contributor (Opencode Go)",
+        AgentKind.OPENCODE,
+        1_048_576,
+        legacy=True,
     ),
     "opencode:opencode-go/muse-spark-1.3-contributor": ModelInfo(
         "Muse Spark 1.3 Contributor (Opencode Go)", AgentKind.OPENCODE, 1_048_576
@@ -628,7 +657,7 @@ MODELS: dict[str, ModelInfo] = {
         "Nova 2 Lite (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/amazon.nova-lite-v1:0": ModelInfo(
-        "Nova Lite (Amazon Bedrock)", AgentKind.OPENCODE, 300_000
+        "Nova Lite (Amazon Bedrock)", AgentKind.OPENCODE, 300_000, legacy=True
     ),
     "opencode:amazon-bedrock/amazon.nova-micro-v1:0": ModelInfo(
         "Nova Micro (Amazon Bedrock)", AgentKind.OPENCODE, 128_000
@@ -637,43 +666,43 @@ MODELS: dict[str, ModelInfo] = {
         "Nova Pro (Amazon Bedrock)", AgentKind.OPENCODE, 300_000
     ),
     "opencode:amazon-bedrock/anthropic.claude-fable-5": ModelInfo(
-        "Claude Fable 5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Fable 5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:amazon-bedrock/anthropic.claude-fable-5-1": ModelInfo(
         "Claude Fable 5.1 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/anthropic.claude-haiku-4-5-20251001-v1:0": ModelInfo(
-        "Claude Haiku 4.5 (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (Amazon Bedrock)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:amazon-bedrock/anthropic.claude-haiku-5-5": ModelInfo(
         "Claude Haiku 5.5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/anthropic.claude-opus-4-5-20251101-v1:0": ModelInfo(
-        "Claude Opus 4.5 (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.5 (Amazon Bedrock)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:amazon-bedrock/anthropic.claude-opus-4-6-v1": ModelInfo(
-        "Claude Opus 4.6 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.6 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:amazon-bedrock/anthropic.claude-opus-4-7": ModelInfo(
-        "Claude Opus 4.7 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.7 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:amazon-bedrock/anthropic.claude-opus-4-8": ModelInfo(
-        "Claude Opus 4.8 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.8 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:amazon-bedrock/anthropic.claude-opus-5": ModelInfo(
-        "Claude Opus 5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:amazon-bedrock/anthropic.claude-opus-5-5": ModelInfo(
         "Claude Opus 5.5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0": ModelInfo(
-        "Claude Sonnet 4.5 (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Sonnet 4.5 (Amazon Bedrock)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:amazon-bedrock/anthropic.claude-sonnet-4-6": ModelInfo(
-        "Claude Sonnet 4.6 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.6 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:amazon-bedrock/anthropic.claude-sonnet-5": ModelInfo(
-        "Claude Sonnet 5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:amazon-bedrock/anthropic.claude-sonnet-5-5": ModelInfo(
         "Claude Sonnet 5.5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
@@ -688,31 +717,52 @@ MODELS: dict[str, ModelInfo] = {
         "Nova Pro (APAC) (Amazon Bedrock)", AgentKind.OPENCODE, 300_000
     ),
     "opencode:amazon-bedrock/au.anthropic.claude-haiku-4-5-20251001-v1:0": ModelInfo(
-        "Claude Haiku 4.5 (AU) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (AU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/au.anthropic.claude-haiku-5-5": ModelInfo(
         "Claude Haiku 5.5 (AU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/au.anthropic.claude-opus-4-6-v1": ModelInfo(
-        "AU Anthropic Claude Opus 4.6 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "AU Anthropic Claude Opus 4.6 (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/au.anthropic.claude-opus-4-7": ModelInfo(
-        "Claude Opus 4.7 (AU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.7 (AU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/au.anthropic.claude-opus-4-8": ModelInfo(
-        "Claude Opus 4.8 (AU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.8 (AU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/au.anthropic.claude-opus-5": ModelInfo(
-        "Claude Opus 5 (AU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (AU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/au.anthropic.claude-opus-5-5": ModelInfo(
         "Claude Opus 5.5 (AU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/au.anthropic.claude-sonnet-4-5-20250929-v1:0": ModelInfo(
-        "Claude Sonnet 4.5 (AU) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Sonnet 4.5 (AU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/au.anthropic.claude-sonnet-4-6": ModelInfo(
-        "AU Anthropic Claude Sonnet 4.6 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "AU Anthropic Claude Sonnet 4.6 (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/au.anthropic.claude-sonnet-5": ModelInfo(
         "Claude Sonnet 5 (AU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
@@ -724,7 +774,7 @@ MODELS: dict[str, ModelInfo] = {
         "DeepSeek-R1 (Amazon Bedrock)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:amazon-bedrock/deepseek.v3-v1:0": ModelInfo(
-        "DeepSeek-V3.1 (Amazon Bedrock)", AgentKind.OPENCODE, 163_840
+        "DeepSeek-V3.1 (Amazon Bedrock)", AgentKind.OPENCODE, 163_840, legacy=True
     ),
     "opencode:amazon-bedrock/deepseek.v3.2": ModelInfo(
         "DeepSeek V3.2 (Amazon Bedrock)", AgentKind.OPENCODE, 163_840
@@ -733,7 +783,7 @@ MODELS: dict[str, ModelInfo] = {
         "Nova 2 Lite (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/eu.amazon.nova-lite-v1:0": ModelInfo(
-        "Nova Lite (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 300_000
+        "Nova Lite (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 300_000, legacy=True
     ),
     "opencode:amazon-bedrock/eu.amazon.nova-micro-v1:0": ModelInfo(
         "Nova Micro (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 128_000
@@ -745,37 +795,64 @@ MODELS: dict[str, ModelInfo] = {
         "Claude Fable 5 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-haiku-4-5-20251001-v1:0": ModelInfo(
-        "Claude Haiku 4.5 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (EU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-haiku-5-5": ModelInfo(
         "Claude Haiku 5.5 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-opus-4-5-20251101-v1:0": ModelInfo(
-        "Claude Opus 4.5 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.5 (EU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-opus-4-6-v1": ModelInfo(
-        "Claude Opus 4.6 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.6 (EU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-opus-4-7": ModelInfo(
-        "Claude Opus 4.7 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.7 (EU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-opus-4-8": ModelInfo(
-        "Claude Opus 4.8 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.8 (EU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-opus-5": ModelInfo(
-        "Claude Opus 5 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (EU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-opus-5-5": ModelInfo(
         "Claude Opus 5.5 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-sonnet-4-5-20250929-v1:0": ModelInfo(
-        "Claude Sonnet 4.5 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Sonnet 4.5 (EU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-sonnet-4-6": ModelInfo(
-        "Claude Sonnet 4.6 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.6 (EU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-sonnet-5": ModelInfo(
-        "Claude Sonnet 5 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 5 (EU) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/eu.anthropic.claude-sonnet-5-5": ModelInfo(
         "Claude Sonnet 5.5 (EU) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
@@ -787,43 +864,73 @@ MODELS: dict[str, ModelInfo] = {
         "Nova 2 Lite (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-fable-5": ModelInfo(
-        "Claude Fable 5 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Fable 5 (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-fable-5-1": ModelInfo(
         "Claude Fable 5.1 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0": ModelInfo(
-        "Claude Haiku 4.5 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-haiku-5-5": ModelInfo(
         "Claude Haiku 5.5 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-opus-4-5-20251101-v1:0": ModelInfo(
-        "Claude Opus 4.5 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.5 (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-opus-4-6-v1": ModelInfo(
-        "Claude Opus 4.6 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.6 (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-opus-4-7": ModelInfo(
-        "Claude Opus 4.7 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.7 (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-opus-4-8": ModelInfo(
-        "Claude Opus 4.8 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.8 (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-opus-5": ModelInfo(
-        "Claude Opus 5 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-opus-5-5": ModelInfo(
         "Claude Opus 5.5 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-sonnet-4-5-20250929-v1:0": ModelInfo(
-        "Claude Sonnet 4.5 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Sonnet 4.5 (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-sonnet-4-6": ModelInfo(
-        "Claude Sonnet 4.6 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.6 (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-sonnet-5": ModelInfo(
-        "Claude Sonnet 5 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 5 (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.anthropic.claude-sonnet-5-5": ModelInfo(
         "Claude Sonnet 5.5 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
@@ -832,10 +939,16 @@ MODELS: dict[str, ModelInfo] = {
         "Kimi K3 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:amazon-bedrock/global.openai.gpt-5.6-luna": ModelInfo(
-        "GPT-5.6 Luna (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Luna (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_050_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.openai.gpt-5.6-sol": ModelInfo(
-        "GPT-5.6 Sol (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Sol (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_050_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.openai.gpt-5.6-terra": ModelInfo(
         "GPT-5.6 Terra (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
@@ -847,13 +960,16 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-6 Luna (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:amazon-bedrock/global.openai.gpt-6-sol": ModelInfo(
-        "GPT-6 Sol (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
+        "GPT-6 Sol (Global) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_050_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/global.openai.gpt-6.1-sol": ModelInfo(
         "GPT-6.1 Sol (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:amazon-bedrock/global.xai.grok-4.6": ModelInfo(
-        "Grok 4.6 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 500_000
+        "Grok 4.6 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 500_000, legacy=True
     ),
     "opencode:amazon-bedrock/global.xai.grok-4.7": ModelInfo(
         "Grok 4.7 (Global) (Amazon Bedrock)", AgentKind.OPENCODE, 500_000
@@ -898,34 +1014,55 @@ MODELS: dict[str, ModelInfo] = {
         "Nova 2 Lite (JP) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/jp.anthropic.claude-haiku-4-5-20251001-v1:0": ModelInfo(
-        "Claude Haiku 4.5 (JP) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (JP) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/jp.anthropic.claude-haiku-5-5": ModelInfo(
         "Claude Haiku 5.5 (JP) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/jp.anthropic.claude-opus-4-7": ModelInfo(
-        "Claude Opus 4.7 (JP) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.7 (JP) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/jp.anthropic.claude-opus-4-8": ModelInfo(
-        "Claude Opus 4.8 (JP) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.8 (JP) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/jp.anthropic.claude-opus-5": ModelInfo(
-        "Claude Opus 5 (JP) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (JP) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/jp.anthropic.claude-opus-5-5": ModelInfo(
         "Claude Opus 5.5 (JP) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/jp.anthropic.claude-sonnet-4-5-20250929-v1:0": ModelInfo(
-        "Claude Sonnet 4.5 (JP) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Sonnet 4.5 (JP) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/jp.anthropic.claude-sonnet-4-6": ModelInfo(
-        "Claude Sonnet 4.6 (JP) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.6 (JP) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/jp.anthropic.claude-sonnet-5": ModelInfo(
         "Claude Sonnet 5 (JP) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/meta.llama3-1-70b-instruct-v1:0": ModelInfo(
-        "Llama 3.1 70B Instruct (Amazon Bedrock)", AgentKind.OPENCODE, 128_000
+        "Llama 3.1 70B Instruct (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        128_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/meta.llama3-1-8b-instruct-v1:0": ModelInfo(
         "Llama 3.1 8B Instruct (Amazon Bedrock)", AgentKind.OPENCODE, 128_000
@@ -946,7 +1083,7 @@ MODELS: dict[str, ModelInfo] = {
         "MiniMax-M2.1 (Amazon Bedrock)", AgentKind.OPENCODE, 196_608, legacy=True
     ),
     "opencode:amazon-bedrock/minimax.minimax-m2.5": ModelInfo(
-        "MiniMax-M2.5 (Amazon Bedrock)", AgentKind.OPENCODE, 196_608, legacy=True
+        "MiniMax-M2.5 (Amazon Bedrock)", AgentKind.OPENCODE, 196_608
     ),
     "opencode:amazon-bedrock/mistral.devstral-2-123b": ModelInfo(
         "Devstral 2 123B (Amazon Bedrock)", AgentKind.OPENCODE, 262_144
@@ -998,16 +1135,16 @@ MODELS: dict[str, ModelInfo] = {
         262_144,
     ),
     "opencode:amazon-bedrock/openai.gpt-5.4": ModelInfo(
-        "GPT-5.4 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "GPT-5.4 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:amazon-bedrock/openai.gpt-5.5": ModelInfo(
         "GPT-5.5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/openai.gpt-5.6-luna": ModelInfo(
-        "GPT-5.6 Luna (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Luna (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:amazon-bedrock/openai.gpt-5.6-sol": ModelInfo(
-        "GPT-5.6 Sol (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Sol (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:amazon-bedrock/openai.gpt-5.6-terra": ModelInfo(
         "GPT-5.6 Terra (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
@@ -1019,7 +1156,7 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-6 Luna (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:amazon-bedrock/openai.gpt-6-sol": ModelInfo(
-        "GPT-6 Sol (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
+        "GPT-6 Sol (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:amazon-bedrock/openai.gpt-6.1-sol": ModelInfo(
         "GPT-6.1 Sol (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
@@ -1073,7 +1210,7 @@ MODELS: dict[str, ModelInfo] = {
         "Nova 2 Lite (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/us.amazon.nova-lite-v1:0": ModelInfo(
-        "Nova Lite (US) (Amazon Bedrock)", AgentKind.OPENCODE, 300_000
+        "Nova Lite (US) (Amazon Bedrock)", AgentKind.OPENCODE, 300_000, legacy=True
     ),
     "opencode:amazon-bedrock/us.amazon.nova-micro-v1:0": ModelInfo(
         "Nova Micro (US) (Amazon Bedrock)", AgentKind.OPENCODE, 128_000
@@ -1082,43 +1219,73 @@ MODELS: dict[str, ModelInfo] = {
         "Nova Pro (US) (Amazon Bedrock)", AgentKind.OPENCODE, 300_000
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-fable-5": ModelInfo(
-        "Claude Fable 5 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Fable 5 (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-fable-5-1": ModelInfo(
         "Claude Fable 5.1 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0": ModelInfo(
-        "Claude Haiku 4.5 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-haiku-5-5": ModelInfo(
         "Claude Haiku 5.5 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-opus-4-5-20251101-v1:0": ModelInfo(
-        "Claude Opus 4.5 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.5 (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-opus-4-6-v1": ModelInfo(
-        "Claude Opus 4.6 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.6 (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-opus-4-7": ModelInfo(
-        "Claude Opus 4.7 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.7 (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-opus-4-8": ModelInfo(
-        "Claude Opus 4.8 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.8 (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-opus-5": ModelInfo(
-        "Claude Opus 5 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-opus-5-5": ModelInfo(
         "Claude Opus 5.5 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0": ModelInfo(
-        "Claude Sonnet 4.5 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 200_000
+        "Claude Sonnet 4.5 (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-sonnet-4-6": ModelInfo(
-        "Claude Sonnet 4.6 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.6 (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-sonnet-5": ModelInfo(
-        "Claude Sonnet 5 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 5 (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.anthropic.claude-sonnet-5-5": ModelInfo(
         "Claude Sonnet 5.5 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
@@ -1127,7 +1294,10 @@ MODELS: dict[str, ModelInfo] = {
         "DeepSeek-R1 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:amazon-bedrock/us.meta.llama3-1-70b-instruct-v1:0": ModelInfo(
-        "Llama 3.1 70B Instruct (US) (Amazon Bedrock)", AgentKind.OPENCODE, 128_000
+        "Llama 3.1 70B Instruct (US) (Amazon Bedrock)",
+        AgentKind.OPENCODE,
+        128_000,
+        legacy=True,
     ),
     "opencode:amazon-bedrock/us.meta.llama3-1-8b-instruct-v1:0": ModelInfo(
         "Llama 3.1 8B Instruct (US) (Amazon Bedrock)", AgentKind.OPENCODE, 128_000
@@ -1152,10 +1322,10 @@ MODELS: dict[str, ModelInfo] = {
         "Kimi K3 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:amazon-bedrock/us.openai.gpt-5.6-luna": ModelInfo(
-        "GPT-5.6 Luna (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Luna (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:amazon-bedrock/us.openai.gpt-5.6-sol": ModelInfo(
-        "GPT-5.6 Sol (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Sol (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:amazon-bedrock/us.openai.gpt-5.6-terra": ModelInfo(
         "GPT-5.6 Terra (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
@@ -1167,19 +1337,19 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-6 Luna (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:amazon-bedrock/us.openai.gpt-6-sol": ModelInfo(
-        "GPT-6 Sol (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
+        "GPT-6 Sol (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:amazon-bedrock/us.openai.gpt-6.1-sol": ModelInfo(
         "GPT-6.1 Sol (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:amazon-bedrock/us.writer.palmyra-x4-v1:0": ModelInfo(
-        "Palmyra X4 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 122_880
+        "Palmyra X4 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 122_880, legacy=True
     ),
     "opencode:amazon-bedrock/us.writer.palmyra-x5-v1:0": ModelInfo(
         "Palmyra X5 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_040_000
     ),
     "opencode:amazon-bedrock/us.xai.grok-4.6": ModelInfo(
-        "Grok 4.6 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 500_000
+        "Grok 4.6 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 500_000, legacy=True
     ),
     "opencode:amazon-bedrock/us.xai.grok-4.7": ModelInfo(
         "Grok 4.7 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 500_000
@@ -1188,19 +1358,19 @@ MODELS: dict[str, ModelInfo] = {
         "GLM-5.3 (US) (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:amazon-bedrock/writer.palmyra-x4-v1:0": ModelInfo(
-        "Palmyra X4 (Amazon Bedrock)", AgentKind.OPENCODE, 122_880
+        "Palmyra X4 (Amazon Bedrock)", AgentKind.OPENCODE, 122_880, legacy=True
     ),
     "opencode:amazon-bedrock/writer.palmyra-x5-v1:0": ModelInfo(
         "Palmyra X5 (Amazon Bedrock)", AgentKind.OPENCODE, 1_040_000
     ),
     "opencode:amazon-bedrock/xai.grok-4.3": ModelInfo(
-        "Grok 4.3 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000
+        "Grok 4.3 (Amazon Bedrock)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:amazon-bedrock/xai.grok-4.6": ModelInfo(
         "Grok 4.6 (Amazon Bedrock)", AgentKind.OPENCODE, 500_000
     ),
     "opencode:amazon-bedrock/zai.glm-4.7": ModelInfo(
-        "GLM-4.7 (Amazon Bedrock)", AgentKind.OPENCODE, 202_752
+        "GLM-4.7 (Amazon Bedrock)", AgentKind.OPENCODE, 202_752, legacy=True
     ),
     "opencode:amazon-bedrock/zai.glm-4.7-flash": ModelInfo(
         "GLM-4.7-Flash (Amazon Bedrock)", AgentKind.OPENCODE, 202_752
@@ -1215,52 +1385,58 @@ MODELS: dict[str, ModelInfo] = {
         "DeepSeek V4 Pro (Deepseek)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:github-copilot/claude-fable-5": ModelInfo(
-        "Claude Fable 5 (Github Copilot)", AgentKind.OPENCODE, 1_000_000
+        "Claude Fable 5 (Github Copilot)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:github-copilot/claude-fable-5.1": ModelInfo(
         "Claude Fable 5.1 (Github Copilot)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:github-copilot/claude-haiku-4.5": ModelInfo(
-        "Claude Haiku 4.5 (latest) (Github Copilot)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (latest) (Github Copilot)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:github-copilot/claude-haiku-5.5": ModelInfo(
         "Claude Haiku 5.5 (Github Copilot)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:github-copilot/claude-opus-4.7": ModelInfo(
-        "Claude Opus 4.7 (Github Copilot)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.7 (Github Copilot)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:github-copilot/claude-opus-4.7-fast": ModelInfo(
-        "Claude Opus 4.7 Fast (Github Copilot)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.7 Fast (Github Copilot)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:github-copilot/claude-opus-4.8": ModelInfo(
-        "Claude Opus 4.8 (Github Copilot)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.8 (Github Copilot)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:github-copilot/claude-opus-4.8-fast": ModelInfo(
         "Claude Opus 4.8 Fast (Github Copilot)", AgentKind.OPENCODE, 200_000
     ),
     "opencode:github-copilot/claude-opus-5": ModelInfo(
-        "Claude Opus 5 (Github Copilot)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (Github Copilot)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:github-copilot/claude-opus-5.5": ModelInfo(
         "Claude Opus 5.5 (Github Copilot)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:github-copilot/claude-sonnet-4.6": ModelInfo(
-        "Claude Sonnet 4.6 (Github Copilot)", AgentKind.OPENCODE, 200_000
+        "Claude Sonnet 4.6 (Github Copilot)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:github-copilot/claude-sonnet-5": ModelInfo(
-        "Claude Sonnet 5 (Github Copilot)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 5 (Github Copilot)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:github-copilot/claude-sonnet-5.5": ModelInfo(
         "Claude Sonnet 5.5 (Github Copilot)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:github-copilot/gemini-3.5-flash": ModelInfo(
-        "Gemini 3.5 Flash (Github Copilot)", AgentKind.OPENCODE, 200_000
+        "Gemini 3.5 Flash (Github Copilot)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:github-copilot/gemini-3.6-flash": ModelInfo(
-        "Gemini 3.6 Flash (Github Copilot)", AgentKind.OPENCODE, 1_000_000
+        "Gemini 3.6 Flash (Github Copilot)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:github-copilot/gemini-3.7-flash": ModelInfo(
-        "Gemini 3.7 Flash (Github Copilot)", AgentKind.OPENCODE, 1_000_000
+        "Gemini 3.7 Flash (Github Copilot)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:github-copilot/gemini-3.8-flash": ModelInfo(
         "Gemini 3.8 Flash (Github Copilot)", AgentKind.OPENCODE, 1_000_000
@@ -1269,13 +1445,13 @@ MODELS: dict[str, ModelInfo] = {
         "Gemini 4 Argon (Github Copilot)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:github-copilot/gpt-5-mini": ModelInfo(
-        "GPT-5 Mini (Github Copilot)", AgentKind.OPENCODE, 264_000
+        "GPT-5 Mini (Github Copilot)", AgentKind.OPENCODE, 264_000, legacy=True
     ),
     "opencode:github-copilot/gpt-5.3-codex": ModelInfo(
         "GPT-5.3 Codex (Github Copilot)", AgentKind.OPENCODE, 400_000
     ),
     "opencode:github-copilot/gpt-5.4": ModelInfo(
-        "GPT-5.4 (Github Copilot)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.4 (Github Copilot)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:github-copilot/gpt-5.4-mini": ModelInfo(
         "GPT-5.4 mini (Github Copilot)", AgentKind.OPENCODE, 400_000
@@ -1287,10 +1463,10 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.5 (Github Copilot)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:github-copilot/gpt-5.6-luna": ModelInfo(
-        "GPT-5.6 Luna (Github Copilot)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Luna (Github Copilot)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:github-copilot/gpt-5.6-sol": ModelInfo(
-        "GPT-5.6 Sol (Github Copilot)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Sol (Github Copilot)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:github-copilot/gpt-5.6-terra": ModelInfo(
         "GPT-5.6 Terra (Github Copilot)", AgentKind.OPENCODE, 1_050_000
@@ -1302,16 +1478,16 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-6 Luna (Github Copilot)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:github-copilot/gpt-6-sol": ModelInfo(
-        "GPT-6 Sol (Github Copilot)", AgentKind.OPENCODE, 1_050_000
+        "GPT-6 Sol (Github Copilot)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:github-copilot/gpt-6.1-sol": ModelInfo(
         "GPT-6.1 Sol (Github Copilot)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:github-copilot/grok-4.5": ModelInfo(
-        "Grok 4.5 (Github Copilot)", AgentKind.OPENCODE, 500_000
+        "Grok 4.5 (Github Copilot)", AgentKind.OPENCODE, 500_000, legacy=True
     ),
     "opencode:github-copilot/grok-4.6": ModelInfo(
-        "Grok 4.6 (Github Copilot)", AgentKind.OPENCODE, 500_000
+        "Grok 4.6 (Github Copilot)", AgentKind.OPENCODE, 500_000, legacy=True
     ),
     "opencode:github-copilot/grok-4.7": ModelInfo(
         "Grok 4.7 (Github Copilot)", AgentKind.OPENCODE, 500_000
@@ -1323,7 +1499,7 @@ MODELS: dict[str, ModelInfo] = {
         "Kimi K3 (Github Copilot)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:github-copilot/mai-code-1-flash-picker": ModelInfo(
-        "MAI-Code-1-Flash (Github Copilot)", AgentKind.OPENCODE, 256_000
+        "MAI-Code-1-Flash (Github Copilot)", AgentKind.OPENCODE, 256_000, legacy=True
     ),
     "opencode:github-copilot/mai-code-1.1-flash": ModelInfo(
         "MAI-Code-1.1-Flash (Github Copilot)", AgentKind.OPENCODE, 256_000
@@ -1338,40 +1514,40 @@ MODELS: dict[str, ModelInfo] = {
         "Gemini 2.5 Computer Use Preview 10-2025 (Google)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:google/gemini-2.5-flash": ModelInfo(
-        "Gemini 2.5 Flash (Google)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 2.5 Flash (Google)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:google/gemini-2.5-flash-image": ModelInfo(
-        "Nano Banana (Google)", AgentKind.OPENCODE, 32_768
+        "Nano Banana (Google)", AgentKind.OPENCODE, 32_768, legacy=True
     ),
     "opencode:google/gemini-2.5-flash-lite": ModelInfo(
-        "Gemini 2.5 Flash-Lite (Google)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 2.5 Flash-Lite (Google)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:google/gemini-2.5-flash-preview-tts": ModelInfo(
-        "Gemini 2.5 Flash Preview TTS (Google)", AgentKind.OPENCODE, 8_192
+        "Gemini 2.5 Flash Preview TTS (Google)", AgentKind.OPENCODE, 8_192, legacy=True
     ),
     "opencode:google/gemini-2.5-pro": ModelInfo(
-        "Gemini 2.5 Pro (Google)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 2.5 Pro (Google)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:google/gemini-2.5-pro-preview-tts": ModelInfo(
         "Gemini 2.5 Pro Preview TTS (Google)", AgentKind.OPENCODE, 8_192
     ),
     "opencode:google/gemini-3-flash-preview": ModelInfo(
-        "Gemini 3 Flash Preview (Google)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3 Flash Preview (Google)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:google/gemini-3-pro-image": ModelInfo(
         "Nano Banana Pro (Google)", AgentKind.OPENCODE, 65_536
     ),
     "opencode:google/gemini-3-pro-image-preview": ModelInfo(
-        "Nano Banana Pro (Google)", AgentKind.OPENCODE, 131_072
+        "Nano Banana Pro (Google)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:google/gemini-3.1-flash-image": ModelInfo(
         "Nano Banana 2 (Google)", AgentKind.OPENCODE, 131_072
     ),
     "opencode:google/gemini-3.1-flash-image-preview": ModelInfo(
-        "Nano Banana 2 (Google)", AgentKind.OPENCODE, 65_536
+        "Nano Banana 2 (Google)", AgentKind.OPENCODE, 65_536, legacy=True
     ),
     "opencode:google/gemini-3.1-flash-lite": ModelInfo(
-        "Gemini 3.1 Flash Lite (Google)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.1 Flash Lite (Google)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:google/gemini-3.1-flash-lite-image": ModelInfo(
         "Nano Banana 2 Lite (Google)", AgentKind.OPENCODE, 65_536
@@ -1389,7 +1565,7 @@ MODELS: dict[str, ModelInfo] = {
         "Gemini 3.1 Pro Preview Custom Tools (Google)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:google/gemini-3.5-flash": ModelInfo(
-        "Gemini 3.5 Flash (Google)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.5 Flash (Google)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:google/gemini-3.5-flash-lite": ModelInfo(
         "Gemini 3.5 Flash Lite (Google)", AgentKind.OPENCODE, 1_048_576
@@ -1398,10 +1574,10 @@ MODELS: dict[str, ModelInfo] = {
         "Gemini 3.5 Live Translate Preview (Google)", AgentKind.OPENCODE, 16_384
     ),
     "opencode:google/gemini-3.6-flash": ModelInfo(
-        "Gemini 3.6 Flash (Google)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.6 Flash (Google)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:google/gemini-3.7-flash": ModelInfo(
-        "Gemini 3.7 Flash (Google)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.7 Flash (Google)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:google/gemini-3.8-flash": ModelInfo(
         "Gemini 3.8 Flash (Google)", AgentKind.OPENCODE, 1_048_576
@@ -1410,7 +1586,7 @@ MODELS: dict[str, ModelInfo] = {
         "Gemini 4 Argon (Google)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:google/gemini-embedding-001": ModelInfo(
-        "Gemini Embedding 001 (Google)", AgentKind.OPENCODE, 2_048
+        "Gemini Embedding 001 (Google)", AgentKind.OPENCODE, 2_048, legacy=True
     ),
     "opencode:google/gemini-embedding-2": ModelInfo(
         "Gemini Embedding 2 (Google)", AgentKind.OPENCODE, 8_192
@@ -1449,46 +1625,46 @@ MODELS: dict[str, ModelInfo] = {
         "Claude Fable 5.1 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:google-vertex/claude-fable-5@default": ModelInfo(
-        "Claude Fable 5 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
+        "Claude Fable 5 (Google Vertex)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:google-vertex/claude-haiku-4-5@20251001": ModelInfo(
-        "Claude Haiku 4.5 (Google Vertex)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (Google Vertex)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:google-vertex/claude-haiku-5-5@default": ModelInfo(
         "Claude Haiku 5.5 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:google-vertex/claude-opus-4-5@20251101": ModelInfo(
-        "Claude Opus 4.5 (Google Vertex)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.5 (Google Vertex)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:google-vertex/claude-opus-4-6@default": ModelInfo(
-        "Claude Opus 4.6 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.6 (Google Vertex)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:google-vertex/claude-opus-4-7@default": ModelInfo(
-        "Claude Opus 4.7 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.7 (Google Vertex)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:google-vertex/claude-opus-4-8@default": ModelInfo(
-        "Claude Opus 4.8 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.8 (Google Vertex)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:google-vertex/claude-opus-5-5@default": ModelInfo(
         "Claude Opus 5.5 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:google-vertex/claude-opus-5@default": ModelInfo(
-        "Claude Opus 5 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (Google Vertex)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:google-vertex/claude-sonnet-4-6@default": ModelInfo(
-        "Claude Sonnet 4.6 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.6 (Google Vertex)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:google-vertex/claude-sonnet-5-5@default": ModelInfo(
         "Claude Sonnet 5.5 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:google-vertex/claude-sonnet-5@default": ModelInfo(
-        "Claude Sonnet 5 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 5 (Google Vertex)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:google-vertex/codestral-2": ModelInfo(
         "Codestral 2 (Google Vertex)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:google-vertex/gemini-2.5-flash-image": ModelInfo(
-        "Nano Banana (Google Vertex)", AgentKind.OPENCODE, 32_768
+        "Nano Banana (Google Vertex)", AgentKind.OPENCODE, 32_768, legacy=True
     ),
     "opencode:google-vertex/gemini-2.5-flash-tts": ModelInfo(
         "Gemini 2.5 Flash TTS (Google Vertex)", AgentKind.OPENCODE, 32_768
@@ -1497,16 +1673,22 @@ MODELS: dict[str, ModelInfo] = {
         "Gemini 2.5 Pro TTS (Google Vertex)", AgentKind.OPENCODE, 32_768
     ),
     "opencode:google-vertex/gemini-3-flash-preview": ModelInfo(
-        "Gemini 3 Flash Preview (Google Vertex)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3 Flash Preview (Google Vertex)",
+        AgentKind.OPENCODE,
+        1_048_576,
+        legacy=True,
     ),
     "opencode:google-vertex/gemini-3-pro-image": ModelInfo(
         "Nano Banana Pro (Google Vertex)", AgentKind.OPENCODE, 65_536
     ),
     "opencode:google-vertex/gemini-3.1-flash-image": ModelInfo(
-        "Nano Banana 2 (Google Vertex)", AgentKind.OPENCODE, 131_072
+        "Nano Banana 2 (Google Vertex)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:google-vertex/gemini-3.1-flash-lite": ModelInfo(
-        "Gemini 3.1 Flash Lite (Google Vertex)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.1 Flash Lite (Google Vertex)",
+        AgentKind.OPENCODE,
+        1_048_576,
+        legacy=True,
     ),
     "opencode:google-vertex/gemini-3.1-flash-lite-image": ModelInfo(
         "Nano Banana 2 Lite (Google Vertex)", AgentKind.OPENCODE, 65_536
@@ -1520,13 +1702,13 @@ MODELS: dict[str, ModelInfo] = {
         1_048_576,
     ),
     "opencode:google-vertex/gemini-3.5-flash": ModelInfo(
-        "Gemini 3.5 Flash (Google Vertex)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.5 Flash (Google Vertex)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:google-vertex/gemini-3.5-flash-lite": ModelInfo(
         "Gemini 3.5 Flash Lite (Google Vertex)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:google-vertex/gemini-3.7-flash": ModelInfo(
-        "Gemini 3.7 Flash (Google Vertex)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.7 Flash (Google Vertex)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:google-vertex/gemini-3.8-flash": ModelInfo(
         "Gemini 3.8 Flash (Google Vertex)", AgentKind.OPENCODE, 1_048_576
@@ -1567,10 +1749,10 @@ MODELS: dict[str, ModelInfo] = {
         "Grok 4.20 (Reasoning) (Google Vertex)", AgentKind.OPENCODE, 2_000_000
     ),
     "opencode:google-vertex/xai/grok-4.3": ModelInfo(
-        "Grok 4.3 (Google Vertex)", AgentKind.OPENCODE, 200_000
+        "Grok 4.3 (Google Vertex)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:google-vertex/xai/grok-4.6": ModelInfo(
-        "Grok 4.6 (Google Vertex)", AgentKind.OPENCODE, 524_288
+        "Grok 4.6 (Google Vertex)", AgentKind.OPENCODE, 524_288, legacy=True
     ),
     "opencode:google-vertex/xai/grok-4.7": ModelInfo(
         "Grok 4.7 (Google Vertex)", AgentKind.OPENCODE, 524_288
@@ -1582,53 +1764,83 @@ MODELS: dict[str, ModelInfo] = {
         "Claude Fable 5.1 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:google-vertex-anthropic/claude-fable-5@default": ModelInfo(
-        "Claude Fable 5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
+        "Claude Fable 5 (Google Vertex Anthropic)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:google-vertex-anthropic/claude-haiku-4-5@20251001": ModelInfo(
-        "Claude Haiku 4.5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (Google Vertex Anthropic)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:google-vertex-anthropic/claude-haiku-5-5@default": ModelInfo(
         "Claude Haiku 5.5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:google-vertex-anthropic/claude-opus-4-5@20251101": ModelInfo(
-        "Claude Opus 4.5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.5 (Google Vertex Anthropic)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:google-vertex-anthropic/claude-opus-4-6@default": ModelInfo(
-        "Claude Opus 4.6 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.6 (Google Vertex Anthropic)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:google-vertex-anthropic/claude-opus-4-7@default": ModelInfo(
-        "Claude Opus 4.7 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.7 (Google Vertex Anthropic)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:google-vertex-anthropic/claude-opus-4-8@default": ModelInfo(
-        "Claude Opus 4.8 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.8 (Google Vertex Anthropic)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:google-vertex-anthropic/claude-opus-5-5@default": ModelInfo(
         "Claude Opus 5.5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:google-vertex-anthropic/claude-opus-5@default": ModelInfo(
-        "Claude Opus 5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (Google Vertex Anthropic)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:google-vertex-anthropic/claude-sonnet-4-5@20250929": ModelInfo(
-        "Claude Sonnet 4.5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 200_000
+        "Claude Sonnet 4.5 (Google Vertex Anthropic)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:google-vertex-anthropic/claude-sonnet-4-6@default": ModelInfo(
-        "Claude Sonnet 4.6 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.6 (Google Vertex Anthropic)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:google-vertex-anthropic/claude-sonnet-5-5@default": ModelInfo(
         "Claude Sonnet 5.5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:google-vertex-anthropic/claude-sonnet-5@default": ModelInfo(
-        "Claude Sonnet 5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 5 (Google Vertex Anthropic)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:openai/gpt-4.1": ModelInfo(
-        "GPT-4.1 (Openai)", AgentKind.OPENCODE, 1_047_576
+        "GPT-4.1 (Openai)", AgentKind.OPENCODE, 1_047_576, legacy=True
     ),
     "opencode:openai/gpt-4.1-mini": ModelInfo(
-        "GPT-4.1 mini (Openai)", AgentKind.OPENCODE, 1_047_576
+        "GPT-4.1 mini (Openai)", AgentKind.OPENCODE, 1_047_576, legacy=True
     ),
     "opencode:openai/gpt-4o": ModelInfo("GPT-4o (Openai)", AgentKind.OPENCODE, 128_000),
     "opencode:openai/gpt-4o-2024-08-06": ModelInfo(
-        "GPT-4o (2024-08-06) (Openai)", AgentKind.OPENCODE, 128_000
+        "GPT-4o (2024-08-06) (Openai)", AgentKind.OPENCODE, 128_000, legacy=True
     ),
     "opencode:openai/gpt-4o-2024-11-20": ModelInfo(
         "GPT-4o (2024-11-20) (Openai)", AgentKind.OPENCODE, 128_000
@@ -1636,24 +1848,26 @@ MODELS: dict[str, ModelInfo] = {
     "opencode:openai/gpt-4o-mini": ModelInfo(
         "GPT-4o mini (Openai)", AgentKind.OPENCODE, 128_000
     ),
-    "opencode:openai/gpt-5": ModelInfo("GPT-5 (Openai)", AgentKind.OPENCODE, 400_000),
+    "opencode:openai/gpt-5": ModelInfo(
+        "GPT-5 (Openai)", AgentKind.OPENCODE, 400_000, legacy=True
+    ),
     "opencode:openai/gpt-5-mini": ModelInfo(
-        "GPT-5 Mini (Openai)", AgentKind.OPENCODE, 400_000
+        "GPT-5 Mini (Openai)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openai/gpt-5-nano": ModelInfo(
-        "GPT-5 Nano (Openai)", AgentKind.OPENCODE, 400_000
+        "GPT-5 Nano (Openai)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openai/gpt-5-pro": ModelInfo(
-        "GPT-5 Pro (Openai)", AgentKind.OPENCODE, 400_000
+        "GPT-5 Pro (Openai)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openai/gpt-5.1": ModelInfo(
-        "GPT-5.1 (Openai)", AgentKind.OPENCODE, 400_000
+        "GPT-5.1 (Openai)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openai/gpt-5.2": ModelInfo(
-        "GPT-5.2 (Openai)", AgentKind.OPENCODE, 400_000
+        "GPT-5.2 (Openai)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openai/gpt-5.2-pro": ModelInfo(
-        "GPT-5.2 Pro (Openai)", AgentKind.OPENCODE, 400_000
+        "GPT-5.2 Pro (Openai)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openai/gpt-5.3-codex": ModelInfo(
         "GPT-5.3 Codex (Openai)", AgentKind.OPENCODE, 400_000
@@ -1662,7 +1876,7 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.3 Codex Spark (Openai)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:openai/gpt-5.4": ModelInfo(
-        "GPT-5.4 (Openai)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.4 (Openai)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openai/gpt-5.4-fast": ModelInfo(
         "GPT-5.4 Fast (Openai)", AgentKind.OPENCODE, 1_050_000
@@ -1677,10 +1891,10 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.4 nano (Openai)", AgentKind.OPENCODE, 400_000
     ),
     "opencode:openai/gpt-5.4-pro": ModelInfo(
-        "GPT-5.4 Pro (Openai)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.4 Pro (Openai)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openai/gpt-5.5": ModelInfo(
-        "GPT-5.5 (Openai)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.5 (Openai)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openai/gpt-5.5-pro": ModelInfo(
         "GPT-5.5 Pro (Openai)", AgentKind.OPENCODE, 1_050_000
@@ -1689,10 +1903,10 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.6 (Openai)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:openai/gpt-5.6-luna": ModelInfo(
-        "GPT-5.6 Luna (Openai)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Luna (Openai)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openai/gpt-5.6-sol": ModelInfo(
-        "GPT-5.6 Sol (Openai)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Sol (Openai)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openai/gpt-5.6-terra": ModelInfo(
         "GPT-5.6 Terra (Openai)", AgentKind.OPENCODE, 1_050_000
@@ -1704,7 +1918,7 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-6 Luna (Openai)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:openai/gpt-6-sol": ModelInfo(
-        "GPT-6 Sol (Openai)", AgentKind.OPENCODE, 1_050_000
+        "GPT-6 Sol (Openai)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openai/gpt-6.1-sol": ModelInfo(
         "GPT-6.1 Sol (Openai)", AgentKind.OPENCODE, 1_050_000
@@ -1730,13 +1944,13 @@ MODELS: dict[str, ModelInfo] = {
         "text-embedding-ada-002 (Openai)", AgentKind.OPENCODE, 8_192
     ),
     "opencode:openrouter/aion-labs/aion-2.0": ModelInfo(
-        "Aion-2.0 (Openrouter)", AgentKind.OPENCODE, 131_072
+        "Aion-2.0 (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/aion-labs/aion-3.0": ModelInfo(
-        "Aion-3.0 (Openrouter)", AgentKind.OPENCODE, 131_072
+        "Aion-3.0 (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/aion-labs/aion-3.0-mini": ModelInfo(
-        "Aion-3.0-Mini (Openrouter)", AgentKind.OPENCODE, 131_072
+        "Aion-3.0-Mini (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/aion-labs/aion-3.5": ModelInfo(
         "Aion 3.5 (Openrouter)", AgentKind.OPENCODE, 262_144
@@ -1751,7 +1965,7 @@ MODELS: dict[str, ModelInfo] = {
         "Nova 2 Lite (Openrouter)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:openrouter/amazon/nova-lite-v1": ModelInfo(
-        "Nova Lite 1.0 (Openrouter)", AgentKind.OPENCODE, 300_000
+        "Nova Lite 1.0 (Openrouter)", AgentKind.OPENCODE, 300_000, legacy=True
     ),
     "opencode:openrouter/amazon/nova-micro-v1": ModelInfo(
         "Nova Micro 1.0 (Openrouter)", AgentKind.OPENCODE, 128_000
@@ -1766,49 +1980,61 @@ MODELS: dict[str, ModelInfo] = {
         "Magnum v4 72B (Openrouter)", AgentKind.OPENCODE, 32_768
     ),
     "opencode:openrouter/anthropic/claude-fable-5": ModelInfo(
-        "Claude Fable 5 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Claude Fable 5 (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/anthropic/claude-fable-5.1": ModelInfo(
         "Claude Fable 5.1 (Openrouter)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:openrouter/anthropic/claude-haiku-4.5": ModelInfo(
-        "Claude Haiku 4.5 (latest) (Openrouter)", AgentKind.OPENCODE, 200_000
+        "Claude Haiku 4.5 (latest) (Openrouter)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:openrouter/anthropic/claude-haiku-5.5": ModelInfo(
         "Claude Haiku 5.5 (Openrouter)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:openrouter/anthropic/claude-opus-4.1": ModelInfo(
-        "Claude Opus 4.1 (latest) (Openrouter)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.1 (latest) (Openrouter)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:openrouter/anthropic/claude-opus-4.5": ModelInfo(
-        "Claude Opus 4.5 (latest) (Openrouter)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.5 (latest) (Openrouter)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
     ),
     "opencode:openrouter/anthropic/claude-opus-4.6": ModelInfo(
-        "Claude Opus 4.6 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.6 (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/anthropic/claude-opus-4.7": ModelInfo(
-        "Claude Opus 4.7 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.7 (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/anthropic/claude-opus-4.8": ModelInfo(
-        "Claude Opus 4.8 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 4.8 (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/anthropic/claude-opus-5": ModelInfo(
-        "Claude Opus 5 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Claude Opus 5 (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/anthropic/claude-opus-5.5": ModelInfo(
         "Claude Opus 5.5 (Openrouter)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:openrouter/anthropic/claude-sonnet-4": ModelInfo(
-        "Claude Sonnet 4 (Openrouter)", AgentKind.OPENCODE, 200_000
+        "Claude Sonnet 4 (Openrouter)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:openrouter/anthropic/claude-sonnet-4.5": ModelInfo(
-        "Claude Sonnet 4.5 (latest) (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.5 (latest) (Openrouter)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:openrouter/anthropic/claude-sonnet-4.6": ModelInfo(
-        "Claude Sonnet 4.6 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 4.6 (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/anthropic/claude-sonnet-5": ModelInfo(
-        "Claude Sonnet 5 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Claude Sonnet 5 (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/anthropic/claude-sonnet-5.5": ModelInfo(
         "Claude Sonnet 5.5 (Openrouter)", AgentKind.OPENCODE, 1_000_000
@@ -1862,10 +2088,10 @@ MODELS: dict[str, ModelInfo] = {
         "DeepSeek Chat (Openrouter)", AgentKind.OPENCODE, 163_840
     ),
     "opencode:openrouter/deepseek/deepseek-chat-v3-0324": ModelInfo(
-        "DeepSeek V3 0324 (Openrouter)", AgentKind.OPENCODE, 163_840
+        "DeepSeek V3 0324 (Openrouter)", AgentKind.OPENCODE, 163_840, legacy=True
     ),
     "opencode:openrouter/deepseek/deepseek-chat-v3.1": ModelInfo(
-        "DeepSeek V3.1 (Openrouter)", AgentKind.OPENCODE, 163_840
+        "DeepSeek V3.1 (Openrouter)", AgentKind.OPENCODE, 163_840, legacy=True
     ),
     "opencode:openrouter/deepseek/deepseek-r1": ModelInfo(
         "DeepSeek-R1 (Openrouter)", AgentKind.OPENCODE, 64_000
@@ -1880,13 +2106,16 @@ MODELS: dict[str, ModelInfo] = {
         "DeepSeek V3.2 (Openrouter)", AgentKind.OPENCODE, 163_840
     ),
     "opencode:openrouter/deepseek/deepseek-v3.2-exp": ModelInfo(
-        "DeepSeek V3.2 Exp (Openrouter)", AgentKind.OPENCODE, 163_840
+        "DeepSeek V3.2 Exp (Openrouter)", AgentKind.OPENCODE, 163_840, legacy=True
     ),
     "opencode:openrouter/deepseek/deepseek-v4-flash": ModelInfo(
-        "DeepSeek V4 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "DeepSeek V4 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/deepseek/deepseek-v4-flash-0731": ModelInfo(
-        "DeepSeek V4 Flash 0731 (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "DeepSeek V4 Flash 0731 (Openrouter)",
+        AgentKind.OPENCODE,
+        1_048_576,
+        legacy=True,
     ),
     "opencode:openrouter/deepseek/deepseek-v4-flash-vision-exp": ModelInfo(
         "DeepSeek V4 Flash Vision Exp (Openrouter)", AgentKind.OPENCODE, 1_048_576
@@ -1907,43 +2136,52 @@ MODELS: dict[str, ModelInfo] = {
         "Ember-1 (Openrouter)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:openrouter/google/gemini-2.5-flash": ModelInfo(
-        "Gemini 2.5 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 2.5 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/google/gemini-2.5-flash-image": ModelInfo(
-        "Nano Banana (Openrouter)", AgentKind.OPENCODE, 32_768
+        "Nano Banana (Openrouter)", AgentKind.OPENCODE, 32_768, legacy=True
     ),
     "opencode:openrouter/google/gemini-2.5-flash-lite": ModelInfo(
-        "Gemini 2.5 Flash-Lite (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 2.5 Flash-Lite (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/google/gemini-2.5-pro": ModelInfo(
-        "Gemini 2.5 Pro (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 2.5 Pro (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/google/gemini-2.5-pro-preview": ModelInfo(
-        "Gemini 2.5 Pro Preview 06-05 (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 2.5 Pro Preview 06-05 (Openrouter)",
+        AgentKind.OPENCODE,
+        1_048_576,
+        legacy=True,
     ),
     "opencode:openrouter/google/gemini-3-flash-preview": ModelInfo(
-        "Gemini 3 Flash Preview (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3 Flash Preview (Openrouter)",
+        AgentKind.OPENCODE,
+        1_048_576,
+        legacy=True,
     ),
     "opencode:openrouter/google/gemini-3-pro-image": ModelInfo(
         "Nano Banana Pro (Openrouter)", AgentKind.OPENCODE, 131_072
     ),
     "opencode:openrouter/google/gemini-3-pro-image-preview": ModelInfo(
-        "Nano Banana Pro Preview (Openrouter)", AgentKind.OPENCODE, 65_536
+        "Nano Banana Pro Preview (Openrouter)", AgentKind.OPENCODE, 65_536, legacy=True
     ),
     "opencode:openrouter/google/gemini-3.1-flash-image": ModelInfo(
-        "Nano Banana 2 (Openrouter)", AgentKind.OPENCODE, 131_072
+        "Nano Banana 2 (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/google/gemini-3.1-flash-image-preview": ModelInfo(
-        "Nano Banana 2 Preview (Openrouter)", AgentKind.OPENCODE, 65_536
+        "Nano Banana 2 Preview (Openrouter)", AgentKind.OPENCODE, 65_536, legacy=True
     ),
     "opencode:openrouter/google/gemini-3.1-flash-lite": ModelInfo(
-        "Gemini 3.1 Flash Lite (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.1 Flash Lite (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/google/gemini-3.1-flash-lite-image": ModelInfo(
         "Nano Banana 2 Lite (Openrouter)", AgentKind.OPENCODE, 65_536
     ),
     "opencode:openrouter/google/gemini-3.1-flash-lite-preview": ModelInfo(
-        "Gemini 3.1 Flash Lite Preview (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.1 Flash Lite Preview (Openrouter)",
+        AgentKind.OPENCODE,
+        1_048_576,
+        legacy=True,
     ),
     "opencode:openrouter/google/gemini-3.1-pro-preview": ModelInfo(
         "Gemini 3.1 Pro Preview (Openrouter)", AgentKind.OPENCODE, 1_048_576
@@ -1954,16 +2192,16 @@ MODELS: dict[str, ModelInfo] = {
         1_048_576,
     ),
     "opencode:openrouter/google/gemini-3.5-flash": ModelInfo(
-        "Gemini 3.5 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.5 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/google/gemini-3.5-flash-lite": ModelInfo(
         "Gemini 3.5 Flash Lite (Openrouter)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:openrouter/google/gemini-3.6-flash": ModelInfo(
-        "Gemini 3.6 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.6 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/google/gemini-3.7-flash": ModelInfo(
-        "Gemini 3.7 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 3.7 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/google/gemini-3.8-flash": ModelInfo(
         "Gemini 3.8 Flash (Openrouter)", AgentKind.OPENCODE, 1_048_576
@@ -1975,7 +2213,7 @@ MODELS: dict[str, ModelInfo] = {
         "Nano Banana 2.1 (Openrouter)", AgentKind.OPENCODE, 65_536
     ),
     "opencode:openrouter/google/gemma-2-27b-it": ModelInfo(
-        "Gemma 2 27B (Openrouter)", AgentKind.OPENCODE, 8_192
+        "Gemma 2 27B (Openrouter)", AgentKind.OPENCODE, 8_192, legacy=True
     ),
     "opencode:openrouter/google/gemma-3-12b-it": ModelInfo(
         "Gemma 3 12B IT (Openrouter)", AgentKind.OPENCODE, 131_072
@@ -2014,13 +2252,13 @@ MODELS: dict[str, ModelInfo] = {
         "Granite 4.2 8B (Openrouter)", AgentKind.OPENCODE, 131_072
     ),
     "opencode:openrouter/inception/mercury-2": ModelInfo(
-        "Mercury 2 (Openrouter)", AgentKind.OPENCODE, 128_000
+        "Mercury 2 (Openrouter)", AgentKind.OPENCODE, 128_000, legacy=True
     ),
     "opencode:openrouter/inception/mercury-2.5": ModelInfo(
         "Mercury 2.5 (Openrouter)", AgentKind.OPENCODE, 260_000
     ),
     "opencode:openrouter/inclusionai/ling-3.0-flash": ModelInfo(
-        "Ling 3.0 Flash (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Ling 3.0 Flash (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/inclusionai/ling-3.0-flash-vl": ModelInfo(
         "Ling 3.0 Flash VL (Openrouter)", AgentKind.OPENCODE, 131_072
@@ -2047,7 +2285,7 @@ MODELS: dict[str, ModelInfo] = {
         "LongCat 2.0 (Openrouter)", AgentKind.OPENCODE, 1_048_756
     ),
     "opencode:openrouter/meta-llama/llama-3.1-70b-instruct": ModelInfo(
-        "Llama-3.1-70B-Instruct (Openrouter)", AgentKind.OPENCODE, 131_072
+        "Llama-3.1-70B-Instruct (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/meta-llama/llama-3.1-8b-instruct": ModelInfo(
         "Llama-3.1-8B-Instruct (Openrouter)", AgentKind.OPENCODE, 131_072
@@ -2074,13 +2312,16 @@ MODELS: dict[str, ModelInfo] = {
         "Muse Glimmer 30B (Openrouter)", AgentKind.OPENCODE, 131_072
     ),
     "opencode:openrouter/meta/muse-spark-1.1": ModelInfo(
-        "Muse Spark 1.1 (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Muse Spark 1.1 (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/meta/muse-spark-1.2": ModelInfo(
-        "Muse Spark 1.2 (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Muse Spark 1.2 (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/meta/muse-spark-1.2-contributor": ModelInfo(
-        "Muse Spark 1.2 Contributor (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "Muse Spark 1.2 Contributor (Openrouter)",
+        AgentKind.OPENCODE,
+        1_048_576,
+        legacy=True,
     ),
     "opencode:openrouter/meta/muse-spark-1.3": ModelInfo(
         "Muse Spark 1.3 (Openrouter)", AgentKind.OPENCODE, 1_048_576
@@ -2101,7 +2342,7 @@ MODELS: dict[str, ModelInfo] = {
         "MiniMax M3.1 Flash Free (Openrouter)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:openrouter/minimax/minimax-01": ModelInfo(
-        "MiniMax-01 (Openrouter)", AgentKind.OPENCODE, 1_000_192, legacy=True
+        "MiniMax-01 (Openrouter)", AgentKind.OPENCODE, 1_000_192
     ),
     "opencode:openrouter/minimax/minimax-m1": ModelInfo(
         "MiniMax M1 (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
@@ -2110,7 +2351,7 @@ MODELS: dict[str, ModelInfo] = {
         "MiniMax-M2 (Openrouter)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:openrouter/minimax/minimax-m2-her": ModelInfo(
-        "MiniMax-M2 Her (Openrouter)", AgentKind.OPENCODE, 65_536, legacy=True
+        "MiniMax-M2 Her (Openrouter)", AgentKind.OPENCODE, 65_536
     ),
     "opencode:openrouter/minimax/minimax-m2.1": ModelInfo(
         "MiniMax-M2.1 (Openrouter)", AgentKind.OPENCODE, 204_800, legacy=True
@@ -2143,22 +2384,22 @@ MODELS: dict[str, ModelInfo] = {
         "Mistral Large (Openrouter)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:openrouter/mistralai/mistral-large-2407": ModelInfo(
-        "Mistral Large 2407 (Openrouter)", AgentKind.OPENCODE, 131_072
+        "Mistral Large 2407 (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/mistralai/mistral-large-2512": ModelInfo(
-        "Mistral Large 3 (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Mistral Large 3 (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/mistralai/mistral-large-4-0": ModelInfo(
         "Mistral Large 4 (Openrouter)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:openrouter/mistralai/mistral-medium-3": ModelInfo(
-        "Mistral Medium 3 (Openrouter)", AgentKind.OPENCODE, 131_072
+        "Mistral Medium 3 (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/mistralai/mistral-medium-3-5": ModelInfo(
         "Mistral Medium 3.5 (Openrouter)", AgentKind.OPENCODE, 262_144
     ),
     "opencode:openrouter/mistralai/mistral-medium-3.1": ModelInfo(
-        "Mistral Medium 3.1 (Openrouter)", AgentKind.OPENCODE, 131_072
+        "Mistral Medium 3.1 (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/mistralai/mistral-nemo": ModelInfo(
         "Mistral Nemo (Openrouter)", AgentKind.OPENCODE, 131_072
@@ -2167,13 +2408,13 @@ MODELS: dict[str, ModelInfo] = {
         "Saba (Openrouter)", AgentKind.OPENCODE, 32_768
     ),
     "opencode:openrouter/mistralai/mistral-small-24b-instruct-2501": ModelInfo(
-        "Mistral Small 3 (Openrouter)", AgentKind.OPENCODE, 32_768
+        "Mistral Small 3 (Openrouter)", AgentKind.OPENCODE, 32_768, legacy=True
     ),
     "opencode:openrouter/mistralai/mistral-small-2603": ModelInfo(
         "Mistral Small 4 (Openrouter)", AgentKind.OPENCODE, 262_144
     ),
     "opencode:openrouter/mistralai/mistral-small-3.1-24b-instruct": ModelInfo(
-        "Mistral Small 3.1 24B (Openrouter)", AgentKind.OPENCODE, 128_000
+        "Mistral Small 3.1 24B (Openrouter)", AgentKind.OPENCODE, 128_000, legacy=True
     ),
     "opencode:openrouter/mistralai/mistral-small-3.2-24b-instruct": ModelInfo(
         "Mistral Small 3.2 24B (Openrouter)", AgentKind.OPENCODE, 256_000
@@ -2185,7 +2426,7 @@ MODELS: dict[str, ModelInfo] = {
         "Voxtral Small 24B 2507 (Openrouter)", AgentKind.OPENCODE, 32_768
     ),
     "opencode:openrouter/moonshotai/kimi-k2": ModelInfo(
-        "Kimi K2 0711 (Openrouter)", AgentKind.OPENCODE, 131_072
+        "Kimi K2 0711 (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/moonshotai/kimi-k2-0905": ModelInfo(
         "Kimi K2 Instruct 0905 (Openrouter)", AgentKind.OPENCODE, 262_144
@@ -2194,10 +2435,10 @@ MODELS: dict[str, ModelInfo] = {
         "Kimi K2 Thinking (Openrouter)", AgentKind.OPENCODE, 262_144
     ),
     "opencode:openrouter/moonshotai/kimi-k2.5": ModelInfo(
-        "Kimi K2.5 (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Kimi K2.5 (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/moonshotai/kimi-k2.6": ModelInfo(
-        "Kimi K2.6 (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Kimi K2.6 (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/moonshotai/kimi-k2.7-code": ModelInfo(
         "Kimi K2.7 Code (Openrouter)", AgentKind.OPENCODE, 262_144
@@ -2257,10 +2498,13 @@ MODELS: dict[str, ModelInfo] = {
         "Nemotron 3.5 Lightning (free) (Openrouter)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:openrouter/openai/gpt-3.5-turbo": ModelInfo(
-        "GPT-3.5-turbo (Openrouter)", AgentKind.OPENCODE, 16_385
+        "GPT-3.5-turbo (Openrouter)", AgentKind.OPENCODE, 16_385, legacy=True
     ),
     "opencode:openrouter/openai/gpt-3.5-turbo-0613": ModelInfo(
-        "GPT-3.5 Turbo (older v0613) (Openrouter)", AgentKind.OPENCODE, 4_095
+        "GPT-3.5 Turbo (older v0613) (Openrouter)",
+        AgentKind.OPENCODE,
+        4_095,
+        legacy=True,
     ),
     "opencode:openrouter/openai/gpt-3.5-turbo-16k": ModelInfo(
         "GPT-3.5 Turbo 16k (Openrouter)", AgentKind.OPENCODE, 16_385
@@ -2269,28 +2513,28 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-3.5 Turbo Instruct (Openrouter)", AgentKind.OPENCODE, 4_095
     ),
     "opencode:openrouter/openai/gpt-4": ModelInfo(
-        "GPT-4 (Openrouter)", AgentKind.OPENCODE, 8_191
+        "GPT-4 (Openrouter)", AgentKind.OPENCODE, 8_191, legacy=True
     ),
     "opencode:openrouter/openai/gpt-4-turbo": ModelInfo(
         "GPT-4 Turbo (Openrouter)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:openrouter/openai/gpt-4.1": ModelInfo(
-        "GPT-4.1 (Openrouter)", AgentKind.OPENCODE, 1_047_576
+        "GPT-4.1 (Openrouter)", AgentKind.OPENCODE, 1_047_576, legacy=True
     ),
     "opencode:openrouter/openai/gpt-4.1-mini": ModelInfo(
-        "GPT-4.1 mini (Openrouter)", AgentKind.OPENCODE, 1_047_576
+        "GPT-4.1 mini (Openrouter)", AgentKind.OPENCODE, 1_047_576, legacy=True
     ),
     "opencode:openrouter/openai/gpt-4.1-nano": ModelInfo(
-        "GPT-4.1 nano (Openrouter)", AgentKind.OPENCODE, 1_047_576
+        "GPT-4.1 nano (Openrouter)", AgentKind.OPENCODE, 1_047_576, legacy=True
     ),
     "opencode:openrouter/openai/gpt-4o": ModelInfo(
         "GPT-4o (Openrouter)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:openrouter/openai/gpt-4o-2024-05-13": ModelInfo(
-        "GPT-4o (2024-05-13) (Openrouter)", AgentKind.OPENCODE, 128_000
+        "GPT-4o (2024-05-13) (Openrouter)", AgentKind.OPENCODE, 128_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-4o-2024-08-06": ModelInfo(
-        "GPT-4o (2024-08-06) (Openrouter)", AgentKind.OPENCODE, 128_000
+        "GPT-4o (2024-08-06) (Openrouter)", AgentKind.OPENCODE, 128_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-4o-2024-11-20": ModelInfo(
         "GPT-4o (2024-11-20) (Openrouter)", AgentKind.OPENCODE, 128_000
@@ -2302,7 +2546,7 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-4o-mini (2024-07-18) (Openrouter)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:openrouter/openai/gpt-5": ModelInfo(
-        "GPT-5 (Openrouter)", AgentKind.OPENCODE, 400_000
+        "GPT-5 (Openrouter)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5-image": ModelInfo(
         "GPT-5 Image (Openrouter)", AgentKind.OPENCODE, 400_000
@@ -2311,19 +2555,19 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5 Image Mini (Openrouter)", AgentKind.OPENCODE, 400_000
     ),
     "opencode:openrouter/openai/gpt-5-mini": ModelInfo(
-        "GPT-5 Mini (Openrouter)", AgentKind.OPENCODE, 400_000
+        "GPT-5 Mini (Openrouter)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5-nano": ModelInfo(
-        "GPT-5 Nano (Openrouter)", AgentKind.OPENCODE, 400_000
+        "GPT-5 Nano (Openrouter)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5-pro": ModelInfo(
-        "GPT-5 Pro (Openrouter)", AgentKind.OPENCODE, 400_000
+        "GPT-5 Pro (Openrouter)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.1": ModelInfo(
-        "GPT-5.1 (Openrouter)", AgentKind.OPENCODE, 400_000
+        "GPT-5.1 (Openrouter)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.1-codex": ModelInfo(
-        "GPT-5.1 Codex (Openrouter)", AgentKind.OPENCODE, 400_000
+        "GPT-5.1 Codex (Openrouter)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.1-codex-max": ModelInfo(
         "GPT-5.1 Codex Max (Openrouter)", AgentKind.OPENCODE, 400_000
@@ -2332,22 +2576,22 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.1 Codex mini (Openrouter)", AgentKind.OPENCODE, 400_000
     ),
     "opencode:openrouter/openai/gpt-5.2": ModelInfo(
-        "GPT-5.2 (Openrouter)", AgentKind.OPENCODE, 400_000
+        "GPT-5.2 (Openrouter)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.2-chat": ModelInfo(
         "GPT-5.2 Chat (Openrouter)", AgentKind.OPENCODE, 128_000
     ),
     "opencode:openrouter/openai/gpt-5.2-codex": ModelInfo(
-        "GPT-5.2 Codex (Openrouter)", AgentKind.OPENCODE, 400_000
+        "GPT-5.2 Codex (Openrouter)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.2-pro": ModelInfo(
-        "GPT-5.2 Pro (Openrouter)", AgentKind.OPENCODE, 400_000
+        "GPT-5.2 Pro (Openrouter)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.3-codex": ModelInfo(
         "GPT-5.3 Codex (Openrouter)", AgentKind.OPENCODE, 400_000
     ),
     "opencode:openrouter/openai/gpt-5.4": ModelInfo(
-        "GPT-5.4 (Openrouter)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.4 (Openrouter)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.4-image-2": ModelInfo(
         "GPT-5.4 Image 2 (Openrouter)", AgentKind.OPENCODE, 272_000
@@ -2359,7 +2603,7 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.4 nano (Openrouter)", AgentKind.OPENCODE, 400_000
     ),
     "opencode:openrouter/openai/gpt-5.4-pro": ModelInfo(
-        "GPT-5.4 Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.4 Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.5": ModelInfo(
         "GPT-5.5 (Openrouter)", AgentKind.OPENCODE, 1_050_000
@@ -2368,16 +2612,16 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5.5 Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:openrouter/openai/gpt-5.6-luna": ModelInfo(
-        "GPT-5.6 Luna (Openrouter)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Luna (Openrouter)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.6-luna-pro": ModelInfo(
-        "GPT-5.6 Luna Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Luna Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.6-sol": ModelInfo(
-        "GPT-5.6 Sol (Openrouter)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Sol (Openrouter)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.6-sol-pro": ModelInfo(
-        "GPT-5.6 Sol Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.6 Sol Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-5.6-terra": ModelInfo(
         "GPT-5.6 Terra (Openrouter)", AgentKind.OPENCODE, 1_050_000
@@ -2398,10 +2642,10 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-6 Luna Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:openrouter/openai/gpt-6-sol": ModelInfo(
-        "GPT-6 Sol (Openrouter)", AgentKind.OPENCODE, 1_050_000
+        "GPT-6 Sol (Openrouter)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-6-sol-pro": ModelInfo(
-        "GPT-6 Sol Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000
+        "GPT-6 Sol Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openrouter/openai/gpt-6.1-sol": ModelInfo(
         "GPT-6.1 Sol (Openrouter)", AgentKind.OPENCODE, 1_050_000
@@ -2428,19 +2672,19 @@ MODELS: dict[str, ModelInfo] = {
         "GPT OSS Safeguard 20B (Openrouter)", AgentKind.OPENCODE, 131_072
     ),
     "opencode:openrouter/openai/o1": ModelInfo(
-        "o1 (Openrouter)", AgentKind.OPENCODE, 200_000
+        "o1 (Openrouter)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:openrouter/openai/o1-pro": ModelInfo(
-        "o1-pro (Openrouter)", AgentKind.OPENCODE, 200_000
+        "o1-pro (Openrouter)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:openrouter/openai/o3": ModelInfo(
         "o3 (Openrouter)", AgentKind.OPENCODE, 200_000
     ),
     "opencode:openrouter/openai/o3-mini": ModelInfo(
-        "o3-mini (Openrouter)", AgentKind.OPENCODE, 200_000
+        "o3-mini (Openrouter)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:openrouter/openai/o3-mini-high": ModelInfo(
-        "o3 Mini High (Openrouter)", AgentKind.OPENCODE, 200_000
+        "o3 Mini High (Openrouter)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:openrouter/openai/o3-pro": ModelInfo(
         "o3-pro (Openrouter)", AgentKind.OPENCODE, 200_000
@@ -2467,7 +2711,7 @@ MODELS: dict[str, ModelInfo] = {
         "Pareto Code Router (Openrouter)", AgentKind.OPENCODE, 2_000_000
     ),
     "opencode:openrouter/perceptron/perceptron-mk1": ModelInfo(
-        "Perceptron Mk1 (Openrouter)", AgentKind.OPENCODE, 32_768
+        "Perceptron Mk1 (Openrouter)", AgentKind.OPENCODE, 32_768, legacy=True
     ),
     "opencode:openrouter/perceptron/perceptron-mk1.5": ModelInfo(
         "Perceptron Mk1.5 (Openrouter)", AgentKind.OPENCODE, 36_864
@@ -2569,10 +2813,10 @@ MODELS: dict[str, ModelInfo] = {
         "Qwen3.5 122B-A10B (Openrouter)", AgentKind.OPENCODE, 262_144
     ),
     "opencode:openrouter/qwen/qwen3.5-27b": ModelInfo(
-        "Qwen3.5 27B (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Qwen3.5 27B (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/qwen/qwen3.5-35b-a3b": ModelInfo(
-        "Qwen3.5 35B-A3B (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Qwen3.5 35B-A3B (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/qwen/qwen3.5-397b-a17b": ModelInfo(
         "Qwen3.5 397B-A17B (Openrouter)", AgentKind.OPENCODE, 262_144
@@ -2581,31 +2825,37 @@ MODELS: dict[str, ModelInfo] = {
         "Qwen3.5 9B (Openrouter)", AgentKind.OPENCODE, 262_144
     ),
     "opencode:openrouter/qwen/qwen3.5-flash-02-23": ModelInfo(
-        "Qwen3.5-Flash (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Qwen3.5-Flash (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/qwen/qwen3.5-plus-02-15": ModelInfo(
-        "Qwen3.5 Plus 2026-02-15 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Qwen3.5 Plus 2026-02-15 (Openrouter)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:openrouter/qwen/qwen3.5-plus-20260420": ModelInfo(
-        "Qwen3.5 Plus 2026-04-20 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Qwen3.5 Plus 2026-04-20 (Openrouter)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:openrouter/qwen/qwen3.6-27b": ModelInfo(
-        "Qwen3.6 27B (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Qwen3.6 27B (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/qwen/qwen3.6-35b-a3b": ModelInfo(
         "Qwen3.6 35B-A3B (Openrouter)", AgentKind.OPENCODE, 262_144
     ),
     "opencode:openrouter/qwen/qwen3.6-flash": ModelInfo(
-        "Qwen3.6 Flash (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Qwen3.6 Flash (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/qwen/qwen3.6-plus": ModelInfo(
-        "Qwen3.6 Plus (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Qwen3.6 Plus (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/qwen/qwen3.7-flash": ModelInfo(
-        "Qwen3.7 Flash (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Qwen3.7 Flash (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/qwen/qwen3.7-max": ModelInfo(
-        "Qwen3.7 Max (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Qwen3.7 Max (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/qwen/qwen3.7-plus": ModelInfo(
         "Qwen3.7 Plus (Openrouter)", AgentKind.OPENCODE, 1_000_000
@@ -2668,7 +2918,7 @@ MODELS: dict[str, ModelInfo] = {
         "Summarize (Openrouter)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:openrouter/stepfun/step-3.5-flash": ModelInfo(
-        "Step 3.5 Flash (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Step 3.5 Flash (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/stepfun/step-3.7-flash": ModelInfo(
         "Step 3.7 Flash (Openrouter)", AgentKind.OPENCODE, 262_144
@@ -2689,10 +2939,10 @@ MODELS: dict[str, ModelInfo] = {
         "Hy-MT2-7B (Openrouter)", AgentKind.OPENCODE, 8_192
     ),
     "opencode:openrouter/tencent/hy3": ModelInfo(
-        "Hy3 (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Hy3 (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/tencent/hy3-preview": ModelInfo(
-        "Hy3 preview (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Hy3 preview (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/tencent/hy4-preview": ModelInfo(
         "Hy4 preview (Openrouter)", AgentKind.OPENCODE, 1_048_576
@@ -2722,7 +2972,7 @@ MODELS: dict[str, ModelInfo] = {
         "Pareto 26.10 Preview (Openrouter)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:openrouter/unbiased/pareto-26.9": ModelInfo(
-        "Pareto 26.9 (Openrouter)", AgentKind.OPENCODE, 262_144
+        "Pareto 26.9 (Openrouter)", AgentKind.OPENCODE, 262_144, legacy=True
     ),
     "opencode:openrouter/undi95/remm-slerp-l2-13b": ModelInfo(
         "ReMM SLERP 13B (Openrouter)", AgentKind.OPENCODE, 6_144
@@ -2731,7 +2981,7 @@ MODELS: dict[str, ModelInfo] = {
         "Solar Mini 4 (Openrouter)", AgentKind.OPENCODE, 524_288
     ),
     "opencode:openrouter/upstage/solar-pro-3": ModelInfo(
-        "Solar Pro 3 (Openrouter)", AgentKind.OPENCODE, 131_072
+        "Solar Pro 3 (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/upstage/solar-pro4": ModelInfo(
         "Solar Pro 4 (Openrouter)", AgentKind.OPENCODE, 524_288
@@ -2746,13 +2996,13 @@ MODELS: dict[str, ModelInfo] = {
         "Grok 4.20 Multi-Agent (Openrouter)", AgentKind.OPENCODE, 2_000_000
     ),
     "opencode:openrouter/x-ai/grok-4.3": ModelInfo(
-        "Grok 4.3 (Openrouter)", AgentKind.OPENCODE, 1_000_000
+        "Grok 4.3 (Openrouter)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:openrouter/x-ai/grok-4.5": ModelInfo(
-        "Grok 4.5 (Openrouter)", AgentKind.OPENCODE, 500_000
+        "Grok 4.5 (Openrouter)", AgentKind.OPENCODE, 500_000, legacy=True
     ),
     "opencode:openrouter/x-ai/grok-4.6": ModelInfo(
-        "Grok 4.6 (Openrouter)", AgentKind.OPENCODE, 500_000
+        "Grok 4.6 (Openrouter)", AgentKind.OPENCODE, 500_000, legacy=True
     ),
     "opencode:openrouter/x-ai/grok-4.7": ModelInfo(
         "Grok 4.7 (Openrouter)", AgentKind.OPENCODE, 500_000
@@ -2764,7 +3014,7 @@ MODELS: dict[str, ModelInfo] = {
         "MiMo-V2.5 (Openrouter)", AgentKind.OPENCODE, 1_050_000
     ),
     "opencode:openrouter/xiaomi/mimo-v2.5-pro": ModelInfo(
-        "MiMo-V2.5-Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000
+        "MiMo-V2.5-Pro (Openrouter)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:openrouter/xiaomi/mimo-v2.6-flash": ModelInfo(
         "MiMo-V2.6-Flash (Openrouter)", AgentKind.OPENCODE, 1_050_000
@@ -2776,37 +3026,37 @@ MODELS: dict[str, ModelInfo] = {
         "MiMo-V2.6-Pro-UltraSpeed (Openrouter)", AgentKind.OPENCODE, 1_048_576
     ),
     "opencode:openrouter/z-ai/glm-4.5": ModelInfo(
-        "GLM-4.5 (Openrouter)", AgentKind.OPENCODE, 131_072
+        "GLM-4.5 (Openrouter)", AgentKind.OPENCODE, 131_072, legacy=True
     ),
     "opencode:openrouter/z-ai/glm-4.5-air": ModelInfo(
         "GLM-4.5-Air (Openrouter)", AgentKind.OPENCODE, 131_072
     ),
     "opencode:openrouter/z-ai/glm-4.5v": ModelInfo(
-        "GLM-4.5V (Openrouter)", AgentKind.OPENCODE, 65_536
+        "GLM-4.5V (Openrouter)", AgentKind.OPENCODE, 65_536, legacy=True
     ),
     "opencode:openrouter/z-ai/glm-4.6": ModelInfo(
-        "GLM-4.6 (Openrouter)", AgentKind.OPENCODE, 204_800
+        "GLM-4.6 (Openrouter)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:openrouter/z-ai/glm-4.6v": ModelInfo(
         "GLM-4.6V (Openrouter)", AgentKind.OPENCODE, 131_072
     ),
     "opencode:openrouter/z-ai/glm-4.7": ModelInfo(
-        "GLM-4.7 (Openrouter)", AgentKind.OPENCODE, 204_800
+        "GLM-4.7 (Openrouter)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:openrouter/z-ai/glm-4.7-flash": ModelInfo(
-        "GLM-4.7-Flash (Openrouter)", AgentKind.OPENCODE, 200_000
+        "GLM-4.7-Flash (Openrouter)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:openrouter/z-ai/glm-5": ModelInfo(
-        "GLM-5 (Openrouter)", AgentKind.OPENCODE, 204_800
+        "GLM-5 (Openrouter)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:openrouter/z-ai/glm-5-turbo": ModelInfo(
         "GLM-5-Turbo (Openrouter)", AgentKind.OPENCODE, 202_752
     ),
     "opencode:openrouter/z-ai/glm-5.1": ModelInfo(
-        "GLM-5.1 (Openrouter)", AgentKind.OPENCODE, 204_800
+        "GLM-5.1 (Openrouter)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:openrouter/z-ai/glm-5.2": ModelInfo(
-        "GLM-5.2 (Openrouter)", AgentKind.OPENCODE, 1_048_576
+        "GLM-5.2 (Openrouter)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:openrouter/z-ai/glm-5.3": ModelInfo(
         "GLM-5.3 (Openrouter)", AgentKind.OPENCODE, 1_048_576
@@ -2896,16 +3146,16 @@ MODELS: dict[str, ModelInfo] = {
         "Claude Haiku 4.5 (Perplexity Agent)", AgentKind.OPENCODE, 200_000
     ),
     "opencode:perplexity-agent/anthropic/claude-opus-4-5": ModelInfo(
-        "Claude Opus 4.5 (Perplexity Agent)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.5 (Perplexity Agent)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:perplexity-agent/anthropic/claude-opus-4-6": ModelInfo(
-        "Claude Opus 4.6 (Perplexity Agent)", AgentKind.OPENCODE, 200_000
+        "Claude Opus 4.6 (Perplexity Agent)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:perplexity-agent/anthropic/claude-opus-4-7": ModelInfo(
         "Claude Opus 4.7 (Perplexity Agent)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:perplexity-agent/anthropic/claude-sonnet-4-5": ModelInfo(
-        "Claude Sonnet 4.5 (Perplexity Agent)", AgentKind.OPENCODE, 200_000
+        "Claude Sonnet 4.5 (Perplexity Agent)", AgentKind.OPENCODE, 200_000, legacy=True
     ),
     "opencode:perplexity-agent/anthropic/claude-sonnet-4-6": ModelInfo(
         "Claude Sonnet 4.6 (Perplexity Agent)", AgentKind.OPENCODE, 200_000
@@ -2914,10 +3164,13 @@ MODELS: dict[str, ModelInfo] = {
         "DeepSeek V4 Flash 0731 (Perplexity Agent)", AgentKind.OPENCODE, 1_000_000
     ),
     "opencode:perplexity-agent/google/gemini-2.5-flash": ModelInfo(
-        "Gemini 2.5 Flash (Perplexity Agent)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 2.5 Flash (Perplexity Agent)",
+        AgentKind.OPENCODE,
+        1_048_576,
+        legacy=True,
     ),
     "opencode:perplexity-agent/google/gemini-2.5-pro": ModelInfo(
-        "Gemini 2.5 Pro (Perplexity Agent)", AgentKind.OPENCODE, 1_048_576
+        "Gemini 2.5 Pro (Perplexity Agent)", AgentKind.OPENCODE, 1_048_576, legacy=True
     ),
     "opencode:perplexity-agent/google/gemini-3-flash-preview": ModelInfo(
         "Gemini 3 Flash Preview (Perplexity Agent)", AgentKind.OPENCODE, 1_048_576
@@ -2938,13 +3191,13 @@ MODELS: dict[str, ModelInfo] = {
         "GPT-5 Mini (Perplexity Agent)", AgentKind.OPENCODE, 400_000
     ),
     "opencode:perplexity-agent/openai/gpt-5.1": ModelInfo(
-        "GPT-5.1 (Perplexity Agent)", AgentKind.OPENCODE, 400_000
+        "GPT-5.1 (Perplexity Agent)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:perplexity-agent/openai/gpt-5.2": ModelInfo(
-        "GPT-5.2 (Perplexity Agent)", AgentKind.OPENCODE, 400_000
+        "GPT-5.2 (Perplexity Agent)", AgentKind.OPENCODE, 400_000, legacy=True
     ),
     "opencode:perplexity-agent/openai/gpt-5.4": ModelInfo(
-        "GPT-5.4 (Perplexity Agent)", AgentKind.OPENCODE, 1_050_000
+        "GPT-5.4 (Perplexity Agent)", AgentKind.OPENCODE, 1_050_000, legacy=True
     ),
     "opencode:perplexity-agent/openai/gpt-5.5": ModelInfo(
         "GPT-5.5 (Perplexity Agent)", AgentKind.OPENCODE, 1_050_000
@@ -2961,16 +3214,19 @@ MODELS: dict[str, ModelInfo] = {
         "Grok 4.6 (Perplexity Agent)", AgentKind.OPENCODE, 500_000
     ),
     "opencode:zai-coding-plan/glm-4.7": ModelInfo(
-        "GLM-4.7 (Zai Coding Plan)", AgentKind.OPENCODE, 204_800
+        "GLM-4.7 (Zai Coding Plan)", AgentKind.OPENCODE, 204_800, legacy=True
     ),
     "opencode:zai-coding-plan/glm-5-turbo": ModelInfo(
         "GLM-5-Turbo (Zai Coding Plan)", AgentKind.OPENCODE, 200_000
     ),
     "opencode:zai-coding-plan/glm-5.2": ModelInfo(
-        "GLM-5.2 (Zai Coding Plan)", AgentKind.OPENCODE, 1_000_000
+        "GLM-5.2 (Zai Coding Plan)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
     "opencode:zai-coding-plan/glm-5.2-highspeed": ModelInfo(
-        "GLM-5.2 Highspeed (Zai Coding Plan)", AgentKind.OPENCODE, 1_000_000
+        "GLM-5.2 Highspeed (Zai Coding Plan)",
+        AgentKind.OPENCODE,
+        1_000_000,
+        legacy=True,
     ),
     "opencode:zai-coding-plan/glm-5.3": ModelInfo(
         "GLM-5.3 (Zai Coding Plan)", AgentKind.OPENCODE, 1_000_000
