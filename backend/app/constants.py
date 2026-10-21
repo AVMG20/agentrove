@@ -1651,6 +1651,12 @@ MODELS: dict[str, ModelInfo] = {
     "opencode:google-vertex/claude-opus-5@default": ModelInfo(
         "Claude Opus 5 (Google Vertex)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
+    "opencode:google-vertex/claude-sonnet-4-5@20250929": ModelInfo(
+        "Claude Sonnet 4.5 (Google Vertex)",
+        AgentKind.OPENCODE,
+        200_000,
+        legacy=True,
+    ),
     "opencode:google-vertex/claude-sonnet-4-6@default": ModelInfo(
         "Claude Sonnet 4.6 (Google Vertex)", AgentKind.OPENCODE, 1_000_000, legacy=True
     ),
@@ -1759,78 +1765,6 @@ MODELS: dict[str, ModelInfo] = {
     ),
     "opencode:google-vertex/zai-org/glm-5.2-maas": ModelInfo(
         "GLM-5.2 (Google Vertex)", AgentKind.OPENCODE, 1_000_000
-    ),
-    "opencode:google-vertex-anthropic/claude-fable-5-1@default": ModelInfo(
-        "Claude Fable 5.1 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
-    ),
-    "opencode:google-vertex-anthropic/claude-fable-5@default": ModelInfo(
-        "Claude Fable 5 (Google Vertex Anthropic)",
-        AgentKind.OPENCODE,
-        1_000_000,
-        legacy=True,
-    ),
-    "opencode:google-vertex-anthropic/claude-haiku-4-5@20251001": ModelInfo(
-        "Claude Haiku 4.5 (Google Vertex Anthropic)",
-        AgentKind.OPENCODE,
-        200_000,
-        legacy=True,
-    ),
-    "opencode:google-vertex-anthropic/claude-haiku-5-5@default": ModelInfo(
-        "Claude Haiku 5.5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
-    ),
-    "opencode:google-vertex-anthropic/claude-opus-4-5@20251101": ModelInfo(
-        "Claude Opus 4.5 (Google Vertex Anthropic)",
-        AgentKind.OPENCODE,
-        200_000,
-        legacy=True,
-    ),
-    "opencode:google-vertex-anthropic/claude-opus-4-6@default": ModelInfo(
-        "Claude Opus 4.6 (Google Vertex Anthropic)",
-        AgentKind.OPENCODE,
-        1_000_000,
-        legacy=True,
-    ),
-    "opencode:google-vertex-anthropic/claude-opus-4-7@default": ModelInfo(
-        "Claude Opus 4.7 (Google Vertex Anthropic)",
-        AgentKind.OPENCODE,
-        1_000_000,
-        legacy=True,
-    ),
-    "opencode:google-vertex-anthropic/claude-opus-4-8@default": ModelInfo(
-        "Claude Opus 4.8 (Google Vertex Anthropic)",
-        AgentKind.OPENCODE,
-        1_000_000,
-        legacy=True,
-    ),
-    "opencode:google-vertex-anthropic/claude-opus-5-5@default": ModelInfo(
-        "Claude Opus 5.5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
-    ),
-    "opencode:google-vertex-anthropic/claude-opus-5@default": ModelInfo(
-        "Claude Opus 5 (Google Vertex Anthropic)",
-        AgentKind.OPENCODE,
-        1_000_000,
-        legacy=True,
-    ),
-    "opencode:google-vertex-anthropic/claude-sonnet-4-5@20250929": ModelInfo(
-        "Claude Sonnet 4.5 (Google Vertex Anthropic)",
-        AgentKind.OPENCODE,
-        200_000,
-        legacy=True,
-    ),
-    "opencode:google-vertex-anthropic/claude-sonnet-4-6@default": ModelInfo(
-        "Claude Sonnet 4.6 (Google Vertex Anthropic)",
-        AgentKind.OPENCODE,
-        1_000_000,
-        legacy=True,
-    ),
-    "opencode:google-vertex-anthropic/claude-sonnet-5-5@default": ModelInfo(
-        "Claude Sonnet 5.5 (Google Vertex Anthropic)", AgentKind.OPENCODE, 1_000_000
-    ),
-    "opencode:google-vertex-anthropic/claude-sonnet-5@default": ModelInfo(
-        "Claude Sonnet 5 (Google Vertex Anthropic)",
-        AgentKind.OPENCODE,
-        1_000_000,
-        legacy=True,
     ),
     "opencode:openai/gpt-4.1": ModelInfo(
         "GPT-4.1 (Openai)", AgentKind.OPENCODE, 1_047_576, legacy=True

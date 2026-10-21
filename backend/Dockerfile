@@ -53,9 +53,8 @@ RUN set -eux; \
     chmod +x /usr/local/bin/cursor-agent
 
 # OpenCode CLI — used for the OpenCode ACP server (`opencode acp`); installs to
-# /root/.opencode/bin. Pinned: the unpinned path resolves "latest" via the
-# rate-limited GitHub API.
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --version 1.19.3 && \
+# /root/.opencode/bin. Pinned for reproducible builds.
+RUN curl -fsSL https://opencode.ai/v2/install | bash -s -- --version 2.1.1 && \
     cp /root/.opencode/bin/opencode /usr/local/bin/opencode && \
     chmod +x /usr/local/bin/opencode
 
