@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.constants import MODELS
-from app.services.acp.adapters import AgentKind
+from app.models.types import AgentKind
 
 from tests.conftest import LoginClient, UserFactory
 

@@ -16,7 +16,7 @@ from app.core.security import create_mcp_access_token
 from app.db.session import SessionLocal
 from app.models.db_models.chat import Chat
 from app.models.db_models.user import User, UserSettings
-from app.models.types import PermissionMode
+from app.models.types import AgentKind, PermissionMode
 from app.prompts.enhance_prompt import ENHANCE_PROMPT
 from app.prompts.generate_commit_message import (
     GENERATE_COMMIT_MESSAGE_SYSTEM_PROMPT,
@@ -32,7 +32,6 @@ from app.services.acp.adapters import (
     AGENT_ADAPTERS,
     FULL_ACCESS_SESSION_MODES,
     NORMAL_SESSION_MODE,
-    AgentKind,
 )
 from app.services.acp.client import AcpClientHandler
 from app.services.acp.session import AcpSession, AcpSessionConfig

@@ -16,9 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.constants import REDIS_KEY_USER_STREAMS_LIVE
 from app.core.config import get_settings
 from app.models.db_models.workspace import Workspace
+from app.models.types import AgentKind
 from app.services.acp.adapters import (
     NORMAL_SESSION_MODE,
-    AgentKind,
     AntigravityAgentAdapter,
     ClaudeAgentAdapter,
     GrokAgentAdapter,

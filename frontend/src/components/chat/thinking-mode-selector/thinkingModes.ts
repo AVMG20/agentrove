@@ -1,11 +1,13 @@
-import type { AgentKind } from '@/types/chat.types';
+import { queryKeys } from '@/hooks/queries/queryKeys';
+import { queryClient } from '@/lib/queryClient';
+import type { AgentKind, Model } from '@/types/chat.types';
 
 export interface ThinkingModeOption {
   value: string;
   label: string;
 }
 
-const THINKING_MODE_ORDER = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
+const THINKING_MODE_ORDER = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
 
 const CLAUDE_THINKING_MODES: ThinkingModeOption[] = [
   { value: 'low', label: 'Low' },
@@ -147,6 +149,31 @@ const ANTIGRAVITY_PRO_THINKING_MODES: ThinkingModeOption[] = [
   { value: 'high', label: 'High' },
 ];
 
+const THINKING_MODE_LABELS: Record<string, string> = {
+  none: 'None',
+  minimal: 'Minimal',
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  xhigh: 'XHigh',
+  max: 'Max',
+  ultra: 'Ultra',
+};
+// OpenCode levels are per model (from the models API); "default" sends no
+// effort so OpenCode keeps its own provider default.
+const OPENCODE_DEFAULT_THINKING_MODE: ThinkingModeOption = { value: 'default', label: 'Default' };
+
+function getOpencodeThinkingModes(modelId?: string): ThinkingModeOption[] {
+  const model = queryClient
+    .getQueryData<Model[]>([queryKeys.models])
+    ?.find((candidate) => candidate.model_id === modelId);
+  if (!model?.thinking_modes.length) return EMPTY_THINKING_MODES;
+  return [
+    OPENCODE_DEFAULT_THINKING_MODE,
+    ...model.thinking_modes.map((value) => ({ value, label: THINKING_MODE_LABELS[value] })),
+  ];
+}
+
 export const THINKING_MODES_BY_AGENT: Record<AgentKind, ThinkingModeOption[]> = {
   antigravity: ANTIGRAVITY_THINKING_MODES,
   claude: CLAUDE_THINKING_MODES,
@@ -164,7 +191,7 @@ const DEFAULT_BY_AGENT: Record<AgentKind, string> = {
   copilot: 'high',
   cursor: 'high',
   grok: 'high',
-  opencode: 'high',
+  opencode: 'default',
 };
 
 export function getThinkingModesForAgent(
@@ -208,6 +235,10 @@ export function getThinkingModesForAgent(
   }
   if (agentKind === 'grok' && modelId && GROK_REASONING_MODEL_IDS.has(modelId)) {
     return GROK_THINKING_MODES;
+  }
+
+  if (agentKind === 'opencode') {
+    return getOpencodeThinkingModes(modelId);
   }
 
   return THINKING_MODES_BY_AGENT[agentKind];

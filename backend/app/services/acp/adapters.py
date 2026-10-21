@@ -1,21 +1,13 @@
 from __future__ import annotations
 
 import json
-from enum import Enum
 from dataclasses import dataclass, field
+from collections.abc import Iterable
 from typing import Any
 
-from app.models.types import PermissionMode
-
-
-class AgentKind(str, Enum):
-    ANTIGRAVITY = "antigravity"
-    CLAUDE = "claude"
-    CODEX = "codex"
-    COPILOT = "copilot"
-    CURSOR = "cursor"
-    GROK = "grok"
-    OPENCODE = "opencode"
+from app.constants import MODELS
+from app.models.types import AgentKind, PermissionMode
+from app.services.exceptions import AgentException
 
 
 # File types each agent can consume inline in the ACP prompt (base64-embedded as
@@ -68,21 +60,47 @@ PERSONAS_SUPPORTED_AGENTS: frozenset[AgentKind] = frozenset(
 )
 
 
-THINKING_MODE_ORDER = ("low", "medium", "high", "xhigh", "max", "ultra")
+THINKING_MODE_ORDER = (
+    "none",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+    "ultra",
+)
 
 
-def coerce_thinking_mode(
+def unsupported_effort_error(mode: str, supported: Iterable[str]) -> AgentException:
+    levels = ", ".join(supported)
+    if not levels:
+        return AgentException(
+            f"Effort `{mode}` isn't supported: this model has no effort setting."
+        )
+    return AgentException(
+        f"Effort `{mode}` isn't supported by this model. Supported: {levels}."
+    )
+
+
+def resolve_thinking_mode(
     mode: str | None, valid_modes: frozenset[str], default: str = "medium"
 ) -> str:
-    requested = mode or default
-    if requested in valid_modes:
-        return requested
-    if requested in THINKING_MODE_ORDER:
-        requested_index = THINKING_MODE_ORDER.index(requested)
-        for candidate in reversed(THINKING_MODE_ORDER[:requested_index]):
-            if candidate in valid_modes:
-                return candidate
-    return next((mode for mode in THINKING_MODE_ORDER if mode in valid_modes), default)
+    # An explicit tier is never substituted (it changes cost and latency);
+    # only the agent default steps down when this model lacks it.
+    if mode:
+        if mode in valid_modes:
+            return mode
+        raise unsupported_effort_error(
+            mode, sorted(valid_modes, key=THINKING_MODE_ORDER.index)
+        )
+    if default in valid_modes:
+        return default
+    default_index = THINKING_MODE_ORDER.index(default)
+    for candidate in reversed(THINKING_MODE_ORDER[:default_index]):
+        if candidate in valid_modes:
+            return candidate
+    return next(m for m in THINKING_MODE_ORDER if m in valid_modes)
 
 
 def build_system_prompt_meta(
@@ -171,7 +189,7 @@ class AgentAdapter:
         modes = self.valid_thinking_modes(model_id)
         if not modes:
             return None
-        return coerce_thinking_mode(thinking_mode, modes, self.default_thinking_mode)
+        return resolve_thinking_mode(thinking_mode, modes, self.default_thinking_mode)
 
     def map_session_mode(self, permission_mode: str) -> str:
         # UI permission mode → ACP session mode id (plan-mode transitions).
@@ -475,10 +493,7 @@ class AntigravityAgentAdapter(AgentAdapter):
         return frozenset({"low", "medium", "high"})
 
     def reasoning_effort(self, model_id: str, thinking_mode: str | None) -> str:
-        # Pro has no medium tier; round it up rather than down to low.
-        if model_id == self.PRO_MODEL_ID and thinking_mode == "medium":
-            return "high"
-        return coerce_thinking_mode(
+        return resolve_thinking_mode(
             thinking_mode,
             self.valid_thinking_modes(model_id),
             self.default_thinking_mode,
@@ -501,7 +516,7 @@ class AntigravityAgentAdapter(AgentAdapter):
 
 
 class OpencodeAgentAdapter(AgentAdapter):
-    # Primary agents map to session modes; no uniform ACP reasoning dial (thinking UI hidden).
+    # Primary agents map to session modes; effort is a per-model ACP config option.
     binary = "opencode"
     cli_args = ("acp",)
     model_id_namespace = "opencode:"
@@ -512,6 +527,7 @@ class OpencodeAgentAdapter(AgentAdapter):
     # opencode full-access just because the string doesn't map.
     session_modes = frozenset({"build", "plan"})
     fallback_session_mode = "plan"
+    effort_config_id = "effort"
     # OpenCode 2 allows external directories by default; restore v1's ask
     # (host-mode sessions share the real HOME). Built-in plan writes here.
     BASE_CONFIG: dict[str, Any] = {
@@ -522,6 +538,18 @@ class OpencodeAgentAdapter(AgentAdapter):
 
     def build_session_env(self, model_id: str) -> dict[str, str]:
         return {"OPENCODE_CONFIG_CONTENT": json.dumps(self.BASE_CONFIG)}
+
+    def valid_thinking_modes(self, model_id: str) -> frozenset[str]:
+        info = MODELS.get(model_id)
+        return frozenset(info.effort_levels) if info else frozenset()
+
+    def reasoning_effort(self, model_id: str, thinking_mode: str | None) -> str | None:
+        # Unlike other agents, an unset level (or the selector's "default")
+        # sends nothing so OpenCode keeps the provider's own default.
+        modes = self.valid_thinking_modes(model_id)
+        if thinking_mode in (None, "", "default") or not modes:
+            return None
+        return resolve_thinking_mode(thinking_mode, modes)
 
     def build_launch_config(
         self,

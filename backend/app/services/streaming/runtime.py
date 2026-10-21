@@ -1411,6 +1411,7 @@ class ChatStreamRuntime:
                 if config.permission_mode:
                     session.current_mode = config.permission_mode
                 session.current_fast_mode = config.fast_mode
+                session.acp_session.ensure_effort_supported(config.reasoning_effort)
 
                 stream_result = StreamResult()
                 stream = ai_service.stream_response(

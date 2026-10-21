@@ -9,6 +9,7 @@ const model = (
 ): Model => ({
   name: over.model_id,
   context_window: null,
+  thinking_modes: [],
   ...over,
 });
 

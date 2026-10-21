@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from app.services.acp.adapters import AgentKind
+from app.models.types import AgentKind
 from app.services.acp.session import AcpSession, AcpSessionConfig
 
 logger = logging.getLogger(__name__)

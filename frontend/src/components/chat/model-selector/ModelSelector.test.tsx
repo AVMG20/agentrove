@@ -31,6 +31,7 @@ const models: Model[] = [
     name: 'MiniMax M3.1 Flash',
     agent_kind: 'opencode',
     context_window: 1_000_000,
+    thinking_modes: [],
   },
   {
     model_id: 'opencode:opencode/minimax-m2.7',
@@ -38,6 +39,7 @@ const models: Model[] = [
     agent_kind: 'opencode',
     context_window: 204_800,
     legacy: true,
+    thinking_modes: [],
   },
 ];
 
