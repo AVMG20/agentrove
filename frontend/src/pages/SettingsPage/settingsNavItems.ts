@@ -9,6 +9,7 @@ import {
   Cloud,
   GitBranch,
   FolderOpen,
+  AppWindow,
 } from 'lucide-react';
 
 export type TabKey =
@@ -18,6 +19,7 @@ export type TabKey =
   | 'personas'
   | 'stream_actions'
   | 'automations'
+  | 'artifacts'
   | 'env_vars'
   | 'instructions'
   | 'cloud';
@@ -35,6 +37,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   { id: 'personas', label: 'Personas', icon: UserCircle },
   { id: 'stream_actions', label: 'Stream Actions', icon: GitBranch },
   { id: 'automations', label: 'Automations', icon: Clock },
+  { id: 'artifacts', label: 'Artifacts', icon: AppWindow },
   { id: 'env_vars', label: 'Env Variables', icon: Key },
   { id: 'instructions', label: 'Instructions', icon: ScrollText },
   { id: 'cloud', label: 'Cloud', icon: Cloud },

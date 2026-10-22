@@ -62,16 +62,21 @@ class RequestIdMiddleware:
 
 
 class _SecurityHeadersSend:
-    def __init__(self, send: Send) -> None:
+    def __init__(self, send: Send, scope: Scope) -> None:
         self.send = send
+        self.scope = scope
 
     async def __call__(self, message: Message) -> None:
         if message["type"] == "http.response.start":
             headers = MutableHeaders(scope=message)
             headers["X-Content-Type-Options"] = settings.CONTENT_TYPE_OPTIONS
-            headers["X-Frame-Options"] = settings.FRAME_OPTIONS
+            # Endpoints serving content meant for iframes (artifact pages) opt
+            # out via request.state.allow_framing; they sandbox it themselves.
+            if not self.scope.get("state", {}).get("allow_framing"):
+                headers["X-Frame-Options"] = settings.FRAME_OPTIONS
             headers["X-XSS-Protection"] = settings.XSS_PROTECTION
-            headers["Referrer-Policy"] = settings.REFERRER_POLICY
+            # setdefault: an endpoint may ask for a stricter policy.
+            headers.setdefault("Referrer-Policy", settings.REFERRER_POLICY)
             headers["Permissions-Policy"] = settings.PERMISSIONS_POLICY
 
             if settings.ENVIRONMENT == "production":
@@ -93,7 +98,7 @@ class SecurityHeadersMiddleware:
         if scope["type"] != "http" or not settings.ENABLE_SECURITY_HEADERS:
             await self.app(scope, receive, send)
             return
-        await self.app(scope, receive, _SecurityHeadersSend(send))
+        await self.app(scope, receive, _SecurityHeadersSend(send, scope))
 
 
 async def _service_exception_handler(

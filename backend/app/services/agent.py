@@ -12,7 +12,7 @@ from sqlalchemy import update
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import agent_global_env, get_settings
-from app.core.security import create_mcp_access_token
+from app.core.security import create_artifact_agent_token, create_mcp_access_token
 from app.db.session import SessionLocal
 from app.models.db_models.chat import Chat
 from app.models.db_models.user import User, UserSettings
@@ -508,7 +508,18 @@ class AgentService:
         current_chat_id: str | None,
     ) -> list[dict[str, Any]]:
         servers: list[dict[str, Any]] = []
-        if settings.AGENTROVE_MCP_ENABLED and agentrove_mcp:
+        full_mcp = settings.AGENTROVE_MCP_ENABLED and agentrove_mcp
+        # With the full server off, chat agents still get one exposing only the
+        # artifact tools, holding a token the artifacts API alone accepts. Host
+        # sessions only: the sandbox image doesn't ship the server script.
+        artifacts_only = (
+            not full_mcp
+            and agentrove_mcp
+            and chat_id is not None
+            and settings.AGENTROVE_ARTIFACTS_ENABLED
+            and sandbox_provider is SandboxProviderType.HOST
+        )
+        if full_mcp or artifacts_only:
             if sandbox_provider is SandboxProviderType.HOST:
                 # Host-provider agents share this process's network namespace, but the
                 # public BASE_URL is often unreachable from inside the deployment
@@ -523,8 +534,16 @@ class AgentService:
                 api_base = settings.BASE_URL
             env = {
                 "AGENTROVE_API_URL": f"{api_base}{settings.API_V1_STR}",
-                "AGENTROVE_ACCESS_TOKEN": create_mcp_access_token(user_id),
+                "AGENTROVE_ACCESS_TOKEN": (
+                    create_mcp_access_token(user_id)
+                    if full_mcp
+                    else create_artifact_agent_token(user_id)
+                ),
+                # Public origin for the artifact links the agent shares.
+                "AGENTROVE_APP_URL": settings.FRONTEND_URL,
             }
+            if artifacts_only:
+                env["AGENTROVE_MCP_TOOLSET"] = "artifacts"
             # The chat this session runs in — lets the agent create sub-threads under it
             if current_chat_id:
                 env["AGENTROVE_CURRENT_CHAT_ID"] = current_chat_id
