@@ -10,8 +10,10 @@ import { ComposerAttachmentSlots } from './ComposerAttachmentSlots';
 import { SelectionAttachments } from './SelectionAttachments';
 import { InputSuggestionsPanel } from './InputSuggestionsPanel';
 import { ContextUsageIndicator } from './ContextUsageIndicator';
+import { ClaudeUsageMeter } from './ClaudeUsageMeter';
 import { InputProvider } from './InputProvider';
 import { useInputContext } from '@/hooks/useInputContext';
+import { useIsCloudChat } from '@/utils/chatOrigin';
 import type { ContextUsageInfo } from '@/utils/contextUsage';
 import styles from './Input.module.scss';
 
@@ -49,6 +51,7 @@ export const Input = memo(function Input(props: InputProps) {
 
 function InputLayout() {
   const { state, actions, meta } = useInputContext();
+  const isCloudChat = useIsCloudChat(state.chatId);
 
   const sendStatus: SendButtonStatus = state.isStreaming
     ? state.hasContent
@@ -136,6 +139,8 @@ function InputLayout() {
         </div>
         <InputControls />
       </div>
+      {/* Usage is the local backend's proxy; a cloud chat runs on another one. */}
+      {!isCloudChat && <ClaudeUsageMeter className={styles['usage-row']} />}
 
       {state.showTip && !state.hasAttachments && (
         <div className={styles.tip}>

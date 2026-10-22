@@ -167,6 +167,13 @@ class Settings(BaseSettings):
         "ANTHROPIC_BASE_URL,ANTHROPIC_AUTH_TOKEN,ANTHROPIC_API_KEY,"
         "ANTHROPIC_CUSTOM_HEADERS"
     )
+    # Claude proxy hosts mapped to the endpoint reporting their 5h/weekly
+    # usage, as "base-host=usage-url" pairs separated by commas. Fetched with
+    # the user's ANTHROPIC_AUTH_TOKEN; deployment-set only, so users can't
+    # point the server at arbitrary URLs.
+    CLAUDE_USAGE_ENDPOINTS: str = (
+        "claude.bitsec.dev=https://claude-admin.bitsec.dev/api/usage"
+    )
 
     DOCKER_IMAGE: str = "ghcr.io/mng-dev-ai/agentrove-sandbox:latest"
     DOCKER_NETWORK: str = "agentrove-sandbox-net"
