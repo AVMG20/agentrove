@@ -237,8 +237,13 @@ class ClaudeAgentAdapter(AgentAdapter):
     ) -> dict[str, Any]:
         meta = build_system_prompt_meta(system_prompt, system_prompt_is_full_replace)
         # Effort controls depth; visible thinking requires the SDK display option.
+        # Flag-tier settings outrank user/project settings, so every session gets
+        # the built-in Concise output style regardless of the sandbox's config.
         meta["claudeCode"] = {
-            "options": {"thinking": {"type": "adaptive", "display": "summarized"}}
+            "options": {
+                "thinking": {"type": "adaptive", "display": "summarized"},
+                "settings": {"outputStyle": "Concise"},
+            }
         }
         return meta
 

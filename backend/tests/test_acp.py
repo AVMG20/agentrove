@@ -169,6 +169,15 @@ def test_claude_launch_uses_installed_claude_cli() -> None:
     assert launch.env == {"CLAUDE_CODE_EXECUTABLE": "claude"}
 
 
+@pytest.mark.parametrize("system_prompt", [None, "Be helpful."])
+def test_claude_session_meta_forces_concise_output_style(
+    system_prompt: str | None,
+) -> None:
+    meta = ClaudeAgentAdapter().build_session_meta(system_prompt, False)
+
+    assert meta["claudeCode"]["options"]["settings"] == {"outputStyle": "Concise"}
+
+
 @pytest.mark.parametrize(
     "model_id,thinking_mode,expected_effort",
     [
