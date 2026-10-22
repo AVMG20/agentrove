@@ -36,6 +36,7 @@ import {
   type ScheduleFrequency,
 } from '@/utils/automationSchedule';
 import { GITHUB_EVENT_OPTIONS, GITHUB_POLL_OPTIONS } from '@/utils/automationGithub';
+import { GitHubRepoPicker } from './GitHubRepoPicker';
 import styles from './AutomationEditDialog.module.scss';
 
 const TRIGGER_OPTIONS: { value: AutomationTriggerType; label: string }[] = [
@@ -278,11 +279,9 @@ export function AutomationEditDialog({
             <div className={styles['github-fields']}>
               <div>
                 <Label className={styles.label}>Repository</Label>
-                <Input
+                <GitHubRepoPicker
                   value={form.github_repo}
-                  onChange={(e) => onChange('github_repo', e.target.value)}
-                  placeholder="owner/repo"
-                  className={styles.input}
+                  onChange={(repo) => onChange('github_repo', repo)}
                   hasError={!!form.github_repo.trim() && !githubRepoValid}
                 />
               </div>
