@@ -160,6 +160,7 @@ class Settings(BaseSettings):
     DOCKER_NETWORK: str = "agentrove-sandbox-net"
     DOCKER_HOST: str | None = None
     DOCKER_MEM_LIMIT: str = "8g"
+    DOCKER_NODE_MAX_OLD_SPACE_MB: int = 8192
     DOCKER_CPU_PERIOD: int = 100000
     DOCKER_CPU_QUOTA: int = 200000
     DOCKER_PIDS_LIMIT: int = 512

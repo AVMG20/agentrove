@@ -43,6 +43,7 @@ class DockerConfig:
     host: str | None = None
     user_home: str = "/home/user"
     mem_limit: str = ""
+    node_max_old_space_mb: int = 0
     cpu_period: int = 0
     cpu_quota: int = 0
     pids_limit: int = 0
@@ -145,6 +146,16 @@ class LocalDockerProvider(SandboxProvider):
             workspace_dir = Path(workspace_path).expanduser().resolve()
             host_config["Binds"] = [f"{workspace_dir}:{workspace_mount_dir}"]
 
+        env = [
+            f"TERM={TERMINAL_TYPE}",
+            f"HOME={self.config.user_home}",
+            "USER=user",
+        ]
+        if self.config.node_max_old_space_mb > 0:
+            env.append(
+                f"NODE_OPTIONS=--max-old-space-size={self.config.node_max_old_space_mb}"
+            )
+
         config: dict[str, Any] = {
             "Image": self.config.image,
             "Cmd": ["/bin/bash"],
@@ -153,11 +164,7 @@ class LocalDockerProvider(SandboxProvider):
             "WorkingDir": self.config.user_home,
             "OpenStdin": True,
             "Tty": True,
-            "Env": [
-                f"TERM={TERMINAL_TYPE}",
-                f"HOME={self.config.user_home}",
-                "USER=user",
-            ],
+            "Env": env,
             "HostConfig": host_config,
         }
 
