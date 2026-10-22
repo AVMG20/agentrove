@@ -1,4 +1,6 @@
+import hashlib
 import logging
+import time
 from collections.abc import Collection
 from datetime import datetime
 from typing import Any, Literal
@@ -23,6 +25,10 @@ GITHUB_API_BASE = "https://api.github.com"
 # Per-endpoint page for activity polling — more than one poll interval's worth
 # of new items on any sane repo; the dispatcher caps runs per poll anyway.
 ACTIVITY_PAGE_SIZE = 50
+# Repo search filters the user's own list: up to 1000 repos, reused for a minute.
+ACCESSIBLE_REPOS_MAX_PAGES = 10
+ACCESSIBLE_REPOS_TTL_SECONDS = 60.0
+_ACCESSIBLE_REPOS_CACHE: dict[str, tuple[float, list[dict[str, Any]]]] = {}
 
 
 def _parse_github_time(value: str) -> datetime:
@@ -60,54 +66,85 @@ class GitHubService:
     async def list_repositories(
         self, query: str, page: int, per_page: int
     ) -> GitHubReposResponse:
-        stripped = query.strip()
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            if stripped:
-                response = await client.get(
-                    f"{GITHUB_API_BASE}/search/repositories",
-                    params={
-                        "q": stripped,
-                        "sort": "updated",
-                        "order": "desc",
-                        "per_page": per_page,
-                        "page": page,
-                    },
-                    headers=self._headers,
+        terms = query.lower().split()
+        if terms:
+            # Search only repos the user can reach (own, collaborator, org):
+            # GitHub's /search/repositories spans every public repo.
+            matches = [
+                r
+                for r in await self._accessible_repos()
+                if all(
+                    term in f"{r['full_name']} {r.get('description') or ''}".lower()
+                    for term in terms
                 )
-            else:
-                response = await client.get(
-                    f"{GITHUB_API_BASE}/user/repos",
-                    params={
-                        "sort": "pushed",
-                        "direction": "desc",
-                        "per_page": per_page,
-                        "page": page,
-                        "affiliation": "owner,collaborator,organization_member",
-                    },
-                    headers=self._headers,
-                )
-
-        self._check_response(response)
-
-        data = response.json()
-        raw_repos = data.get("items", data) if isinstance(data, dict) else data
-
-        repos = [
-            GitHubRepo(
-                name=r["name"],
-                full_name=r["full_name"],
-                description=r.get("description"),
-                language=r.get("language"),
-                html_url=r["html_url"],
-                clone_url=r["clone_url"],
-                private=r.get("private", False),
-                pushed_at=r.get("pushed_at"),
-                stargazers_count=r.get("stargazers_count", 0),
+            ]
+            start = (page - 1) * per_page
+            return GitHubReposResponse(
+                items=[self._repo(r) for r in matches[start : start + per_page]],
+                has_more=len(matches) > start + per_page,
             )
-            for r in raw_repos
-        ]
 
-        return GitHubReposResponse(items=repos, has_more=len(raw_repos) == per_page)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            raw_repos = await self._user_repos_page(client, page, per_page)
+        return GitHubReposResponse(
+            items=[self._repo(r) for r in raw_repos],
+            has_more=len(raw_repos) == per_page,
+        )
+
+    async def _user_repos_page(
+        self, client: httpx.AsyncClient, page: int, per_page: int
+    ) -> list[dict[str, Any]]:
+        response = await client.get(
+            f"{GITHUB_API_BASE}/user/repos",
+            params={
+                "sort": "pushed",
+                "direction": "desc",
+                "per_page": per_page,
+                "page": page,
+                "affiliation": "owner,collaborator,organization_member",
+            },
+            headers=self._headers,
+        )
+        self._check_response(response)
+        data: list[dict[str, Any]] = response.json()
+        return data
+
+    async def _accessible_repos(self) -> list[dict[str, Any]]:
+        # Searching re-runs per keystroke, so keep the user's full list briefly.
+        key = hashlib.sha256(self._headers["Authorization"].encode()).hexdigest()
+        now = time.monotonic()
+        cached = _ACCESSIBLE_REPOS_CACHE.get(key)
+        if cached and now - cached[0] < ACCESSIBLE_REPOS_TTL_SECONDS:
+            return cached[1]
+        repos: list[dict[str, Any]] = []
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for page in range(1, ACCESSIBLE_REPOS_MAX_PAGES + 1):
+                batch = await self._user_repos_page(client, page, 100)
+                repos.extend(batch)
+                if len(batch) < 100:
+                    break
+        for stale in [
+            k
+            for k, (at, _) in _ACCESSIBLE_REPOS_CACHE.items()
+            if now - at >= ACCESSIBLE_REPOS_TTL_SECONDS
+        ]:
+            del _ACCESSIBLE_REPOS_CACHE[stale]
+        _ACCESSIBLE_REPOS_CACHE[key] = (now, repos)
+        return repos
+
+    @staticmethod
+    def _repo(r: dict[str, Any]) -> GitHubRepo:
+        return GitHubRepo(
+            name=r["name"],
+            full_name=r["full_name"],
+            description=r.get("description"),
+            language=r.get("language"),
+            html_url=r["html_url"],
+            clone_url=r["clone_url"],
+            private=r.get("private", False),
+            pushed_at=r.get("pushed_at"),
+            stargazers_count=r.get("stargazers_count", 0),
+        )
 
     async def list_pull_requests(
         self,

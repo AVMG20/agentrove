@@ -438,7 +438,7 @@ async def test_github_service_routes_reject_authenticated_user_without_pat(
     assert response.json()["detail"] == "GitHub personal access token not configured"
 
 
-async def test_github_service_lists_repositories_with_search_query(
+async def test_github_service_search_only_covers_the_users_repos(
     client: AsyncClient,
     db_session: AsyncSession,
     create_user: UserFactory,
@@ -456,25 +456,40 @@ async def test_github_service_lists_repositories_with_search_query(
     transport = GitHubTransport()
     transport.script(
         "GET",
-        "/search/repositories",
-        httpx.Response(200, json={"items": [github_repo_payload()]}),
+        "/user/repos",
+        httpx.Response(
+            200,
+            json=[
+                github_repo_payload(name="agent-ui", full_name="owner/agent-ui"),
+                github_repo_payload(name="infra", full_name="owner/infra"),
+                github_repo_payload(
+                    name="agentrove",
+                    full_name="org/agentrove",
+                    description="Self-hosted Agent workspace",
+                ),
+            ],
+        ),
     )
     install_github_transport(monkeypatch, transport)
 
-    response = await client.get(
-        "/api/v1/github/repositories?q=agent&page=2&per_page=1",
-        headers=headers,
+    first = await client.get(
+        "/api/v1/github/repositories?q=Agent&page=1&per_page=1", headers=headers
+    )
+    second = await client.get(
+        "/api/v1/github/repositories?q=agent&page=2&per_page=1", headers=headers
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["items"][0]["full_name"] == "owner/app"
-    assert body["has_more"] is True
-    request = transport.requests[0]
-    params = dict(request.url.params)
-    assert params["q"] == "agent"
-    assert params["page"] == "2"
-    assert request.headers["authorization"] == "Bearer ghp_search_token"
+    assert first.status_code == 200
+    assert [r["full_name"] for r in first.json()["items"]] == ["owner/agent-ui"]
+    assert first.json()["has_more"] is True
+    assert [r["full_name"] for r in second.json()["items"]] == ["org/agentrove"]
+    assert second.json()["has_more"] is False
+    # Never GitHub-wide search; the user's list is fetched once and reused.
+    assert [r.url.path for r in transport.requests] == ["/user/repos"]
+    params = dict(transport.requests[0].url.params)
+    assert params["affiliation"] == "owner,collaborator,organization_member"
+    assert params["per_page"] == "100"
+    assert transport.requests[0].headers["authorization"] == "Bearer ghp_search_token"
 
 
 async def test_github_service_lists_repositories_default_via_user_repos(
