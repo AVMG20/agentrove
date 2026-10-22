@@ -21,6 +21,33 @@ function useSidebarWidthVar() {
   }, []);
 }
 
+// Sidebar/title-bar/main transitions default to 0ms (see the SCSS fallbacks) so
+// route changes that mount or drop the sidebar snap into place. Only an explicit
+// open/close animates: the store subscription fires synchronously inside
+// setSidebarOpen, before React re-renders with the new open state.
+const SIDEBAR_TOGGLE_MS = 250;
+
+function useSidebarToggleTransition() {
+  useEffect(() => {
+    const root = document.documentElement;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = useUIStore.subscribe((state, prev) => {
+      if (state.sidebarOpen === prev.sidebarOpen) return;
+      root.style.setProperty('--sidebar-transition-duration', `${SIDEBAR_TOGGLE_MS}ms`);
+      clearTimeout(timer);
+      timer = setTimeout(
+        () => root.style.removeProperty('--sidebar-transition-duration'),
+        SIDEBAR_TOGGLE_MS + 50,
+      );
+    });
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+      root.style.removeProperty('--sidebar-transition-duration');
+    };
+  }, []);
+}
+
 function MobileSidebarOverlay() {
   const sidebarOpen = useUIStore((state) => state.sidebarOpen);
 
@@ -57,6 +84,7 @@ export function Layout({
   const shouldPushContent = !!sidebarContent && sidebarOpen;
 
   useSidebarWidthVar();
+  useSidebarToggleTransition();
 
   useSwipeGesture({
     onSwipeRight: () => useUIStore.getState().setSidebarOpen(true),

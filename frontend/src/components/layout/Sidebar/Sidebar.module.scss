@@ -13,7 +13,7 @@
   background-color: var(--theme-surface-secondary);
   transform: translateX(-100%);
   transition-property: transform, width;
-  transition-duration: var(--sidebar-transition-duration, var(--duration-slower));
+  transition-duration: var(--sidebar-transition-duration, 0ms);
   transition-timing-function: var(--easing-in-out);
 
   &--open {

@@ -4,7 +4,6 @@ import { lazyNamed } from '@/utils/lazyNamed';
 import { useMountEffect } from '@/hooks/useMountEffect';
 import { useDesktopZoom } from '@/hooks/useDesktopZoom';
 import { useAppBadge } from '@/hooks/useAppBadge';
-import { Layout } from '@/components/layout/Layout/Layout';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCloudSettingsStore } from '@/store/cloudSettingsStore';
@@ -20,6 +19,7 @@ import { useCloudChatEvents } from '@/hooks/useCloudChatEvents';
 import { authService } from '@/services/authService';
 import { toasterConfig } from '@/config/toaster';
 import { AuthRoute } from '@/components/routes/AuthRoute/AuthRoute';
+import { AppShellRoute } from '@/components/routes/AppShellRoute/AppShellRoute';
 import { setApiPort } from '@/lib/api';
 import { isTauri, invoke } from '@tauri-apps/api/core';
 import { isDesktopApp, isMobileApp } from '@/utils/platform';
@@ -115,54 +115,33 @@ function AppContent() {
             </AuthRoute>
           }
         />
-        <Route
-          path="/"
-          element={
-            showLoading ? (
-              <LoadingScreen />
-            ) : (
-              <Layout>
-                <LandingPage />
-              </Layout>
-            )
-          }
-        />
-        <Route
-          path="/chat/:chatId"
-          element={
-            <AuthRoute
-              isAuthenticated={isSessionAuthenticated}
-              requireAuth={true}
-              showLoading={showLoading}
-            >
-              <ChatPage />
-            </AuthRoute>
-          }
-        />
-        <Route
-          path="/channels/:channelId"
-          element={
-            <AuthRoute
-              isAuthenticated={isSessionAuthenticated}
-              requireAuth={true}
-              showLoading={showLoading}
-            >
-              <ChannelPage />
-            </AuthRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <AuthRoute
-              isAuthenticated={isSessionAuthenticated}
-              requireAuth={true}
-              showLoading={showLoading}
-            >
-              <SettingsPage />
-            </AuthRoute>
-          }
-        />
+        <Route element={<AppShellRoute showLoading={showLoading} />}>
+          <Route path="/" element={<LandingPage />} />
+          <Route
+            path="/chat/:chatId"
+            element={
+              <AuthRoute isAuthenticated={isSessionAuthenticated} requireAuth={true}>
+                <ChatPage />
+              </AuthRoute>
+            }
+          />
+          <Route
+            path="/channels/:channelId"
+            element={
+              <AuthRoute isAuthenticated={isSessionAuthenticated} requireAuth={true}>
+                <ChannelPage />
+              </AuthRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <AuthRoute isAuthenticated={isSessionAuthenticated} requireAuth={true}>
+                <SettingsPage />
+              </AuthRoute>
+            }
+          />
+        </Route>
       </Routes>
     </Suspense>
   );

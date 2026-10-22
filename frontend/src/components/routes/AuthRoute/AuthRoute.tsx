@@ -1,20 +1,14 @@
 import { Navigate } from 'react-router-dom';
 import type { ReactElement } from 'react';
-import { Layout } from '@/components/layout/Layout/Layout';
-import { LoadingScreen } from '@/components/ui/LoadingScreen/LoadingScreen';
 
 interface AuthRouteProps {
   isAuthenticated: boolean;
   requireAuth: boolean;
-  showLoading?: boolean;
   children: ReactElement;
 }
 
-export function AuthRoute({ isAuthenticated, requireAuth, showLoading, children }: AuthRouteProps) {
-  if (requireAuth && showLoading) {
-    return <LoadingScreen />;
-  }
-
+// Auth gate only — in-app pages get their chrome from AppShellRoute.
+export function AuthRoute({ isAuthenticated, requireAuth, children }: AuthRouteProps) {
   if (requireAuth && !isAuthenticated) {
     return <Navigate to="/login" />;
   }
@@ -23,5 +17,5 @@ export function AuthRoute({ isAuthenticated, requireAuth, showLoading, children 
     return <Navigate to="/" replace />;
   }
 
-  return requireAuth ? <Layout>{children}</Layout> : children;
+  return children;
 }
