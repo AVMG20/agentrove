@@ -33,6 +33,10 @@ const AutomationsSettingsTab = lazyNamed(
   () => import('@/components/settings/tabs/AutomationsSettingsTab/AutomationsSettingsTab'),
   'AutomationsSettingsTab',
 );
+const WorkspacesSettingsTab = lazyNamed(
+  () => import('@/components/settings/tabs/WorkspacesSettingsTab/WorkspacesSettingsTab'),
+  'WorkspacesSettingsTab',
+);
 const EnvVarsSettingsTab = lazyNamed(
   () => import('@/components/settings/tabs/EnvVarsSettingsTab/EnvVarsSettingsTab'),
   'EnvVarsSettingsTab',
@@ -259,6 +263,14 @@ export function SettingsPage() {
                         onNotificationsEnabledChange={handleNotificationsEnabledChange}
                         onTitleModelChange={handleTitleModelChange}
                       />
+                    </div>
+                  )}
+
+                  {activeTab === 'workspaces' && (
+                    <div role="tabpanel" id="workspaces-panel" aria-labelledby="workspaces-tab">
+                      <Suspense fallback={tabLoadingFallback}>
+                        <WorkspacesSettingsTab />
+                      </Suspense>
                     </div>
                   )}
 

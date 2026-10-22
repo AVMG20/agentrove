@@ -15,12 +15,13 @@ interface ListManagementTabProps<T> {
   items: T[] | null;
   emptyIcon: LucideIcon;
   emptyText: string;
-  emptyButtonText: string;
-  addButtonText: string;
+  // Without onAdd (items created elsewhere) neither add button renders.
+  emptyButtonText?: string;
+  addButtonText?: string;
   deleteConfirmTitle: string;
   deleteConfirmMessage: (item: T) => string;
   getItemKey: (item: T, index: number) => string;
-  onAdd: () => void;
+  onAdd?: () => void;
   onEdit?: (index: number) => void;
   onDelete: (index: number) => void | Promise<void>;
   renderItem: (item: T, index: number) => ReactNode;
@@ -79,16 +80,18 @@ export function ListManagementTab<T>({
             <h2 className={styles.title}>{title}</h2>
             <p className={styles.description}>{description}</p>
           </div>
-          <Button
-            type="button"
-            onClick={onAdd}
-            variant="outline"
-            size="sm"
-            className={styles['add-btn']}
-          >
-            <Plus className={styles['add-icon']} />
-            {addButtonText}
-          </Button>
+          {onAdd && (
+            <Button
+              type="button"
+              onClick={onAdd}
+              variant="outline"
+              size="sm"
+              className={styles['add-btn']}
+            >
+              <Plus className={styles['add-icon']} />
+              {addButtonText}
+            </Button>
+          )}
         </div>
 
         {items === null ? (
@@ -101,9 +104,11 @@ export function ListManagementTab<T>({
           <div className={styles.empty}>
             <EmptyIcon className={styles['empty-icon']} />
             <p className={styles['empty-text']}>{emptyText}</p>
-            <Button type="button" onClick={onAdd} variant="outline" size="sm">
-              {emptyButtonText}
-            </Button>
+            {onAdd && (
+              <Button type="button" onClick={onAdd} variant="outline" size="sm">
+                {emptyButtonText}
+              </Button>
+            )}
           </div>
         ) : (
           <div className={styles.items}>
