@@ -159,7 +159,7 @@ class Settings(BaseSettings):
     DOCKER_IMAGE: str = "ghcr.io/mng-dev-ai/agentrove-sandbox:latest"
     DOCKER_NETWORK: str = "agentrove-sandbox-net"
     DOCKER_HOST: str | None = None
-    DOCKER_MEM_LIMIT: str = "4g"
+    DOCKER_MEM_LIMIT: str = "8g"
     DOCKER_CPU_PERIOD: int = 100000
     DOCKER_CPU_QUOTA: int = 200000
     DOCKER_PIDS_LIMIT: int = 512
