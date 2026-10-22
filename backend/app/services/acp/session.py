@@ -448,6 +448,7 @@ class AcpSession:
             process.stdin,
             process.stdout,
             use_unstable_protocol=True,
+            observers=[handler.observe_stream],
         )
 
         stderr_task = asyncio.create_task(cls._read_stderr(process))

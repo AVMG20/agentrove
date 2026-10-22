@@ -14,7 +14,7 @@ export const ReadTool = memo(function ReadTool({ tool }: { tool: ToolAggregate }
   const input = tool.input as OpencodeReadInput | undefined;
   const result = tool.result as OpencodeOutput | undefined;
 
-  const filePath = input?.filePath ?? '';
+  const filePath = input?.path ?? input?.filePath ?? '';
   const fileName = filePath ? extractFilename(filePath) : tool.title?.trim() || 'file';
   const content = result?.output ?? '';
 

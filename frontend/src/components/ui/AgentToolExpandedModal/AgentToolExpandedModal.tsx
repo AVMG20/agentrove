@@ -32,7 +32,9 @@ export function AgentToolExpandedModal({
       throw new Error('AgentToolExpandedModal requires a selected agent');
     }
 
-    return selectedAgent.children.filter((c) => c.name === 'Agent');
+    return selectedAgent.children.filter(
+      (c) => c.name === 'Agent' || c.name === 'subagent' || c.name === 'task',
+    );
   }, [selectedAgent]);
 
   if (!selectedAgent) {
@@ -42,7 +44,9 @@ export function AgentToolExpandedModal({
   const prompt = selectedAgent.input?.prompt as string | undefined;
   const description = selectedAgent.input?.description as string | undefined;
   const subagentType =
-    (selectedAgent.input?.subagent_type as string | undefined) ?? 'general-purpose';
+    (selectedAgent.input?.subagent_type as string | undefined) ??
+    (selectedAgent.input?.agent as string | undefined) ??
+    'general-purpose';
   const result = extractResultText(selectedAgent.result);
 
   const hasSidebar = agents.length > 1;
@@ -54,7 +58,10 @@ export function AgentToolExpandedModal({
         {hasSidebar && (
           <div className={styles.sidebar}>
             {agents.map((agent) => {
-              const type = (agent.input?.subagent_type as string | undefined) ?? 'general-purpose';
+              const type =
+                (agent.input?.subagent_type as string | undefined) ??
+                (agent.input?.agent as string | undefined) ??
+                'general-purpose';
               const desc = agent.input?.description as string | undefined;
               const isSelected = agent.id === selectedAgent.id;
               return (

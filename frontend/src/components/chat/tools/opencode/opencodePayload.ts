@@ -1,12 +1,13 @@
-// OpenCode CLI speaks ACP with its raw tool names surfaced in the ACP
-// `title` field (backend extracts it as tool_name for opencode). Tool kinds
-// collapse multiple opencode tools into one ACP kind (e.g. edit/write/patch
-// → "edit"), so renderers key off the tool name rather than the kind.
+// OpenCode sends its raw tool name in the ACP `name` field (backend extracts
+// it as tool_name for opencode). Tool kinds collapse multiple opencode tools
+// into one ACP kind (e.g. edit/write/patch → "edit"), so renderers key off the
+// tool name rather than the kind.
 //
-// rawOutput is uniform across opencode tools:
+// The backend shapes every completed opencode result as
 //   { output: string, metadata: Record<string, unknown> }
-// On failure the shape is { error: string, metadata: Record<string, unknown> }.
-// rawInput shapes below mirror opencode's Zod parameter schemas.
+// rawInput shapes below mirror opencode's parameter schemas; v2 renamed
+// `filePath` → `path` and `subagent_type` → `agent`, v1 names remain for
+// persisted chats.
 
 export interface OpencodeBashInput {
   command?: string;
@@ -16,17 +17,20 @@ export interface OpencodeBashInput {
 }
 
 export interface OpencodeReadInput {
+  path?: string;
   filePath?: string;
   offset?: number;
   limit?: number;
 }
 
 export interface OpencodeWriteInput {
+  path?: string;
   filePath?: string;
   content?: string;
 }
 
 export interface OpencodeEditInput {
+  path?: string;
   filePath?: string;
   oldString?: string;
   newString?: string;
@@ -63,6 +67,7 @@ export interface OpencodeWebFetchInput {
 export interface OpencodeTaskInput {
   description?: string;
   prompt?: string;
+  agent?: string;
   subagent_type?: string;
   task_id?: string;
   command?: string;
