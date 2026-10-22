@@ -142,6 +142,7 @@ class FakePtySandboxProvider(SandboxProvider):
         on_data: PtyDataCallbackType,
         on_exit: PtyExitCallbackType,
         user_id: str = "",
+        envs: dict[str, str] | None = None,
     ) -> str:
         if self.create_delay:
             await asyncio.sleep(self.create_delay)
