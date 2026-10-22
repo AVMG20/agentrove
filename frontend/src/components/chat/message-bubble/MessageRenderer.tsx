@@ -80,8 +80,11 @@ export const MessageRenderer = memo(function MessageRenderer({
   const agentTools = React.useMemo(
     () =>
       segments.reduce<ToolAggregate[]>((acc, seg) => {
-        // Claude `Agent` / opencode `task` — expand-modal sibling list (others don't surface spawns).
-        if (seg.kind === 'tool' && (seg.tool.name === 'Agent' || seg.tool.name === 'task')) {
+        // Claude `Agent` / opencode `subagent` (`task` before v2) — expand-modal sibling list.
+        if (
+          seg.kind === 'tool' &&
+          (seg.tool.name === 'Agent' || seg.tool.name === 'subagent' || seg.tool.name === 'task')
+        ) {
           acc.push(seg.tool);
         }
         return acc;

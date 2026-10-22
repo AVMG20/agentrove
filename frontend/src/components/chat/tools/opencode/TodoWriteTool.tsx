@@ -22,7 +22,8 @@ const STATUS_ICON: Record<NonNullable<OpencodeTodoInfo['status']>, React.ReactNo
 
 export const TodoWriteTool = memo(function TodoWriteTool({ tool }: { tool: ToolAggregate }) {
   const input = tool.input as OpencodeTodoWriteInput | undefined;
-  const todos = input?.todos ?? [];
+  // Rejected calls carry whatever the model sent, e.g. a JSON string.
+  const todos = Array.isArray(input?.todos) ? input.todos : [];
 
   const counts = todos.reduce(
     (acc, t) => {

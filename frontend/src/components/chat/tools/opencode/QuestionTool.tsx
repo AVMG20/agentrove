@@ -12,7 +12,7 @@ export const QuestionTool = memo(function QuestionTool({ tool }: { tool: ToolAgg
   const input = tool.input as OpencodeQuestionInput | undefined;
   const result = tool.result as OpencodeQuestionOutput | undefined;
 
-  const questions = input?.questions ?? [];
+  const questions = Array.isArray(input?.questions) ? input.questions : [];
   const answers = result?.metadata?.answers ?? [];
   const count = questions.length;
 

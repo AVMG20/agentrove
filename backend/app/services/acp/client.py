@@ -6,6 +6,8 @@ import logging
 import re
 from typing import Any, Literal, cast
 
+from acp.connection import StreamDirection
+from acp.connection import StreamEvent as AcpStreamEvent
 from acp.schema import (
     AcceptElicitationResponse,
     AgentMessageChunk,
@@ -90,6 +92,9 @@ PERMISSION_MODE_BY_OPTION_NAME: dict[str, PermissionMode] = {
 # tool with "missing field `outcome`".
 GROK_ASK_USER_QUESTION_METHOD = "x.ai/ask_user_question"
 
+# OpenCode v2 renamed these tools; older sessions replay the v1 names.
+_OPENCODE_TOOL_ALIASES = {"bash": "shell", "task": "subagent", "apply_patch": "patch"}
+
 
 class AcpClientHandler:
     # ACP client handler: SDK events → StreamEvent on event_queue for SSE.
@@ -99,6 +104,9 @@ class AcpClientHandler:
         self.agent_kind = agent_kind
         self.event_queue: asyncio.Queue[StreamEvent | object] = asyncio.Queue()
         self._active_tools: dict[str, ToolPayload] = {}
+        # OpenCode sends its tool name only in a top-level `name` field the SDK
+        # schema drops, so observe_stream captures it from the raw JSON-RPC.
+        self._opencode_tool_names: dict[str, str] = {}
         self._pending_permissions: dict[str, asyncio.Future[str]] = {}
         self._pending_elicitations: dict[
             str,
@@ -119,6 +127,33 @@ class AcpClientHandler:
 
     def on_connect(self, conn: Any) -> None:
         pass
+
+    def observe_stream(self, event: AcpStreamEvent) -> None:
+        # Must stay synchronous: the SDK runs sync observers before dispatching
+        # the message, but only schedules async ones.
+        if (
+            self.agent_kind != AgentKind.OPENCODE
+            or event.direction is not StreamDirection.INCOMING
+        ):
+            return
+        params = event.message.get("params")
+        if not isinstance(params, dict):
+            return
+        method = event.message.get("method")
+        if method == "session/update":
+            tool_call = params.get("update")
+        elif method == "session/request_permission":
+            tool_call = params.get("toolCall")
+        else:
+            return
+        if not isinstance(tool_call, dict):
+            return
+        tool_call_id, name = tool_call.get("toolCallId"), tool_call.get("name")
+        if isinstance(tool_call_id, str) and isinstance(name, str) and name:
+            name = name.lower()
+            self._opencode_tool_names[tool_call_id] = _OPENCODE_TOOL_ALIASES.get(
+                name, name
+            )
 
     def prepare_for_prompt(self) -> None:
         # Drain any stale events/sentinels left from a previous prompt whose
@@ -583,7 +618,9 @@ class AcpClientHandler:
             # adapter's _meta when present; drop updates that carry no
             # renderable identity at all instead of minting "Unknown tool"
             # cards that finish() later stamps completed.
-            meta_tool_name = self._extract_meta_tool_name(tc)
+            meta_tool_name = self._extract_meta_tool_name(
+                tc
+            ) or self._opencode_tool_names.get(tc.tool_call_id)
             if (
                 not tc.title
                 and tc.raw_input is None
@@ -615,8 +652,10 @@ class AcpClientHandler:
                 existing["input"] = parsed_input
                 changed = True
 
-        if status == "completed":
+        if status in ("completed", "failed"):
             self._active_tools.pop(tc.tool_call_id, None)
+            self._opencode_tool_names.pop(tc.tool_call_id, None)
+        if status == "completed":
             existing["status"] = ToolStatus.COMPLETED.value
             result = self._extract_tool_result(tc)
             # Codex edit diffs were captured from earlier tool_call events —
@@ -628,7 +667,6 @@ class AcpClientHandler:
                 existing["permission_mode"] = selected_mode
             return StreamEvent(type="tool_completed", tool=existing)
         if status == "failed":
-            self._active_tools.pop(tc.tool_call_id, None)
             existing["status"] = ToolStatus.FAILED.value
             existing["error"] = self._extract_tool_error(tc)
             selected_mode = self._resolved_permissions.pop(tc.tool_call_id, None)
@@ -686,10 +724,9 @@ class AcpClientHandler:
 
     def _extract_tool_name(self, tc: Any) -> str:
         # Claude embeds the tool name in field_meta.claudeCode.toolName (e.g.
-        # "Read", "Edit"). OpenCode puts the raw tool name (bash, read, edit,
-        # write, grep, glob, webfetch, task, todowrite, skill, question) in
-        # `title` — its ACP `kind` collapses distinct tools (edit/write/patch
-        # all become "edit"), so title is the only way to distinguish them.
+        # "Read", "Edit"). OpenCode's name comes from observe_stream — its ACP
+        # `kind` collapses distinct tools (edit/write/patch all become "edit")
+        # and its `title` turns into the shell command once input arrives.
         # Grok puts the raw tool name (write, search_replace, read_file, grep,
         # run_terminal_command, ...) in field_meta["x.ai/tool"].name — its
         # initial tool_call has no `kind` and later updates rewrite `title`
@@ -702,9 +739,8 @@ class AcpClientHandler:
             return str(tool_name)
         if mcp_call := self._extract_mcp_call(tc):
             return mcp_call[0]
-        if self.agent_kind == AgentKind.OPENCODE:
-            if title := getattr(tc, "title", None):
-                return str(title)
+        if tool_name := self._opencode_tool_names.get(tc.tool_call_id):
+            return tool_name
         if self.agent_kind == AgentKind.GROK:
             if tool_name := meta.get("x.ai/tool", {}).get("name"):
                 return str(tool_name)
@@ -798,22 +834,27 @@ class AcpClientHandler:
             )
         return diffs
 
-    @classmethod
-    def _extract_tool_result(cls, tc: ToolCallProgress) -> Any:
+    def _extract_tool_result(self, tc: ToolCallProgress) -> Any:
         # Claude puts structured results in field_meta.claudeCode.toolResponse,
-        # Codex/Cursor put execute/read results in raw_output, and Cursor emits
-        # its edit results as diff content blocks instead of raw_output. Content
+        # Codex/Cursor put execute/read results in raw_output, OpenCode puts
+        # only metadata in raw_output and the output text in content blocks,
+        # and Cursor emits its edit results as diff content blocks. Content
         # text blocks are the last resort for agents that use none of the above.
         meta = getattr(tc, "field_meta", None) or {}
         claude_meta = meta.get("claudeCode", {})
         if "toolResponse" in claude_meta:
             return claude_meta["toolResponse"]
+        if self.agent_kind == AgentKind.OPENCODE and isinstance(tc.raw_output, dict):
+            return {
+                "output": "\n".join(self._extract_content_texts(tc)),
+                "metadata": tc.raw_output.get("metadata"),
+            }
         if tc.raw_output is not None:
             return tc.raw_output
-        diffs = cls._extract_content_diffs(tc)
+        diffs = self._extract_content_diffs(tc)
         if diffs:
             return {"diffs": diffs}
-        texts = cls._extract_content_texts(tc)
+        texts = self._extract_content_texts(tc)
         return "\n".join(texts) if texts else None
 
     def _extract_tool_error(self, tc: ToolCallProgress) -> str:

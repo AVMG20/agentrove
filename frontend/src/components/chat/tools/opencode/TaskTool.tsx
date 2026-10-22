@@ -27,14 +27,14 @@ export const TaskTool = memo(function TaskTool({ tool }: { tool: ToolAggregate }
   const result = tool.result as OpencodeOutput | undefined;
 
   const description = input?.description?.trim() || tool.title?.trim() || '';
-  const agentType = input?.subagent_type?.trim();
+  const agentType = (input?.agent ?? input?.subagent_type)?.trim();
   const prompt = input?.prompt;
   const output = result?.output?.trim();
 
   // Scope the sibling context to nested task tools so an expanded view sees
   // siblings at its own level, not the parent message's top-level list.
   const childTaskTools = useMemo(
-    () => tool.children.filter((c) => c.name === 'task'),
+    () => tool.children.filter((c) => c.name === 'subagent' || c.name === 'task'),
     [tool.children],
   );
 

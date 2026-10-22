@@ -13,7 +13,7 @@ const ICON = <FileEdit className={toolIcon.icon} />;
 
 export const EditTool = memo(function EditTool({ tool }: { tool: ToolAggregate }) {
   const input = tool.input as OpencodeEditInput | undefined;
-  const filePath = input?.filePath ?? '';
+  const filePath = input?.path ?? input?.filePath ?? '';
   const fileName = filePath ? extractFilename(filePath) : tool.title?.trim() || 'file';
   const oldText = input?.oldString ?? '';
   const newText = input?.newString ?? '';

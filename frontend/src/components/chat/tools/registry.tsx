@@ -61,20 +61,19 @@ const grokToolLoaders: Record<string, ToolModuleLoader> = {
   todo_write: () => import('./grok/TodoWriteTool').then((m) => ({ default: m.TodoWriteTool })),
 };
 
-// OpenCode uses the raw tool names (bash, read, edit, write, grep, glob,
-// webfetch, task, todowrite, skill, question) rather than ACP kinds — the
-// backend's tool-name extractor picks these out of the ACP `title` field for
-// opencode sessions, since opencode's ACP kinds collapse distinct tools
-// (edit/write/patch all share kind "edit").
+// OpenCode uses its raw tool names rather than ACP kinds, since its kinds
+// collapse distinct tools (edit/write/patch all share kind "edit"). v2 renamed
+// bash → shell and task → subagent; the v1 names stay for persisted chats.
 const opencodeToolLoaders: Record<string, ToolModuleLoader> = {
+  shell: () => import('./opencode/BashTool').then((m) => ({ default: m.BashTool })),
   bash: () => import('./opencode/BashTool').then((m) => ({ default: m.BashTool })),
   read: () => import('./opencode/ReadTool').then((m) => ({ default: m.ReadTool })),
   write: () => import('./opencode/WriteTool').then((m) => ({ default: m.WriteTool })),
   edit: () => import('./opencode/EditTool').then((m) => ({ default: m.EditTool })),
-  patch: () => import('./opencode/EditTool').then((m) => ({ default: m.EditTool })),
   grep: () => import('./opencode/GrepTool').then((m) => ({ default: m.GrepTool })),
   glob: () => import('./opencode/GlobTool').then((m) => ({ default: m.GlobTool })),
   webfetch: () => import('./opencode/WebFetchTool').then((m) => ({ default: m.WebFetchTool })),
+  subagent: () => import('./opencode/TaskTool').then((m) => ({ default: m.TaskTool })),
   task: () => import('./opencode/TaskTool').then((m) => ({ default: m.TaskTool })),
   todowrite: () => import('./opencode/TodoWriteTool').then((m) => ({ default: m.TodoWriteTool })),
   skill: () => import('./opencode/SkillTool').then((m) => ({ default: m.SkillTool })),
