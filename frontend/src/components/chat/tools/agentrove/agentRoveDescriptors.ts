@@ -106,6 +106,13 @@ const DESCRIPTORS: Record<string, AgentRoveDescriptor> = {
     label: 'Run Automation',
     summary: (i) => labeled(i, 'automation_id', 'automation'),
   },
+  create_artifact: { label: 'Create Artifact', summary: (i) => value(i, 'title') },
+  update_artifact: {
+    label: 'Update Artifact',
+    summary: (i) => value(i, 'title') ?? labeled(i, 'artifact_id', 'artifact'),
+  },
+  list_artifacts: { label: 'List Artifacts' },
+  get_artifact: { label: 'Get Artifact', summary: (i) => labeled(i, 'artifact_id', 'artifact') },
 };
 
 export const stripAgentRovePrefix = (toolName: string): string =>

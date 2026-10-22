@@ -1,5 +1,5 @@
 import { useCallback, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/primitives/Button/Button';
 import { FieldMessage } from '@/components/ui/primitives/FieldMessage/FieldMessage';
@@ -71,11 +71,16 @@ const getFieldConfigs = (
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Return to the page that sent us here (e.g. a private artifact); same-origin
+  // paths only, so the param can't redirect off-site.
+  const next = searchParams.get('next');
+  const redirectTo = next && /^\/(?![/\\])/.test(next) ? next : '/';
 
   const loginMutation = useLoginMutation({
     onSuccess: () => {
       useAuthStore.getState().setAuthenticated(true);
-      navigate('/');
+      navigate(redirectTo);
     },
   });
 

@@ -33,6 +33,10 @@ const AutomationsSettingsTab = lazyNamed(
   () => import('@/components/settings/tabs/AutomationsSettingsTab/AutomationsSettingsTab'),
   'AutomationsSettingsTab',
 );
+const ArtifactsSettingsTab = lazyNamed(
+  () => import('@/components/settings/tabs/ArtifactsSettingsTab/ArtifactsSettingsTab'),
+  'ArtifactsSettingsTab',
+);
 const WorkspacesSettingsTab = lazyNamed(
   () => import('@/components/settings/tabs/WorkspacesSettingsTab/WorkspacesSettingsTab'),
   'WorkspacesSettingsTab',
@@ -304,6 +308,14 @@ export function SettingsPage() {
                     <div role="tabpanel" id="automations-panel" aria-labelledby="automations-tab">
                       <Suspense fallback={tabLoadingFallback}>
                         <AutomationsSettingsTab />
+                      </Suspense>
+                    </div>
+                  )}
+
+                  {activeTab === 'artifacts' && (
+                    <div role="tabpanel" id="artifacts-panel" aria-labelledby="artifacts-tab">
+                      <Suspense fallback={tabLoadingFallback}>
+                        <ArtifactsSettingsTab />
                       </Suspense>
                     </div>
                   )}

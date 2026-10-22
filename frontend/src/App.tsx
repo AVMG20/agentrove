@@ -51,6 +51,7 @@ const ResetPasswordPage = lazyNamed(
   'ResetPasswordPage',
 );
 const SettingsPage = lazyNamed(() => import('@/pages/SettingsPage/SettingsPage'), 'SettingsPage');
+const ArtifactPage = lazyNamed(() => import('@/pages/ArtifactPage/ArtifactPage'), 'ArtifactPage');
 
 function AppContent() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -99,6 +100,8 @@ function AppContent() {
           }
         />
         <Route path="/verify-email" element={<EmailVerificationPage />} />
+        {/* Outside the app shell and auth gate: public artifacts open signed out. */}
+        <Route path="/artifacts/:artifactId" element={<ArtifactPage />} />
         <Route
           path="/forgot-password"
           element={
