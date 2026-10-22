@@ -4,7 +4,8 @@ from app.core.security import get_current_user
 from app.models.db_models.user import User
 from app.models.schemas.ai_model import AIModelResponse
 from app.constants import MODELS
-from app.services.acp.adapters import AGENT_ADAPTERS, THINKING_MODE_ORDER, AgentKind
+from app.models.types import AgentKind
+from app.services.acp.adapters import AGENT_ADAPTERS, THINKING_MODE_ORDER
 
 router = APIRouter()
 

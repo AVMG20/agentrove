@@ -9,6 +9,7 @@ const model = (
 ): Model => ({
   name: over.model_id,
   context_window: null,
+  thinking_modes: [],
   ...over,
 });
 
@@ -24,8 +25,13 @@ const raw = (over: Partial<Parameters<typeof buildAgentChatFields>[2]> = {}) => 
 
 describe('coerceThinkingModeForAgent', () => {
   it('uses the agent default for empty or unknown modes', () => {
-    expect(coerceThinkingModeForAgent('', 'claude')).toBe('high');
-    expect(coerceThinkingModeForAgent('unknown', 'copilot', 'copilot:gpt-5.4')).toBe('high');
+    const copilot = model({
+      model_id: 'copilot:gpt-5.4',
+      agent_kind: 'copilot',
+      thinking_modes: ['low', 'medium', 'high', 'xhigh'],
+    });
+    expect(coerceThinkingModeForAgent('', 'claude', undefined)).toBe('high');
+    expect(coerceThinkingModeForAgent('unknown', 'copilot', copilot)).toBe('high');
   });
 });
 
@@ -54,9 +60,19 @@ describe('buildAgentChatFields', () => {
   });
 
   it('keeps a valid permission and thinking mode for a claude model', () => {
+    const map = new Map<string, Model>([
+      [
+        'claude-sonnet-5',
+        model({
+          model_id: 'claude-sonnet-5',
+          agent_kind: 'claude',
+          thinking_modes: ['low', 'medium', 'high', 'xhigh', 'max'],
+        }),
+      ],
+    ]);
     const fields = buildAgentChatFields(
       'claude-sonnet-5',
-      new Map(),
+      map,
       raw({ permissionMode: 'plan', thinkingMode: 'max' }),
       [],
     );
@@ -66,7 +82,17 @@ describe('buildAgentChatFields', () => {
 
   it('clamps an unsupported thinking mode to the nearest lower tier', () => {
     // gpt-5.5 (codex, non-max) has no 'max' tier, so it clamps to 'xhigh'.
-    const fields = buildAgentChatFields('gpt-5.5', new Map(), raw({ thinkingMode: 'max' }), []);
+    const map = new Map<string, Model>([
+      [
+        'gpt-5.5',
+        model({
+          model_id: 'gpt-5.5',
+          agent_kind: 'codex',
+          thinking_modes: ['low', 'medium', 'high', 'xhigh'],
+        }),
+      ],
+    ]);
+    const fields = buildAgentChatFields('gpt-5.5', map, raw({ thinkingMode: 'max' }), []);
     expect(fields.thinking_mode).toBe('xhigh');
   });
 

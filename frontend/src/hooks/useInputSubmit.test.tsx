@@ -56,6 +56,7 @@ function makeOptions(overrides: Record<string, unknown> = {}) {
     isLoading: false,
     chatId: 'chat-1',
     selectedModelId: 'model-1',
+    selectedModel: undefined,
     agentKind: 'claude' as AgentKind,
     personas: [],
     attachedSelections: [] as ComposerSelection[],

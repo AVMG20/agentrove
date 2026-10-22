@@ -36,9 +36,8 @@ from acp.schema import (
     WriteTextFileResponse,
 )
 
-from app.models.types import PermissionMode
+from app.models.types import AgentKind, PermissionMode
 from app.models.db_models.enums import ToolStatus
-from app.services.acp.adapters import AgentKind
 from app.services.streaming.types import StreamEvent, StreamEventType, ToolPayload
 
 logger = logging.getLogger(__name__)

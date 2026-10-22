@@ -8,8 +8,7 @@ from pathlib import Path
 
 from app.core.config import get_settings
 from app.models.schemas.skills import SkillFileEntry
-from app.models.types import CustomSkillDict
-from app.services.acp.adapters import AgentKind
+from app.models.types import AgentKind, CustomSkillDict
 from app.utils.yaml_parser import YAMLParser
 
 logger = logging.getLogger(__name__)

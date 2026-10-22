@@ -10,7 +10,6 @@ import { Textarea } from '@/components/ui/primitives/Textarea/Textarea';
 import { ModelSelector } from '@/components/chat/model-selector/ModelSelector';
 import { SlashCommandsPanel } from '@/components/chat/message-input/SlashCommandsPanel';
 import {
-  THINKING_MODES_BY_AGENT,
   coerceThinkingModeForAgent,
   getThinkingModesForAgent,
   type ThinkingModeOption,
@@ -54,9 +53,10 @@ export function CreateSubThreadDialog({ parentChat, onClose }: CreateSubThreadDi
   const [selectedModelId, setSelectedModelId] = useState('');
   const [personaName, setPersonaName] = useState(DEFAULT_PERSONA);
   const [message, setMessage] = useState('');
-  const [thinkingMode, setThinkingMode] = useState<ThinkingModeOption>(
-    THINKING_MODES_BY_AGENT['claude'][2],
-  );
+  const [thinkingMode, setThinkingMode] = useState<ThinkingModeOption>({
+    value: 'high',
+    label: 'High',
+  });
   const [permissionMode, setPermissionMode] = useState<PermissionMode>(DEFAULT_PERMISSION_MODE);
 
   const { customSkills, builtinSlashCommands } = useChatContext();
@@ -64,13 +64,13 @@ export function CreateSubThreadDialog({ parentChat, onClose }: CreateSubThreadDi
   const selectedModel = models.find((m) => m.model_id === selectedModelId);
   const agentKind = selectedModel?.agent_kind ?? 'claude';
   const permissionModes = MODES_BY_AGENT[agentKind];
-  const thinkingModes = getThinkingModesForAgent(agentKind, selectedModelId);
+  const thinkingModes = getThinkingModesForAgent(agentKind, selectedModel);
   const effectivePermissionMode = coercePermissionModeForAgent(permissionMode, agentKind);
   const selectedPermissionOption = getPermissionModeOption(permissionMode, agentKind);
   const effectiveThinkingMode = coerceThinkingModeForAgent(
     thinkingMode.value,
     agentKind,
-    selectedModelId,
+    selectedModel,
   );
   const selectedThinkingOption =
     thinkingModes.find((mode) => mode.value === effectiveThinkingMode) ?? thinkingModes[0];

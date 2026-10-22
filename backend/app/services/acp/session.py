@@ -22,16 +22,20 @@ from acp.schema import (
     ImageContentBlock,
     McpServerHttp,
     McpServerStdio,
+    SessionConfigOptionBoolean,
+    SessionConfigOptionSelect,
+    SessionConfigSelectGroup,
     TextContentBlock,
 )
 
 from app.constants import SANDBOX_HOME_DIR, SANDBOX_WORKSPACE_DIR, TERMINAL_TYPE
 from app.core.config import get_settings
+from app.models.types import AgentKind
 from app.services.acp.adapters import (
     AGENT_ADAPTERS,
     NATIVE_FILE_TYPES,
-    AgentKind,
     LaunchConfig,
+    unsupported_effort_error,
 )
 from app.services.acp.client import AcpClientHandler
 from app.services.exceptions import AgentException
@@ -40,6 +44,8 @@ from app.services.sandbox_providers.base import SandboxProvider
 from app.services.sandbox_providers.docker_provider import (
     DOCKER_SANDBOX_CONTAINER_PREFIX,
 )
+
+ConfigOptions = list[SessionConfigOptionSelect | SessionConfigOptionBoolean] | None
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -95,6 +101,7 @@ class AcpSessionConfig:
     system_prompt: str | None = None
     system_prompt_is_full_replace: bool = False
     reasoning_effort: str | None = None
+    effort_explicit: bool = False
     session_meta: dict[str, Any] = field(default_factory=dict)
     instructions_file_path: str | None = None
     # Codex-only: 1.5x speed service tier via set_config_option("fast-mode").
@@ -114,6 +121,7 @@ class AcpSession:
         stderr_task: asyncio.Task[None] | None = None,
         exit_watch_task: asyncio.Task[None] | None = None,
         supports_steering: bool = False,
+        effort_levels: tuple[str, ...] | None = None,
     ) -> None:
         self._handler = handler
         self._conn = conn
@@ -123,6 +131,9 @@ class AcpSession:
         self._stderr_task = stderr_task
         self._exit_watch_task = exit_watch_task
         self.supports_steering = supports_steering
+        # Effort values the live session advertises for the current model;
+        # None when the agent reports no config options to check against.
+        self.effort_levels = effort_levels
 
     @property
     def handler(self) -> AcpClientHandler:
@@ -290,10 +301,13 @@ class AcpSession:
             logger.warning("Failed to send ACP cancel", exc_info=True)
 
     async def set_model(
-        self, model_id: str, reasoning_effort: str | None = None
+        self,
+        model_id: str,
+        reasoning_effort: str | None = None,
+        effort_explicit: bool = False,
     ) -> None:
         try:
-            await self._set_model_on_conn(
+            config_options = await self._set_model_on_conn(
                 self._conn,
                 self._agent_kind,
                 self.acp_session_id,
@@ -303,15 +317,26 @@ class AcpSession:
         except Exception:
             logger.warning("Failed to set ACP model: %s", model_id, exc_info=True)
             return
-        # Effort options are model-scoped for some agents, so re-apply after a switch.
-        try:
-            await self._set_effort_on_conn(
-                self._conn, self._agent_kind, self.acp_session_id, reasoning_effort
-            )
-        except Exception:
-            logger.warning(
-                "Failed to set ACP effort: %s", reasoning_effort, exc_info=True
-            )
+        # Effort options are model-scoped for some agents, so re-read and
+        # re-apply them after a switch.
+        self.effort_levels = self._advertised_effort(self._agent_kind, config_options)
+        await self._set_effort_on_conn(
+            self._conn,
+            self._agent_kind,
+            self.acp_session_id,
+            reasoning_effort,
+            self.effort_levels,
+            effort_explicit,
+        )
+
+    def ensure_effort_supported(self, reasoning_effort: str | None) -> None:
+        if (
+            reasoning_effort
+            and self.effort_levels is not None
+            and AGENT_ADAPTERS[self._agent_kind].effort_config_id is not None
+            and reasoning_effort not in self.effort_levels
+        ):
+            raise unsupported_effort_error(reasoning_effort, self.effort_levels)
 
     async def set_mode(self, mode_id: str) -> None:
         try:
@@ -449,7 +474,7 @@ class AcpSession:
                 # events don't leak onto the live stream.
                 handler.muted = True
                 try:
-                    await conn.load_session(
+                    load_response = await conn.load_session(
                         cwd=spawn_config.cwd,
                         session_id=config.resume_session_id,
                         mcp_servers=mcp_servers,
@@ -459,6 +484,7 @@ class AcpSession:
                     handler.muted = False
                     handler.prepare_for_prompt()
                 acp_session_id = config.resume_session_id
+                config_options = load_response.config_options if load_response else None
             else:
                 response = await conn.new_session(
                     cwd=spawn_config.cwd,
@@ -466,10 +492,11 @@ class AcpSession:
                     **session_meta,
                 )
                 acp_session_id = response.session_id
+                config_options = response.config_options
 
             if config.model:
                 try:
-                    await cls._set_model_on_conn(
+                    config_options = await cls._set_model_on_conn(
                         conn,
                         config.agent_kind,
                         acp_session_id,
@@ -496,16 +523,15 @@ class AcpSession:
                         exc_info=True,
                     )
 
-            try:
-                await cls._set_effort_on_conn(
-                    conn, config.agent_kind, acp_session_id, config.reasoning_effort
-                )
-            except Exception:
-                logger.warning(
-                    "Failed to set initial effort: %s",
-                    config.reasoning_effort,
-                    exc_info=True,
-                )
+            effort_levels = cls._advertised_effort(config.agent_kind, config_options)
+            await cls._set_effort_on_conn(
+                conn,
+                config.agent_kind,
+                acp_session_id,
+                config.reasoning_effort,
+                effort_levels,
+                config.effort_explicit,
+            )
 
             # Fast mode is per-turn service tier state inside codex-acp; default
             # is off so only enable when the user opted in.
@@ -557,6 +583,7 @@ class AcpSession:
             agent_kind=config.agent_kind,
             stderr_task=stderr_task,
             exit_watch_task=exit_watch_task,
+            effort_levels=effort_levels,
             supports_steering=(
                 config.agent_kind in (AgentKind.CLAUDE, AgentKind.CODEX)
                 and isinstance(
@@ -587,12 +614,33 @@ class AcpSession:
         session_id: str,
         model_id: str,
         reasoning_effort: str | None = None,
-    ) -> None:
-        await conn.set_config_option(
+    ) -> ConfigOptions:
+        response = await conn.set_config_option(
             config_id=MODEL_CONFIG_ID,
             session_id=session_id,
             value=AGENT_ADAPTERS[agent_kind].map_model_id(model_id, reasoning_effort),
         )
+        return response.config_options if response else None
+
+    @staticmethod
+    def _advertised_effort(
+        agent_kind: AgentKind, config_options: ConfigOptions
+    ) -> tuple[str, ...] | None:
+        config_id = AGENT_ADAPTERS[agent_kind].effort_config_id
+        if config_id is None or config_options is None:
+            return None
+        for option in config_options:
+            if option.id == config_id and isinstance(option, SessionConfigOptionSelect):
+                return tuple(
+                    choice.value
+                    for item in option.options
+                    for choice in (
+                        item.options
+                        if isinstance(item, SessionConfigSelectGroup)
+                        else [item]
+                    )
+                )
+        return ()
 
     @staticmethod
     async def _set_effort_on_conn(
@@ -600,16 +648,28 @@ class AcpSession:
         agent_kind: AgentKind,
         session_id: str,
         reasoning_effort: str | None,
+        effort_levels: tuple[str, ...] | None,
+        effort_explicit: bool,
     ) -> None:
         # Only for agents whose effort is a session config option; it must be
         # applied after new_session/load_session. Others carry effort in the
-        # model ID (Codex, Antigravity) or launch flags (Grok).
-        config_id = AGENT_ADAPTERS[agent_kind].effort_config_id
-        if config_id is None or not reasoning_effort:
+        # model ID (Codex, Antigravity) or launch flags (Grok). An unadvertised
+        # level is left for ensure_effort_supported to reject before the prompt.
+        adapter = AGENT_ADAPTERS[agent_kind]
+        value = reasoning_effort or adapter.unset_effort_value
+        if adapter.effort_config_id is None or not value:
             return
-        await conn.set_config_option(
-            config_id=config_id, session_id=session_id, value=reasoning_effort
-        )
+        if effort_levels is not None and value not in effort_levels:
+            return
+        try:
+            await conn.set_config_option(
+                config_id=adapter.effort_config_id, session_id=session_id, value=value
+            )
+        except Exception as exc:
+            # A user-picked tier must not silently fall back; a default may.
+            if effort_explicit:
+                raise AgentException(f"Failed to set effort `{value}`: {exc}") from exc
+            logger.warning("Failed to set default effort: %s", value, exc_info=True)
 
     @staticmethod
     async def _set_fast_mode_on_conn(

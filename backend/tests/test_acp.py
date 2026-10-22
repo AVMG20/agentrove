@@ -16,14 +16,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.constants import REDIS_KEY_USER_STREAMS_LIVE
 from app.core.config import get_settings
 from app.models.db_models.workspace import Workspace
+from app.models.types import AgentKind
 from app.services.acp.adapters import (
     NORMAL_SESSION_MODE,
-    AgentKind,
     AntigravityAgentAdapter,
     ClaudeAgentAdapter,
     GrokAgentAdapter,
 )
 from app.services.acp.session import AcpSessionConfig
+from app.services.exceptions import AgentException
 from app.services.sandbox_providers import SandboxProviderType
 from app.services.session_registry import session_registry
 from tests.conftest import LoginClient, UserFactory
@@ -120,9 +121,8 @@ def test_antigravity_adapter_configuration() -> None:
     assert adapter.map_model_id("antigravity:gemini-3.1-pro", "high") == (
         "gemini-pro-agent"
     )
-    assert adapter.map_model_id("antigravity:gemini-3.1-pro", "medium") == (
-        "gemini-pro-agent"
-    )
+    with pytest.raises(AgentException, match="Supported: low, high"):
+        adapter.map_model_id("antigravity:gemini-3.1-pro", "medium")
     assert adapter.map_model_id("antigravity:gemini-3.1-pro", "low") == (
         "gemini-3.1-pro-low"
     )
@@ -179,7 +179,6 @@ def test_claude_launch_uses_installed_claude_cli() -> None:
         ("haiku", "high", None),
         ("sonnet", None, "medium"),
         ("sonnet", "high", "high"),
-        ("sonnet", "xhigh", "high"),
         ("claude-opus-5", "xhigh", "xhigh"),
         ("claude-opus-5-5", "xhigh", "xhigh"),
         ("claude-sonnet-5-5", "xhigh", "xhigh"),
@@ -201,6 +200,11 @@ def test_claude_session_config_gates_effort_by_model(
     )
 
     assert session_config.reasoning_effort == expected_effort
+
+
+def test_unsupported_explicit_effort_is_rejected() -> None:
+    with pytest.raises(AgentException, match="Supported: low, medium, high, max"):
+        ClaudeAgentAdapter().reasoning_effort("sonnet", "xhigh")
 
 
 @pytest.mark.parametrize(
@@ -497,20 +501,22 @@ async def test_enhance_prompt_round_trips_through_real_acp_session(
 
 
 @pytest.mark.parametrize(
-    "model_id,thinking_mode,expected_effort",
+    "model_id,thinking_mode,expected_status,expected_effort",
     [
-        ("copilot:gpt-5.4", "max", "xhigh"),
-        ("copilot:claude-haiku-4.5", "high", None),
-        ("copilot:kimi-k3", "medium", "low"),
+        ("copilot:gpt-5.4", "xhigh", "completed", "xhigh"),
+        ("copilot:claude-haiku-4.5", "high", "completed", None),
+        # An explicit tier the model lacks fails the turn instead of clamping.
+        ("copilot:kimi-k3", "medium", "failed", None),
     ],
 )
-async def test_copilot_session_setup_gates_and_clamps_reasoning_effort(
+async def test_copilot_session_setup_gates_reasoning_effort(
     client: httpx.AsyncClient,
     auth_workspace: tuple[dict[str, str], Workspace],
     fake_agent: FakeAgentHandle,
     acp_cache: EndpointCache,
     model_id: str,
     thinking_mode: str,
+    expected_status: str,
     expected_effort: str | None,
 ) -> None:
     headers, workspace = auth_workspace
@@ -532,7 +538,7 @@ async def test_copilot_session_setup_gates_and_clamps_reasoning_effort(
         chat_id=chat["id"],
         message_id=response.json()["message_id"],
     )
-    assert message["stream_status"] == "completed"
+    assert message["stream_status"] == expected_status
 
     effort_calls = [
         event

@@ -8,13 +8,13 @@ import {
   DEFAULT_THINKING_MODE,
 } from '@/store/chatSettingsStore';
 import { useIsSplitMode } from '@/hooks/useIsSplitMode';
-import type { AgentKind } from '@/types/chat.types';
-import { getThinkingModesForAgent, getThinkingModeOption } from './thinkingModes';
+import type { AgentKind, Model } from '@/types/chat.types';
+import { getThinkingModeOption, getThinkingModesForAgent } from './thinkingModes';
 import styles from './ThinkingModeSelector.module.scss';
 
 interface ThinkingModeControlProps {
   agentKind?: AgentKind;
-  modelId?: string;
+  model?: Model;
   dropdownPosition?: DropdownPosition;
   disabled?: boolean;
   variant?: 'default' | 'text';
@@ -30,7 +30,7 @@ export const ThinkingModeDropdown = memo(function ThinkingModeDropdown({
   value,
   onChange,
   agentKind,
-  modelId,
+  model,
   dropdownPosition = 'bottom',
   dropdownAlign,
   disabled = false,
@@ -39,8 +39,8 @@ export const ThinkingModeDropdown = memo(function ThinkingModeDropdown({
   const resolvedAgentKind = agentKind ?? 'claude';
   const isSplitMode = useIsSplitMode();
 
-  const modes = getThinkingModesForAgent(resolvedAgentKind, modelId);
-  const selectedMode = getThinkingModeOption(value, resolvedAgentKind, modelId);
+  const modes = getThinkingModesForAgent(resolvedAgentKind, model);
+  const selectedMode = getThinkingModeOption(value, resolvedAgentKind, model);
 
   // Some agents (e.g. Cursor) don't expose a thinking-mode control because
   // reasoning effort is chosen at the model level. Hide the selector entirely.

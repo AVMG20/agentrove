@@ -69,11 +69,11 @@ export function StreamActionEditDialog({
 
   const permissionModes = MODES_BY_AGENT[agentKind];
   const selectedPermissionOption = getPermissionModeOption(action.permission_mode, agentKind);
-  const thinkingModes = getThinkingModesForAgent(agentKind, action.model_id);
+  const thinkingModes = getThinkingModesForAgent(agentKind, selectedModel);
   const selectedThinkingOption = getThinkingModeOption(
     action.thinking_mode,
     agentKind,
-    action.model_id,
+    selectedModel,
   );
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);

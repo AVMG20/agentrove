@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from app.services.acp.adapters import AgentKind
+from app.models.types import AgentKind
 
 
 class AIModelResponse(BaseModel):

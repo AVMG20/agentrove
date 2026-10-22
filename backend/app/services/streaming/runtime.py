@@ -1390,7 +1390,9 @@ class ChatStreamRuntime:
                 if config.model and config.model != session.current_model:
                     session_updates.append(
                         session.acp_session.set_model(
-                            config.model, config.reasoning_effort
+                            config.model,
+                            config.reasoning_effort,
+                            config.effort_explicit,
                         )
                     )
                 if (
@@ -1411,6 +1413,8 @@ class ChatStreamRuntime:
                 if config.permission_mode:
                     session.current_mode = config.permission_mode
                 session.current_fast_mode = config.fast_mode
+                if config.effort_explicit:
+                    session.acp_session.ensure_effort_supported(config.reasoning_effort)
 
                 stream_result = StreamResult()
                 stream = ai_service.stream_response(

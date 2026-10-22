@@ -27,7 +27,7 @@ from app.models.schemas.workspace import (
     WorkspaceResources,
     WorkspaceUpdate,
 )
-from app.services.acp.adapters import AgentKind
+from app.models.types import AgentKind
 from app.services.channel import channel_service
 from app.services.db import BaseDbService, SessionFactoryType
 from app.services.exceptions import ErrorCode, WorkspaceException

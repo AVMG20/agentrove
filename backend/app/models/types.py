@@ -1,4 +1,16 @@
+from enum import Enum
 from typing import Literal, TypeAlias, TypedDict
+
+
+class AgentKind(str, Enum):
+    ANTIGRAVITY = "antigravity"
+    CLAUDE = "claude"
+    CODEX = "codex"
+    COPILOT = "copilot"
+    CURSOR = "cursor"
+    GROK = "grok"
+    OPENCODE = "opencode"
+
 
 PermissionMode: TypeAlias = Literal[
     "auto_edit",

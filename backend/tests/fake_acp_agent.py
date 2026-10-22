@@ -28,6 +28,8 @@ from acp.schema import (
     PromptResponse,
     ReadTextFileResponse,
     ReleaseTerminalResponse,
+    SessionConfigOptionSelect,
+    SessionConfigSelectOption,
     SessionInfoUpdate,
     SetSessionConfigOptionResponse,
     SetSessionModeResponse,
@@ -48,6 +50,29 @@ from acp.stdio import stdio_streams
 SCENARIO = os.environ.get("FAKE_ACP_SCENARIO", "normal")
 LOG_PATH = os.environ.get("FAKE_ACP_LOG")
 NEW_SESSION_ID = "fake-acp-session-1"
+# Real agents advertise their effort option after a model set; offer every tier
+# under each agent's config id so effort validation sees a live list.
+EFFORT_TIERS = (
+    "default",
+    "none",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+    "ultra",
+)
+EFFORT_CONFIG_OPTIONS = [
+    SessionConfigOptionSelect(
+        id=config_id,
+        name=config_id,
+        type="select",
+        current_value="medium",
+        options=[SessionConfigSelectOption(value=v, name=v) for v in EFFORT_TIERS],
+    )
+    for config_id in ("effort", "reasoning_effort")
+]
 
 # Prompt markers select per-turn behavior so one fake covers all branches.
 MARKER_TOOL_DIFF = "MARKER_TOOL_DIFF"
@@ -203,7 +228,7 @@ class FakeAgent:
         )
         if SCENARIO == "config_error":
             raise RuntimeError("simulated set_config_option failure")
-        return SetSessionConfigOptionResponse(config_options=[])
+        return SetSessionConfigOptionResponse(config_options=EFFORT_CONFIG_OPTIONS)
 
     async def authenticate(self, method_id: str, **kwargs: Any) -> None:
         return None

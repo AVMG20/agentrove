@@ -102,11 +102,11 @@ export function AutomationEditDialog({
 
   const permissionModes = MODES_BY_AGENT[agentKind];
   const selectedPermissionOption = getPermissionModeOption(form.permission_mode, agentKind);
-  const thinkingModes = getThinkingModesForAgent(agentKind, form.model_id);
+  const thinkingModes = getThinkingModesForAgent(agentKind, selectedModel);
   const selectedThinkingOption = getThinkingModeOption(
     form.thinking_mode,
     agentKind,
-    form.model_id,
+    selectedModel,
   );
 
   const { schedule } = form;

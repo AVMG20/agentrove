@@ -21,7 +21,8 @@ export function InputControls() {
   // `/models/` is auth-protected; gate so the public landing composer doesn't 401.
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const modelMap = useModelMap(isAuthenticated);
-  const agentKind = modelMap.get(state.selectedModelId)?.agent_kind;
+  const selectedModel = modelMap.get(state.selectedModelId);
+  const agentKind = selectedModel?.agent_kind;
   const { data: chat } = useChatQuery(state.chatId, { enabled: !!state.chatId });
   const lockedAgentKind = chat?.session_agent_kind ?? null;
 
@@ -38,7 +39,7 @@ export function InputControls() {
   // Model-aware: some agents only expose a reasoning dial on specific models
   // (e.g. Claude's Haiku has none), so the base per-agent list isn't enough.
   const showThinking = agentKind
-    ? getThinkingModesForAgent(agentKind, state.selectedModelId).length > 0
+    ? getThinkingModesForAgent(agentKind, selectedModel).length > 0
     : true;
   const showFastMode = agentKind === 'codex';
 
@@ -61,7 +62,7 @@ export function InputControls() {
           <ThinkingModeSelector
             chatId={state.chatId}
             agentKind={agentKind}
-            modelId={state.selectedModelId}
+            model={selectedModel}
             dropdownPosition={state.dropdownPosition}
             dropdownAlign="right"
             disabled={state.isLoading}

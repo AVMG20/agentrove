@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
-from app.services.acp.adapters import AgentKind, PERSONAS_SUPPORTED_AGENTS
+from app.models.types import AgentKind
+from app.services.acp.adapters import PERSONAS_SUPPORTED_AGENTS
 
 if TYPE_CHECKING:
     from app.models.db_models.user import UserSettings
