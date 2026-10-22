@@ -49,6 +49,9 @@ logger = logging.getLogger(__name__)
 
 # MCP server ships next to the backend (bundled into the sidecar by run_build.mjs),
 # so its path derives from this file: app/services/agent.py -> ../../mcp-server/server.py
+# A follow-up cycle that goes quiet this long without its result is abandoned.
+FOLLOWUP_IDLE_TIMEOUT_SECONDS = 900.0
+
 MCP_SERVER_PATH = Path(__file__).resolve().parents[2] / "mcp-server" / "server.py"
 BROWSER_MCP_CLOUD_PATH = Path(__file__).resolve().parents[1] / "browser_mcp_cloud.py"
 BROWSER_USE_PYTHON_PATH = (
@@ -211,6 +214,31 @@ class AgentService:
         except BaseException:
             await self._cancel_prompt_task(prompt_task)
             raise
+
+    async def stream_followup(
+        self,
+        session: AcpSession,
+        result: StreamResult,
+    ) -> AsyncIterator[StreamEvent]:
+        # The handler queues the cycle's output and a sentinel at its result.
+        handler = session.handler
+        try:
+            while True:
+                try:
+                    item = await asyncio.wait_for(
+                        handler.event_queue.get(),
+                        timeout=FOLLOWUP_IDLE_TIMEOUT_SECONDS,
+                    )
+                except TimeoutError:
+                    break
+                if AcpClientHandler.is_sentinel(item):
+                    break
+                yield cast(StreamEvent, item)
+            result.total_cost_usd = handler.total_cost_usd
+            result.usage = handler.usage
+        finally:
+            if handler.followup_active and not handler.prompt_active:
+                handler.finish(prompt_completed=False)
 
     @staticmethod
     async def _consume_events(

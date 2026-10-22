@@ -161,6 +161,21 @@ class ActiveStreamStatus(BaseModel):
     last_seq: int = 0
 
 
+class BackgroundTask(BaseModel):
+    id: str
+    kind: Literal["shell", "agent"]
+    title: str
+    tool_id: str
+    # Unix seconds; the UI counts the elapsed time from here.
+    started_at: float
+    stoppable: bool
+
+
+class ChatBackgroundTasks(BaseModel):
+    chat_id: UUID
+    tasks: list[BackgroundTask]
+
+
 class MessageEvent(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

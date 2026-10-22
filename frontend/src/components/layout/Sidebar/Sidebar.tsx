@@ -7,6 +7,7 @@ import { useSidebarChatLists } from '@/hooks/queries/useSidebarChatLists';
 import { useUIStore } from '@/store/uiStore';
 import { useStreamStore } from '@/store/streamStore';
 import { useBlockedChatIds } from '@/hooks/useBlockedChatIds';
+import { useWorkingChatIds } from '@/hooks/useWorkingChatIds';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useCurrentUserQuery } from '@/hooks/queries/useAuthQueries';
 import { useAuthStore } from '@/store/authStore';
@@ -51,14 +52,10 @@ export function Sidebar({
   const { data: currentUser } = useCurrentUserQuery({ enabled: isAuthenticated });
   const userDisplayName = currentUser?.username || currentUser?.email || '';
   const logoutMutation = useLogout();
-  const activeStreamMetadata = useStreamStore((state) => state.activeStreamMetadata);
   // Chats whose stream finished successfully since last viewed — drives the "Done" badge
   const completedChatIds = useStreamStore((state) => state.completedChatIds);
   const splitChatIds = useUIStore((state) => state.splitChatIds);
-  const streamingChatIdSet = useMemo(
-    () => new Set(activeStreamMetadata.map((meta) => meta.chatId)),
-    [activeStreamMetadata],
-  );
+  const streamingChatIdSet = useWorkingChatIds();
   // Chats with a pending plan/permission request or agent question form — the
   // agent is blocked on the user.
   const blockedChatIdSet = useBlockedChatIds();

@@ -4,10 +4,12 @@ import { chatService } from '@/services/chatService';
 import { applyCreatedChat, patchChatInCache } from '@/hooks/queries/useChatQueries';
 import { useUIStore } from '@/store/uiStore';
 import { useStreamStore } from '@/store/streamStore';
+import { useBackgroundTasksStore } from '@/store/backgroundTasksStore';
 import { queryKeys } from '@/hooks/queries/queryKeys';
 import { subscribeChatEventsFeed } from '@/utils/chatEventsFeed';
 import { resyncActiveStreams } from '@/utils/activeStreams';
 import { logger } from '@/utils/logger';
+import { isCloudChat } from '@/utils/chatOrigin';
 import type { ChatEvent } from '@/types/chat.types';
 
 // Per-user chat lifecycle SSE: out-of-band creates/turns (MCP, agents) surface live.
@@ -21,6 +23,21 @@ export function useChatEvents(options?: { enabled?: boolean }) {
     // Guards in-flight resync snapshots across teardown (logout flips enabled) —
     // a late response must not register ghost stream indicators.
     let cancelled = false;
+
+    // Background shells live on between turns, so the tray needs the current
+    // list on load and after a gap, not just the changes.
+    const syncBackgroundTasks = () => {
+      chatService
+        .getBackgroundTasks()
+        .then((entries) => {
+          if (cancelled) return;
+          useBackgroundTasksStore
+            .getState()
+            .replaceSnapshot(entries, (chatId) => !isCloudChat(chatId));
+        })
+        .catch((error) => logger.error('Background tasks sync failed', 'useChatEvents', error));
+    };
+    syncBackgroundTasks();
 
     const onChatEvent = (event: MessageEvent) => {
       if (!event.data) return;
@@ -46,6 +63,11 @@ export function useChatEvents(options?: { enabled?: boolean }) {
           ...chat,
           title: parsed.title,
         }));
+        return;
+      }
+
+      if (parsed.kind === 'background_tasks') {
+        useBackgroundTasksStore.getState().setChatTasks(parsed.chat_id, parsed.tasks);
         return;
       }
 
@@ -79,6 +101,7 @@ export function useChatEvents(options?: { enabled?: boolean }) {
           () => cancelled,
           'useChatEvents',
         );
+        syncBackgroundTasks();
       },
       logContext: 'useChatEvents',
     });

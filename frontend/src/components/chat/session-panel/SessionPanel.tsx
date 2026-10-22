@@ -26,6 +26,7 @@ import {
 } from '@/hooks/queries/useSandboxQueries';
 import { useBranchPullRequests } from '@/hooks/queries/useGitHubQueries';
 import { useBlockedChatIds } from '@/hooks/useBlockedChatIds';
+import { useIsChatWorking } from '@/hooks/useWorkingChatIds';
 import { useChatAgentKind } from '@/hooks/useChatAgentKind';
 import { useChatSessionState } from '@/hooks/useChatSessionContext';
 import { useStreamStore } from '@/store/streamStore';
@@ -215,9 +216,7 @@ function ContextCard({ chat }: { chat: Chat }) {
 
 function SubThreadRow({ thread, onSelect }: { thread: Chat; onSelect: (chatId: string) => void }) {
   const agentKind = useChatAgentKind(thread.id, thread.session_agent_kind);
-  const isStreaming = useStreamStore((s) =>
-    s.activeStreamMetadata.some((meta) => meta.chatId === thread.id),
-  );
+  const isStreaming = useIsChatWorking(thread.id);
   const isCompleted = useStreamStore((s) => s.completedChatIds.has(thread.id));
   const isBlocked = useBlockedChatIds().has(thread.id);
   const status = chatStatusTone({

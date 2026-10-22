@@ -6,6 +6,7 @@ import { validateRequired, validateId } from '@/utils/validation';
 import { chatStorage } from '@/utils/storage';
 import { isCloudChat, markCloudChats, markCloudSandboxes } from '@/utils/chatOrigin';
 import type {
+  ChatBackgroundTasks,
   ChatRequest,
   Chat,
   ChatSearchResponse,
@@ -113,6 +114,21 @@ async function getActiveStreams(): Promise<ActiveStreamSnapshot[]> {
   return serviceCall(async () => {
     const streams = await apiClient.get<ActiveStreamSnapshot[]>('/chat/chats/active-streams');
     return streams ?? [];
+  });
+}
+
+async function getBackgroundTasks(): Promise<ChatBackgroundTasks[]> {
+  return serviceCall(async () => {
+    const entries = await apiClient.get<ChatBackgroundTasks[]>('/chat/chats/background-tasks');
+    return entries ?? [];
+  });
+}
+
+async function stopBackgroundTask(chatId: string, taskId: string): Promise<void> {
+  await serviceCall(async () => {
+    await resolveChatClient(chatId).post(
+      `/chat/chats/${chatId}/background-tasks/${encodeURIComponent(taskId)}/stop`,
+    );
   });
 }
 
@@ -415,6 +431,8 @@ export const chatService = {
   startCompletion,
   checkChatStatus,
   getActiveStreams,
+  getBackgroundTasks,
+  stopBackgroundTask,
   stopStream,
   getMessages,
   getMessageRender,

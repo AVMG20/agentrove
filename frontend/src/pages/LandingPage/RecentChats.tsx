@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
 import type { Chat } from '@/types/chat.types';
 import { useStreamStore } from '@/store/streamStore';
 import { useBlockedChatIds } from '@/hooks/useBlockedChatIds';
+import { useWorkingChatIds } from '@/hooks/useWorkingChatIds';
 import { useModelMap } from '@/hooks/queries/useModelQueries';
 import { formatRelativeTime } from '@/utils/date';
 import { stripMarkdownTitle } from '@/utils/format';
@@ -23,7 +23,6 @@ export interface RecentChatsProps {
 }
 
 export function RecentChats({ chats, workspaceBadgeById, onChatSelect }: RecentChatsProps) {
-  const activeStreamMetadata = useStreamStore((state) => state.activeStreamMetadata);
   const lastToolTitleByChatId = useStreamStore((state) => state.lastToolTitleByChatId);
   const completedChatIds = useStreamStore((state) => state.completedChatIds);
   // Blocked on plan/permission approval or an agent question form.
@@ -31,10 +30,7 @@ export function RecentChats({ chats, workspaceBadgeById, onChatSelect }: RecentC
   // Recents only mount when authenticated.
   const modelMap = useModelMap();
 
-  const streamingChatIds = useMemo(
-    () => new Set(activeStreamMetadata.map((meta) => meta.chatId)),
-    [activeStreamMetadata],
-  );
+  const streamingChatIds = useWorkingChatIds();
 
   const modelLabel = (chat: Chat) =>
     (chat.last_model_id && modelMap.get(chat.last_model_id)?.name) || chat.session_agent_kind;

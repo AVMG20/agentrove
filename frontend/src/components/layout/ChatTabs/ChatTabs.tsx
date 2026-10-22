@@ -7,6 +7,7 @@ import { ProviderIcon } from '@/components/ui/icons/ProviderIcon';
 import { useUIStore } from '@/store/uiStore';
 import { useStreamStore } from '@/store/streamStore';
 import { useBlockedChatIds } from '@/hooks/useBlockedChatIds';
+import { useWorkingChatIds } from '@/hooks/useWorkingChatIds';
 import { useChatQuery } from '@/hooks/queries/useChatQueries';
 import { useChatAgentKind } from '@/hooks/useChatAgentKind';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -79,7 +80,6 @@ export function ChatTabs() {
   const chatTabs = useUIStore((s) => s.chatTabs);
   const splitChatIds = useUIStore((s) => s.splitChatIds);
   const visibleLayout = useUIStore((s) => s.visibleLayout);
-  const activeStreamMetadata = useStreamStore((s) => s.activeStreamMetadata);
   // Marked on stream success; sidebar clears when the chat is viewed.
   const completedChatIds = useStreamStore((s) => s.completedChatIds);
   // Pending plan/permission requests or agent question forms — blocked on the user.
@@ -91,10 +91,7 @@ export function ChatTabs() {
     [visibleLayout, routedChatId, splitChatIds],
   );
 
-  const streamingChatIdSet = useMemo(
-    () => new Set(activeStreamMetadata.map((meta) => meta.chatId)),
-    [activeStreamMetadata],
-  );
+  const streamingChatIdSet = useWorkingChatIds();
 
   const handleSelect = useCallback(
     (chatId: string) => {

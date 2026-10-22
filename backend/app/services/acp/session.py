@@ -37,6 +37,11 @@ from app.services.acp.adapters import (
     LaunchConfig,
     unsupported_effort_error,
 )
+from app.services.acp.background import (
+    parse_probe_output,
+    probe_command,
+    stop_command,
+)
 from app.services.acp.client import AcpClientHandler
 from app.services.exceptions import AgentException
 from app.services.sandbox_providers import SandboxProviderType
@@ -73,6 +78,8 @@ NON_IMAGE_MIME: dict[str, str] = {
 EMPTY_FROZENSET: frozenset[str] = frozenset()
 
 MODEL_CONFIG_ID = "model"
+
+BACKGROUND_PROBE_TIMEOUT = 20
 
 # codex-acp advertises Fast mode as a session config option (select on/off, or
 # boolean when the client supports it). Values match FastModeConfig.ts.
@@ -123,6 +130,7 @@ class AcpSession:
         exit_watch_task: asyncio.Task[None] | None = None,
         supports_steering: bool = False,
         effort_levels: tuple[str, ...] | None = None,
+        sandbox: tuple[SandboxProvider, str] | None = None,
     ) -> None:
         self._handler = handler
         self._conn = conn
@@ -135,6 +143,8 @@ class AcpSession:
         # Effort values the live session advertises for the current model;
         # None when the agent reports no config options to check against.
         self.effort_levels = effort_levels
+        # Where the agent runs — its background shells are probed and stopped there.
+        self._sandbox = sandbox
 
     @property
     def handler(self) -> AcpClientHandler:
@@ -150,6 +160,7 @@ class AcpSession:
         agent_kind: AgentKind = AgentKind.CLAUDE,
     ) -> None:
         self._handler.prepare_for_prompt()
+        self._handler.prompt_active = True
 
         prompt_blocks = self._build_prompt_blocks(content, attachments, agent_kind)
         try:
@@ -294,6 +305,24 @@ class AcpSession:
                     )
                 )
         return blocks
+
+    async def probe_background_shells(self, task_ids: list[str]) -> dict[str, bool]:
+        # Which shells still run; an empty answer means the probe itself failed.
+        if self._sandbox is None or not task_ids:
+            return {}
+        provider, sandbox_id = self._sandbox
+        result = await provider.execute_command(
+            sandbox_id, probe_command(task_ids), timeout=BACKGROUND_PROBE_TIMEOUT
+        )
+        return parse_probe_output(result.stdout)
+
+    async def stop_background_shell(self, task_id: str) -> None:
+        if self._sandbox is None:
+            return
+        provider, sandbox_id = self._sandbox
+        await provider.execute_command(
+            sandbox_id, stop_command(task_id), timeout=BACKGROUND_PROBE_TIMEOUT
+        )
 
     async def cancel(self) -> None:
         try:
@@ -586,6 +615,7 @@ class AcpSession:
             stderr_task=stderr_task,
             exit_watch_task=exit_watch_task,
             effort_levels=effort_levels,
+            sandbox=(provider, config.sandbox_id),
             supports_steering=(
                 config.agent_kind in (AgentKind.CLAUDE, AgentKind.CODEX)
                 and isinstance(

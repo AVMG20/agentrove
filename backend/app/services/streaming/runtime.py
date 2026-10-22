@@ -26,7 +26,7 @@ from app.db.session import SessionLocal
 from app.models.db_models.chat import Chat, ChatCheckpoint, Message
 from app.models.db_models.enums import MessageRole, MessageStreamStatus
 from app.models.db_models.user import User, UserSettings
-from app.models.types import MessageAttachmentDict
+from app.models.types import MessageAttachmentDict, PermissionMode
 from app.prompts.system_prompt import build_system_prompt_for_chat
 from app.services.acp.session import AcpSession, AcpSessionConfig
 from app.services.agent import (
@@ -179,7 +179,9 @@ class ChatStreamRuntime:
                     "system",
                     {"data": {"worktree_cwd": self.chat.worktree_cwd}},
                 )
-            self._accepts_steering = True
+            # A steer would turn the follow-up into the user's turn, whose end
+            # the follow-up stream doesn't watch for — queue messages instead.
+            self._accepts_steering = not self._request.followup
             self._active_runtimes[self.chat_id] = self
             await self._consume_stream(stream_result, stream)
             await self._emit_prompt_suggestions()
@@ -1447,6 +1449,117 @@ class ChatStreamRuntime:
                 session.last_used_at = time.monotonic()
 
     @classmethod
+    async def start_followup(cls, chat_id: str) -> None:
+        # Claude Code woke up on its own after a background task finished;
+        # stream that cycle into a new assistant message so it isn't lost.
+        session = session_registry.get(chat_id)
+        if session is None:
+            return
+        async with cls.chat_start_slot(chat_id) as reserved:
+            handler = session.acp_session.handler
+            # A turn that started meanwhile takes the cycle's output over.
+            if not reserved or handler.prompt_active or not handler.followup_active:
+                return
+            async with SessionLocal() as db:
+                chat = await db.get(
+                    Chat, UUID(chat_id), options=[selectinload(Chat.workspace)]
+                )
+                if chat is None:
+                    return
+                model_id = chat.last_model_id or await db.scalar(
+                    select(Message.model_id)
+                    .where(
+                        Message.chat_id == chat.id,
+                        Message.role == MessageRole.ASSISTANT,
+                        Message.model_id.is_not(None),
+                    )
+                    .order_by(Message.created_at.desc())
+                    .limit(1)
+                )
+            if model_id not in MODELS:
+                logger.warning("No model to attribute follow-up in chat %s", chat_id)
+                return
+            message_service = MessageService(session_factory=SessionLocal)
+            assistant_message = await message_service.create_message(
+                chat.id,
+                "",
+                MessageRole.ASSISTANT,
+                model_id=model_id,
+                stream_status=MessageStreamStatus.IN_PROGRESS,
+            )
+            workspace = chat.workspace
+            request = ChatStreamRequest(
+                prompt="",
+                system_prompt="",
+                custom_instructions=None,
+                chat_data={
+                    "id": chat_id,
+                    "user_id": str(chat.user_id),
+                    "title": chat.title,
+                    "workspace_id": str(chat.workspace_id),
+                    "sandbox_id": workspace.sandbox_id,
+                    "workspace_path": workspace.workspace_path,
+                    "sandbox_provider": workspace.sandbox_provider,
+                    "session_id": chat.session_id,
+                    "session_agent_kind": chat.session_agent_kind,
+                    "worktree_cwd": chat.worktree_cwd,
+                },
+                model_id=model_id,
+                permission_mode=cast(PermissionMode, session.current_mode or "default"),
+                session_id=session.acp_session.acp_session_id,
+                assistant_message_id=str(assistant_message.id),
+                thinking_mode=chat.last_thinking_mode,
+                attachments=None,
+                followup=True,
+            )
+            cls.start_background_chat(request)
+
+        # Avoid circular import with chat.py.
+        from app.services.chat import ChatService
+
+        await ChatService.publish_user_chat_event(
+            chat.user_id,
+            {
+                "kind": "stream_started",
+                "chat_id": chat_id,
+                "message_id": str(assistant_message.id),
+            },
+        )
+
+    @classmethod
+    async def execute_followup(
+        cls,
+        *,
+        request: ChatStreamRequest,
+        session_factory: SessionFactoryType,
+    ) -> str:
+        runtime = cls(request=request, session_factory=session_factory)
+        session = session_registry.get(runtime.chat_id)
+        if session is None:
+            raise AgentException("The agent stopped before its follow-up arrived")
+        async with cache_connection() as cache:
+            runtime.cache = cache
+            runtime._acp_session = session.acp_session
+            session.cancel_event.clear()
+            if session_registry.consume_pending_cancel(runtime.chat_id):
+                session.cancel_event.set()
+            runtime._cancel_event = session.cancel_event
+            session.active_generation_task = asyncio.current_task()
+            try:
+                stream_result = StreamResult()
+                stream = AgentService(session_factory=session_factory).stream_followup(
+                    session.acp_session, stream_result
+                )
+                return await runtime.run(stream_result, stream)
+            finally:
+                runtime._accepts_steering = False
+                if cls._active_runtimes.get(runtime.chat_id) is runtime:
+                    cls._active_runtimes.pop(runtime.chat_id)
+                await runtime._close_stream()
+                session.active_generation_task = None
+                session.last_used_at = time.monotonic()
+
+    @classmethod
     async def _bootstrap_and_execute(
         cls,
         *,
@@ -1454,8 +1567,9 @@ class ChatStreamRuntime:
     ) -> str:
         session_factory = SessionLocal
         chat_id = str(request.chat_data["id"])
+        execute = cls.execute_followup if request.followup else cls.execute_chat
         try:
-            return await cls.execute_chat(
+            return await execute(
                 request=request,
                 session_factory=session_factory,
             )

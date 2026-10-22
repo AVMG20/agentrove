@@ -43,6 +43,7 @@ from app.models.schemas.chat import (
     AskCodeRequest,
     AskCodeResponse,
     Chat as ChatSchema,
+    ChatBackgroundTasks,
     ChatCompletionResponse,
     ChatCreate,
     ChatSearchResponse,
@@ -298,6 +299,19 @@ async def get_active_streams(
     return await chat_service.get_active_streams(
         current_user, [UUID(chat_id) for chat_id in active_ids]
     )
+
+
+@router.get("/chats/background-tasks", response_model=list[ChatBackgroundTasks])
+async def get_background_tasks(
+    current_user: User = Depends(get_current_user),
+) -> list[ChatBackgroundTasks]:
+    # Seeds the composer tray and sidebar; live changes arrive on /chats/events.
+    return [
+        ChatBackgroundTasks.model_validate({"chat_id": chat_id, "tasks": tasks})
+        for chat_id, tasks in session_registry.background_tasks_for_user(
+            str(current_user.id)
+        ).items()
+    ]
 
 
 @router.get("/chats/events")
@@ -601,6 +615,22 @@ async def restore_message_checkpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
+
+
+@router.post(
+    "/chats/{chat_id}/background-tasks/{task_id}/stop",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def stop_background_task(
+    chat_id: UUID,
+    task_id: str,
+    _chat: Chat = Depends(ensure_chat_access),
+) -> None:
+    if not await session_registry.stop_background_task(str(chat_id), task_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No running background command with that id",
+        )
 
 
 @router.delete("/chats/{chat_id}/stream", status_code=status.HTTP_204_NO_CONTENT)

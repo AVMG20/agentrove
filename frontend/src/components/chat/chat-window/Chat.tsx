@@ -5,6 +5,7 @@ import { isBrowserObjectUrl } from '@/utils/attachmentUrl';
 import { isAssistantMessage } from '@/utils/message';
 import { UserMessage, AssistantMessage } from '@/components/chat/message-bubble/Message';
 import { ChatQueueBanner } from './ChatQueueBanner';
+import { BackgroundTasksTray } from './BackgroundTasksTray';
 import { ChatInlinePermission } from './ChatInlinePermission';
 import { ChatInlineElicitation } from './ChatInlineElicitation';
 import { StreamActionsBar } from './StreamActionsBar';
@@ -339,12 +340,15 @@ export const Chat = memo(function Chat() {
       showScrollButton={showScrollButton}
       onScrollToBottom={scrollToBottom}
       composerBanner={
-        <ChatQueueBanner
-          messages={pendingMessages}
-          onCancel={handleCancelMessage}
-          onEdit={handleEditMessage}
-          onSendNow={handleSendNow}
-        />
+        <>
+          {chatId && <BackgroundTasksTray chatId={chatId} onStopTurn={onStopStream} />}
+          <ChatQueueBanner
+            messages={pendingMessages}
+            onCancel={handleCancelMessage}
+            onEdit={handleEditMessage}
+            onSendNow={handleSendNow}
+          />
+        </>
       }
       composer={
         <Input

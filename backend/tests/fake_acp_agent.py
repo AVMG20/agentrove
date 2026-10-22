@@ -97,6 +97,9 @@ MARKER_TOOL_EMPTY_RESULT = "MARKER_TOOL_EMPTY_RESULT"
 MARKER_TOOL_START_DIFF = "MARKER_TOOL_START_DIFF"
 MARKER_TOOL_UNKNOWN_DICT_ERROR = "MARKER_TOOL_UNKNOWN_DICT_ERROR"
 MARKER_ENTER_PLAN_MODE = "MARKER_ENTER_PLAN_MODE"
+MARKER_BACKGROUND_FOLLOWUP = "MARKER_BACKGROUND_FOLLOWUP"
+BACKGROUND_TASK_ID = "bgfake1"
+FOLLOWUP_TEXT = "The background build finished."
 # 1x1 transparent PNG, reused wherever the protocol needs inline image bytes.
 TINY_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 
@@ -304,8 +307,76 @@ class FakeAgent:
             await self._call_fs_terminal_stubs(session_id)
         if MARKER_ENTER_PLAN_MODE in text:
             return await self._run_enter_plan_mode_turn(session_id)
+        if MARKER_BACKGROUND_FOLLOWUP in text:
+            return await self._run_background_turn(session_id)
 
         return await self._run_default_turn(session_id, text)
+
+    async def _run_background_turn(self, session_id: str) -> PromptResponse:
+        # Mirrors claude-agent-acp: a backgrounded Bash call returns at once,
+        # the turn ends, and Claude Code later follows up without a prompt.
+        assert self._client is not None
+        claude_meta = {"claudeCode": {"toolName": "Bash"}}
+        await self._emit_tool_started(
+            session_id,
+            "tool-background",
+            "./gradlew build",
+            field_meta=claude_meta,
+            raw_input={
+                "command": "./gradlew build",
+                "description": "Build the mod",
+                "run_in_background": True,
+            },
+        )
+        await self._client.session_update(
+            session_id=session_id,
+            update=ToolCallProgress(
+                session_update="tool_call_update",
+                tool_call_id="tool-background",
+                status="completed",
+                content=[
+                    ContentToolCallContent(
+                        type="content",
+                        content=text_block(
+                            "Command running in background with ID: "
+                            f"{BACKGROUND_TASK_ID}. Output is being written to: "
+                            f"/tmp/fake/tasks/{BACKGROUND_TASK_ID}.output"
+                        ),
+                    )
+                ],
+                field_meta=claude_meta,
+            ),
+        )
+        await self._client.session_update(
+            session_id=session_id,
+            update=AgentMessageChunk(
+                session_update="agent_message_chunk",
+                content=text_block("Started the build in the background."),
+            ),
+        )
+        asyncio.get_running_loop().create_task(self._follow_up(session_id))
+        await asyncio.sleep(0.05)
+        return PromptResponse(stop_reason="end_turn")
+
+    async def _follow_up(self, session_id: str) -> None:
+        assert self._client is not None
+        await asyncio.sleep(0.5)
+        await self._client.session_update(
+            session_id=session_id,
+            update=AgentMessageChunk(
+                session_update="agent_message_chunk",
+                content=text_block(FOLLOWUP_TEXT),
+            ),
+        )
+        await self._client.session_update(
+            session_id=session_id,
+            update=UsageUpdate(
+                session_update="usage_update",
+                used=1200,
+                size=200000,
+                field_meta={"_claude/origin": {"kind": "task-notification"}},
+            ),
+        )
 
     async def _call_fs_terminal_stubs(self, session_id: str) -> None:
         # Drive client.py fs/terminal no-op stubs to prove protocol compliance.

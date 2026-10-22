@@ -29,7 +29,10 @@ from app.services.sandbox_providers import SandboxProviderType
 from app.services.session_registry import session_registry
 from tests.conftest import LoginClient, UserFactory
 from tests.fake_acp_agent import (
+    BACKGROUND_TASK_ID,
+    FOLLOWUP_TEXT,
     MARKER_ASK_USER_QUESTION,
+    MARKER_BACKGROUND_FOLLOWUP,
     MARKER_CANCEL,
     MARKER_CONCURRENT_ELICITATIONS,
     MARKER_CRASH_MID_PROMPT,
@@ -309,11 +312,13 @@ def acp_cache(monkeypatch: pytest.MonkeyPatch) -> EndpointCache:
     # Redis isn't available in tests — every module that touches cache_connection
     # for the chat-streaming path needs the in-memory fake wired in.
     from app.api.endpoints import chat as chat_endpoint
+    from app.services import background_monitor as background_monitor_module
     from app.services import chat as chat_service_module
     from app.services.streaming import runtime as runtime_module
 
     cache = EndpointCache()
     monkeypatch.setattr(chat_endpoint, "cache_connection", cache.connect)
+    monkeypatch.setattr(background_monitor_module, "cache_connection", cache.connect)
     monkeypatch.setattr(chat_service_module, "cache_connection", cache.connect)
     monkeypatch.setattr(runtime_module, "cache_connection", cache.connect)
     return cache
@@ -1818,6 +1823,85 @@ async def test_mcp_session_is_reused_across_turns(
     # A respawn resumes the old session id, so count load_session too. The first
     # turn's count also covers the one-off title-gen session.
     assert spawns[1] == spawns[0]
+
+
+async def test_background_shell_is_tracked_and_its_follow_up_streamed(
+    client: httpx.AsyncClient,
+    auth_workspace: tuple[dict[str, str], Workspace],
+    fake_agent: FakeAgentHandle,
+    acp_cache: EndpointCache,
+) -> None:
+    headers, workspace = auth_workspace
+    chat = await create_chat(client, headers, workspace, model_id="sonnet")
+    published: list[dict[str, Any]] = []
+    publish = acp_cache.store.publish
+
+    async def record(channel: str, message: str) -> int:
+        if channel.endswith(":chats:live"):
+            published.append(json.loads(message))
+        return await publish(channel, message)
+
+    acp_cache.store.publish = record  # type: ignore[method-assign]
+
+    response = await send_message(
+        client,
+        headers,
+        chat_id=chat["id"],
+        model_id="sonnet",
+        prompt=f"build it {MARKER_BACKGROUND_FOLLOWUP}",
+    )
+    assert response.status_code == 200, response.text
+    first_id = response.json()["message_id"]
+    first = await wait_for_message(
+        client, headers, chat_id=chat["id"], message_id=first_id
+    )
+    assert first["stream_status"] == "completed"
+
+    # The turn ended but its shell runs on: the tray lists it.
+    listed = await client.get("/api/v1/chat/chats/background-tasks", headers=headers)
+    assert listed.status_code == 200, listed.text
+    [entry] = listed.json()
+    assert entry["chat_id"] == chat["id"]
+    [task] = entry["tasks"]
+    assert task["id"] == BACKGROUND_TASK_ID
+    assert task["kind"] == "shell"
+    assert task["title"] == "Build the mod"
+    assert task["stoppable"] is True
+
+    # Claude Code's own follow-up lands in a new assistant message.
+    deadline = time.monotonic() + 10
+    followup: dict[str, Any] | None = None
+    while time.monotonic() < deadline and followup is None:
+        page = await client.get(
+            f"/api/v1/chat/chats/{chat['id']}/messages",
+            headers=headers,
+            params={"limit": 50},
+        )
+        followup = next(
+            (
+                item
+                for item in page.json()["items"]
+                if item["role"] == "assistant"
+                and item["id"] != first_id
+                and item["stream_status"] == "completed"
+            ),
+            None,
+        )
+        await asyncio.sleep(0.05)
+    assert followup is not None, "follow-up message never completed"
+    assert FOLLOWUP_TEXT in followup["content_text"]
+    assert len(fake_agent.main_turn_prompts()) == 1
+
+    assert any(
+        event["kind"] == "background_tasks" and event["tasks"] for event in published
+    )
+    assert any(event["kind"] == "stream_started" for event in published)
+
+    stop = await client.post(
+        f"/api/v1/chat/chats/{chat['id']}/background-tasks/unknown/stop",
+        headers=headers,
+    )
+    assert stop.status_code == 404
 
 
 def test_untracked_tool_updates_use_meta_name_or_are_dropped() -> None:
