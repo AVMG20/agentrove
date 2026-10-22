@@ -17,6 +17,7 @@ import { useLocalStreamRestoration } from '@/hooks/useLocalStreamRestoration';
 import { useCloudStreamRestoration } from '@/hooks/useCloudStreamRestoration';
 import { useChatEvents } from '@/hooks/useChatEvents';
 import { useCloudChatEvents } from '@/hooks/useCloudChatEvents';
+import { usePageResumeRefresh } from '@/hooks/usePageResumeRefresh';
 import { authService } from '@/services/authService';
 import { toasterConfig } from '@/config/toaster';
 import { AuthRoute } from '@/components/routes/AuthRoute/AuthRoute';
@@ -75,6 +76,7 @@ function AppContent() {
   useCloudStreamRestoration({ enabled: isSessionAuthenticated });
   useChatEvents({ enabled: isSessionAuthenticated });
   useCloudChatEvents({ enabled: isSessionAuthenticated });
+  usePageResumeRefresh({ enabled: isSessionAuthenticated });
   useNotificationPermissionPrompt(isSessionAuthenticated);
 
   const showLoading = hasToken && isLoading;

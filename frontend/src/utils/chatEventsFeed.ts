@@ -1,4 +1,5 @@
 import { logger } from '@/utils/logger';
+import { PAGE_RESUME_IDLE_MS, isOffline, subscribePageResume } from '@/utils/pageResume';
 
 const REOPEN_DELAY_MS = 15_000;
 
@@ -16,6 +17,8 @@ export function subscribeChatEventsFeed(options: {
   let cancelled = false;
   let retryTimer: number | undefined;
   let needsResync = false;
+  // createSource() in flight — a resume must not race it with a second socket.
+  let opening = false;
 
   const scheduleReopen = () => {
     if (cancelled) return;
@@ -23,8 +26,10 @@ export function subscribeChatEventsFeed(options: {
   };
 
   const openFeed = () => {
+    opening = true;
     createSource()
       .then((eventSource) => {
+        opening = false;
         if (cancelled) {
           eventSource.close();
           return;
@@ -46,16 +51,32 @@ export function subscribeChatEventsFeed(options: {
         };
       })
       .catch((error: unknown) => {
+        opening = false;
         logger.error('Chat events stream failed to open', logContext, error);
         needsResync = true;
         scheduleReopen();
       });
   };
 
+  // Comment pings are invisible to EventSource, so a half-open socket after sleep
+  // looks OPEN — after a long away replace it outright; resync covers missed events.
+  const unsubscribeResume = subscribePageResume(({ idleMs }) => {
+    if (cancelled || opening || isOffline()) return;
+    const open = source?.readyState === EventSource.OPEN;
+    if (open && idleMs < PAGE_RESUME_IDLE_MS) return;
+    window.clearTimeout(retryTimer);
+    retryTimer = undefined;
+    source?.close();
+    source = undefined;
+    needsResync = true;
+    openFeed();
+  });
+
   openFeed();
 
   return () => {
     cancelled = true;
+    unsubscribeResume();
     window.clearTimeout(retryTimer);
     source?.close();
   };

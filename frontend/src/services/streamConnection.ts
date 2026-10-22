@@ -2,6 +2,7 @@ import { resolveChatClient } from '@/lib/api';
 import { useStreamStore } from '@/store/streamStore';
 import { chatStorage } from '@/utils/storage';
 import { logger } from '@/utils/logger';
+import { isOffline, subscribePageResume } from '@/utils/pageResume';
 
 type StreamApiClient = ReturnType<typeof resolveChatClient>;
 
@@ -32,6 +33,8 @@ const CONNECTION_STABLE_MS = 15000;
 // A half-open socket fires no error; silence past 3 server pings means dead.
 const STALL_CHECK_INTERVAL_MS = 15000;
 const STALL_TIMEOUT_MS = 45000;
+// On page resume, silence past ~1 ping means the socket likely died during sleep.
+const RESUME_STALE_MS = 20000;
 
 // One multiplexed SSE per API host (browsers cap ~6 HTTP/1.1 sockets per origin).
 // Opens when streamStore has active streams; closes when the last is removed.
@@ -43,6 +46,25 @@ class StreamConnectionManager {
   configure(handlers: StreamConnectionHandlers): void {
     this.handlers = handlers;
     useStreamStore.subscribe(() => this.reconcile());
+    // Background tabs throttle the watchdog; check promptly when the page comes back.
+    subscribePageResume(() => this.resume());
+  }
+
+  // Fresh retry budget and immediate reopen for feeds that died while hidden/offline.
+  private resume(): void {
+    if (isOffline()) return;
+    for (const [client, connection] of this.connections) {
+      connection.retryAttempts = 0;
+      const source = connection.source;
+      const healthy =
+        source !== null &&
+        source.readyState !== EventSource.CLOSED &&
+        Date.now() - connection.lastActivityAt <= RESUME_STALE_MS;
+      if (healthy) continue;
+      logger.warn('Stream connection stale on page resume; reopening', 'streamConnection');
+      // open() clears any pending retry timer; reopen rebuilds cursors, seq dedup drops overlap.
+      this.open(client);
+    }
   }
 
   // Keeps the client's feed open without chat streams (e.g. a mounted channel page).
@@ -220,6 +242,8 @@ class StreamConnectionManager {
 
   private scheduleReconnect(client: StreamApiClient, connection: ManagedConnection): void {
     if (connection.retryTimer) return;
+    // Offline retries would only burn budget and fail streams; the `online` resume reopens.
+    if (isOffline()) return;
     connection.retryAttempts += 1;
     if (connection.retryAttempts > MAX_RECONNECT_ATTEMPTS) {
       this.failClient(client, connection);
