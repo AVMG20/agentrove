@@ -60,7 +60,9 @@ export const ToolCard = memo(function ToolCard({
     <div className={styles.header}>
       <div className={styles['icon-wrap']}>{icon}</div>
       <FloatingTooltip content={resolvedTitle} className={styles['tooltip-wrap']}>
-        <span className={styles.title}>{resolvedTitle}</span>
+        <span className={clsx(styles.title, status === 'started' && styles['title--running'])}>
+          {resolvedTitle}
+        </span>
       </FloatingTooltip>
       {statusIndicator[status]}
       {hasExpandableContent && (

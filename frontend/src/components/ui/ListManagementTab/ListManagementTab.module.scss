@@ -23,7 +23,7 @@
 }
 
 .title {
-  @include type.type-body(500);
+  @include type.type-large(600);
   color: var(--theme-text-primary);
 }
 
@@ -95,10 +95,12 @@
   @include anim.transition-colors;
   border: 1px solid var(--theme-border);
   border-radius: var(--radius-xl);
+  background-color: var(--theme-surface);
   padding: var(--space-4);
+  box-shadow: var(--shadow-xs);
 
   @include responsive.hover {
-    border-color: var(--theme-border-hover);
+    border-color: var(--theme-border-secondary);
   }
 }
 
@@ -123,10 +125,10 @@
 .action-btn {
   height: var(--space-7);
   width: var(--space-7);
-  color: var(--theme-text-quaternary);
+  color: var(--theme-text-tertiary);
 
   @include responsive.hover {
-    color: var(--theme-text-secondary);
+    color: var(--theme-text-primary);
   }
 }
 

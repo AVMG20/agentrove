@@ -6,12 +6,11 @@
 .segmented-control {
   position: relative;
   display: inline-flex;
-  border: 1px solid var(--theme-border);
+  padding: 3px;
   background-color: var(--theme-surface-tertiary);
 
-  // Dark mode reads one surface step lighter for contrast against panels
   :global([data-theme='dark']) & {
-    background-color: var(--theme-surface-secondary);
+    background-color: var(--theme-surface-hover);
   }
 
   &--sm {
@@ -27,7 +26,7 @@
   position: absolute;
   left: 0;
   top: 0;
-  background-color: var(--theme-surface-secondary);
+  background-color: var(--theme-surface);
   box-shadow: var(--shadow-sm);
   transition:
     transform var(--duration-slow) var(--easing-out),
@@ -35,16 +34,16 @@
     height var(--duration-slow) var(--easing-out);
 
   :global([data-theme='dark']) & {
-    background-color: var(--theme-surface-hover);
+    background-color: var(--theme-surface-active);
   }
 
-  // Inner radius tucks 1-2px inside the container's — px art, not tokens
+  // Inner radius tucks inside the container's 3px inset — px art, not tokens
   &--sm {
-    border-radius: 5px;
+    border-radius: 4px;
   }
 
   &--md {
-    border-radius: 7px;
+    border-radius: 6px;
   }
 }
 
@@ -55,22 +54,22 @@
   cursor: pointer;
   border: none;
   background: none;
-  color: var(--theme-text-quaternary);
+  color: var(--theme-text-tertiary);
 
   @include responsive.hover {
-    color: var(--theme-text-secondary);
+    color: var(--theme-text-primary);
   }
 
   &--sm {
     @include type.type-meta(500);
     padding: var(--space-1) var(--space-2-5);
-    border-radius: 5px;
+    border-radius: 4px;
   }
 
   &--md {
     @include type.type-default(500);
     padding: var(--space-1-5) var(--space-3-5);
-    border-radius: 7px;
+    border-radius: 6px;
   }
 
   &[aria-checked='true'] {

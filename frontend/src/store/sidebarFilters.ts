@@ -48,7 +48,8 @@ export const EMPTY_SIDEBAR_FILTERS: SidebarFilters = {
   agentKind: null,
   source: 'all',
   workspaceId: null,
-  groupBy: 'none',
+  // Workspace folders by default — the sidebar reads as projects, not a flat feed.
+  groupBy: 'workspace',
 };
 
 // Resets filter dimensions but keeps presentation (groupBy).

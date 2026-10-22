@@ -1,4 +1,4 @@
-import { type Ref } from 'react';
+import { type MouseEvent, type Ref } from 'react';
 import { Button } from '@/components/ui/primitives/Button/Button';
 import { Spinner } from '@/components/ui/primitives/Spinner/Spinner';
 import { clearSidebarFilters, type SidebarFilters } from '@/store/sidebarFilters';
@@ -6,7 +6,8 @@ import type { Chat } from '@/types/chat.types';
 import type { WorkspaceBadge } from '@/hooks/queries/useSidebarChatLists';
 import { SidebarChatRow, type ChatRowProps } from './SidebarChatRow';
 import { SidebarFilterMenu } from './SidebarFilterMenu';
-import { SidebarSectionHeader } from './SidebarSectionHeader';
+import { SidebarSection } from './SidebarSection';
+import { SidebarWorkspaceGroup } from './SidebarWorkspaceGroup';
 import type { SidebarChatSection } from './sidebarGrouping';
 import styles from './SidebarChatList.module.scss';
 
@@ -25,6 +26,7 @@ interface SidebarChatListProps {
   hasMore: boolean;
   isFetchingMore: boolean;
   onLoadMore: () => void;
+  onNewWorkspaceThread: (e: MouseEvent, workspaceId: string) => void;
 }
 
 export function SidebarChatList({
@@ -42,7 +44,10 @@ export function SidebarChatList({
   hasMore,
   isFetchingMore,
   onLoadMore,
+  onNewWorkspaceThread,
 }: SidebarChatListProps) {
+  const groupedByWorkspace = filters.groupBy === 'workspace';
+
   return (
     <div ref={scrollContainerRef} className={styles.scroll}>
       {!hasAnyContent ? (
@@ -52,37 +57,66 @@ export function SidebarChatList({
       ) : (
         <div>
           {visiblePinnedChats.length > 0 && (
-            <div className={styles.section}>
-              <div className={styles['section-header']}>
-                <span className={styles['section-title']}>Pinned</span>
-              </div>
-              <div>
+            <SidebarSection sectionKey="pinned" title="Pinned">
+              <div className={styles.rows}>
                 {visiblePinnedChats.map((chat) => (
-                  <SidebarChatRow key={chat.id} chat={chat} rowProps={rowProps} />
+                  <SidebarChatRow
+                    key={chat.id}
+                    chat={chat}
+                    rowProps={rowProps}
+                    // Folder mode keeps every row single-line; the open chat's
+                    // environment panel still names its workspace.
+                    hideWorkspace={groupedByWorkspace}
+                  />
                 ))}
               </div>
-            </div>
+            </SidebarSection>
           )}
 
           {/* Header always renders so the filter menu stays reachable when filters empty the list. */}
-          <div>
-            <SidebarSectionHeader title="Recents">
+          <SidebarSection
+            sectionKey="threads"
+            title="Threads"
+            actions={
               <SidebarFilterMenu
                 filters={filters}
                 onChange={onChangeFilters}
                 workspaceBadgeById={workspaceBadgeById}
               />
-            </SidebarSectionHeader>
+            }
+          >
             {visibleRecentChats.length > 0 ? (
-              <div>
-                {recentChatSections.map((section) => (
-                  <div key={section.key} className={section.label ? styles.section : undefined}>
-                    {section.label && <div className={styles['group-label']}>{section.label}</div>}
-                    {section.chats.map((chat) => (
-                      <SidebarChatRow key={chat.id} chat={chat} rowProps={rowProps} />
-                    ))}
-                  </div>
-                ))}
+              <div className={styles.rows}>
+                {recentChatSections.map((section) =>
+                  groupedByWorkspace ? (
+                    <SidebarWorkspaceGroup
+                      key={section.key}
+                      workspaceId={section.key}
+                      name={section.label ?? 'Unknown workspace'}
+                      isCloud={workspaceBadgeById.get(section.key)?.isCloud ?? false}
+                      onNewThread={onNewWorkspaceThread}
+                      onOpenMenu={rowProps.onWorkspaceBadgeClick}
+                    >
+                      {section.chats.map((chat) => (
+                        <SidebarChatRow
+                          key={chat.id}
+                          chat={chat}
+                          rowProps={rowProps}
+                          hideWorkspace
+                        />
+                      ))}
+                    </SidebarWorkspaceGroup>
+                  ) : (
+                    <div key={section.key} className={section.label ? styles.section : undefined}>
+                      {section.label && (
+                        <div className={styles['group-label']}>{section.label}</div>
+                      )}
+                      {section.chats.map((chat) => (
+                        <SidebarChatRow key={chat.id} chat={chat} rowProps={rowProps} />
+                      ))}
+                    </div>
+                  ),
+                )}
               </div>
             ) : !hasVisibleContent ? (
               // Filters only narrow loaded pages — Load more may still surface matches.
@@ -97,8 +131,8 @@ export function SidebarChatList({
                 </Button>
               </div>
             ) : null}
-          </div>
-          {/* Outside Recents: a cloud page of only pinned chats still needs Load more. */}
+          </SidebarSection>
+          {/* Outside Threads: a cloud page of only pinned chats still needs Load more. */}
           {hasMore && (
             <Button
               variant="unstyled"

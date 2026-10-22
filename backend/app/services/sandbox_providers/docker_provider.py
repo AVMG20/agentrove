@@ -212,6 +212,16 @@ class LocalDockerProvider(SandboxProvider):
                 return None
             raise
 
+    async def container_disk_usage(self, sandbox_id: str) -> int | None:
+        # Bytes the container wrote outside the workspace bind mount: installed
+        # toolchains, caches in $HOME, build output written there.
+        container = await self._get_container_by_id(sandbox_id)
+        if container is None:
+            return None
+        info = await container.show(size=1)
+        size = info.get("SizeRw")
+        return size if isinstance(size, int) else None
+
     async def connect_sandbox(self, sandbox_id: str) -> bool:
         async with self._docker_operation("connect to Docker sandbox"):
             if sandbox_id in self._containers:
@@ -442,6 +452,7 @@ class LocalDockerProvider(SandboxProvider):
         on_data: PtyDataCallbackType,
         on_exit: PtyExitCallbackType,
         user_id: str = "",
+        envs: dict[str, str] | None = None,
     ) -> str:
         async with self._docker_operation("create Docker terminal"):
             # tmux for reconnect persistence; bare bash if missing. user_id unused (fixed container HOME).
@@ -451,7 +462,9 @@ class LocalDockerProvider(SandboxProvider):
             cmd = [
                 "bash",
                 "-c",
-                self.build_pty_shell_command(tmux_session, "bash"),
+                self.build_pty_shell_command(
+                    tmux_session, "bash", inherit_env_names=list(envs or {})
+                ),
             ]
 
             # Root terminals keep $HOME as the start dir (dotfiles, existing
@@ -461,7 +474,7 @@ class LocalDockerProvider(SandboxProvider):
                 cmd=cmd,
                 stdin=True,
                 tty=True,
-                environment={"TERM": TERMINAL_TYPE},
+                environment={**(envs or {}), "TERM": TERMINAL_TYPE},
                 workdir=workdir,
             )
             stream = exec_obj.start()

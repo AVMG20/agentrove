@@ -75,6 +75,9 @@ class ChatStreamRequest:
     attachments: list[dict[str, Any]] | None
     context_window: int | None = None
     selected_persona_name: str = DEFAULT_PERSONA_NAME
+    # Streams output Claude Code produced without a prompt (it followed up on
+    # a finished background task) instead of sending one.
+    followup: bool = False
 
     @property
     def publish_user_id(self) -> str | None:

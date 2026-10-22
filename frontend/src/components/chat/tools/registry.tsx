@@ -120,6 +120,12 @@ const agentRoveLoader: ToolModuleLoader = () =>
   import('./agentrove/AgentRoveTool').then((m) => ({ default: m.AgentRoveTool }));
 const renderUiLoader: ToolModuleLoader = () =>
   import('./agentrove/RenderUiTool').then((m) => ({ default: m.RenderUiTool }));
+const artifactLoader: ToolModuleLoader = () =>
+  import('./agentrove/ArtifactTool').then((m) => ({ default: m.ArtifactTool }));
+const ARTIFACT_TOOL_NAMES = new Set([
+  'mcp__agentrove__create_artifact',
+  'mcp__agentrove__update_artifact',
+]);
 
 const lazyToolComponents = new Map<string, ToolComponent>();
 
@@ -134,6 +140,10 @@ const getOrCreateLazy = (key: string, loader: ToolModuleLoader) => {
 export const getToolComponent = (toolName: string, agentKind?: AgentKind): ToolComponent => {
   if (toolName === 'mcp__agentrove__render_ui') {
     return getOrCreateLazy(toolName, renderUiLoader);
+  }
+
+  if (ARTIFACT_TOOL_NAMES.has(toolName)) {
+    return getOrCreateLazy('mcp__agentrove__artifact', artifactLoader);
   }
 
   // Same ACP kind names across agents, different rawInput/rawOutput — prefer agent-specific loaders.

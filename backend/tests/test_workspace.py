@@ -683,3 +683,29 @@ async def test_delete_workspace_rejects_missing_or_foreign_workspace(
 
     assert missing_response.status_code == 404
     assert foreign_response.status_code == 404
+
+
+async def test_disk_usage_measures_the_owners_workspaces(
+    client: AsyncClient,
+    create_user: UserFactory,
+    login: LoginClient,
+    workspace_sandbox: None,
+) -> None:
+    headers, workspace = await create_authenticated_workspace(
+        client, create_user, login
+    )
+    files = Path(workspace["workspace_path"])
+    files.mkdir(parents=True, exist_ok=True)
+    (files / "build.bin").write_bytes(b"x" * 256 * 1024)
+
+    response = await client.get(
+        "/api/v1/workspaces/disk-usage", params={"refresh": True}, headers=headers
+    )
+
+    assert response.status_code == 200
+    [usage] = response.json()
+    assert usage["workspace_id"] == workspace["id"]
+    assert usage["files_bytes"] >= 256 * 1024
+    # A host workspace has no sandbox layer of its own.
+    assert usage["sandbox_bytes"] is None
+    assert usage["total_bytes"] == usage["files_bytes"]

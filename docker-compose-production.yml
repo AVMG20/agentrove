@@ -72,6 +72,12 @@ services:
       # Without this, ProxyHeadersMiddleware ignores X-Forwarded-Proto and
       # SQLAdmin emits http:// asset URLs on an https:// page (unstyled admin).
       TRUSTED_PROXY_HOSTS: ${TRUSTED_PROXY_HOSTS:-*}
+      # Agent env for every user's sessions and terminals (e.g. a Claude proxy).
+      # Users can still override per key in Settings → Env Variables.
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
+      # Anything else, one KEY=VALUE per line.
+      AGENT_ENV: ${AGENT_ENV:-}
     networks:
       default:
         aliases:

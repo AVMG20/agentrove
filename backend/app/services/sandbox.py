@@ -6,7 +6,7 @@ import logging
 import zipfile
 from typing import Any, Callable
 
-from app.core.config import get_settings
+from app.core.config import agent_global_env, get_settings
 from app.models.types import CustomEnvVarDict
 from app.services.exceptions import SandboxException
 from app.services.sandbox_providers import (
@@ -39,7 +39,8 @@ class SandboxService:
         github_token: str | None,
         provider_type: SandboxProviderType | str,
     ) -> dict[str, str]:
-        envs: dict[str, str] = {}
+        # Deployment-wide agent env first; the user's own vars override per key.
+        envs: dict[str, str] = agent_global_env(settings)
         if custom_env_vars:
             for ev in custom_env_vars:
                 envs[ev["key"]] = ev["value"]
@@ -101,6 +102,7 @@ class SandboxService:
             on_data=on_data,
             on_exit=on_exit,
             user_id=user_id,
+            envs=self.env_vars,
         )
 
     async def send_pty_input(

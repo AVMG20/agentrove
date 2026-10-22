@@ -11,8 +11,10 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from sqlalchemy import text
 
 from app.api.docs import custom_openapi
+from app.api.mcp_artifacts import artifacts_mcp_app
 from app.api.endpoints import (
     ai_model,
+    artifacts,
     attachments,
     auth,
     automations,
@@ -20,10 +22,12 @@ from app.api.endpoints import (
     channels,
     github,
     sandbox,
+    usage,
     workspace,
 )
 from app.api.endpoints import settings as settings_router
 from app.api.endpoints import skills, websocket
+from app.constants import ARTIFACTS_MCP_PATH
 from app.core.config import get_settings
 from app.core.middleware import setup_middleware
 from app.db.session import SessionLocal, engine
@@ -102,6 +106,8 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
+    application.mount(f"{settings.API_V1_STR}{ARTIFACTS_MCP_PATH}", artifacts_mcp_app)
+
     try:
         application.mount("/static", StaticFiles(directory="static"), name="static")
     except RuntimeError as e:
@@ -168,6 +174,16 @@ def create_application() -> FastAPI:
         automations.router,
         prefix=f"{settings.API_V1_STR}/automations",
         tags=["Automations"],
+    )
+    application.include_router(
+        artifacts.router,
+        prefix=f"{settings.API_V1_STR}/artifacts",
+        tags=["Artifacts"],
+    )
+    application.include_router(
+        usage.router,
+        prefix=f"{settings.API_V1_STR}/usage",
+        tags=["Usage"],
     )
     application.openapi = partial(custom_openapi, application)
 

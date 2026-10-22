@@ -46,5 +46,7 @@ export const useUpdateSettingsMutation = createMutation<UserSettings, Error, Use
   (data) => settingsService.updateSettings(data),
   (queryClient, data) => {
     queryClient.setQueryData([queryKeys.settings], data);
+    // Env vars pick the Claude proxy (and token) the usage meter reports on.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.claudeUsage });
   },
 );

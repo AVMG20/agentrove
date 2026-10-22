@@ -1,11 +1,10 @@
-@use '@/styles/globals/colors' as colors;
 @use '@/styles/globals/typography' as type;
 @use '@/styles/globals/animations' as anim;
 @use '@/styles/globals/responsive' as responsive;
 
 .nav {
   display: none;
-  width: var(--space-72);
+  width: var(--space-64);
   flex-shrink: 0;
   flex-direction: column;
   border-right: 1px solid var(--theme-border);
@@ -46,7 +45,7 @@
 }
 
 .title {
-  @include type.type-body(600);
+  @include type.type-large(600);
   margin-top: var(--space-3);
   color: var(--theme-text-primary);
 }
@@ -62,25 +61,25 @@
 }
 
 .item {
-  @include type.type-default;
+  @include type.type-body;
   @include anim.transition-colors;
   display: flex;
   width: 100%;
   align-items: center;
   gap: var(--space-2-5);
-  border-radius: var(--radius-lg);
-  padding: var(--space-1-5) var(--space-2-5);
-  color: var(--theme-text-tertiary);
+  border-radius: var(--radius-md);
+  padding: var(--space-1-5) var(--space-2);
+  color: var(--theme-text-secondary);
 
   &:not([aria-selected='true']) {
     @include responsive.hover {
-      background-color: colors.theme-color('surface-hover', 0.5);
-      color: var(--theme-text-secondary);
+      background-color: var(--theme-surface-hover);
+      color: var(--theme-text-primary);
     }
   }
 
   &[aria-selected='true'] {
-    background-color: var(--theme-surface-hover);
+    background-color: var(--theme-surface-active);
     color: var(--theme-text-primary);
     font-weight: 500;
   }
@@ -88,18 +87,18 @@
 
 .item-icon {
   @include anim.transition-colors;
-  height: var(--space-3-5);
-  width: var(--space-3-5);
+  height: var(--space-4);
+  width: var(--space-4);
   flex-shrink: 0;
-  color: var(--theme-text-quaternary);
+  color: var(--theme-text-tertiary);
 
   .item[aria-selected='true'] & {
-    color: var(--theme-text-secondary);
+    color: var(--theme-text-primary);
   }
 }
 
 .footer {
   flex-shrink: 0;
-  border-top: 1px solid colors.theme-color('border', 0.5);
-  padding: var(--space-2-5) var(--space-4);
+  border-top: 1px solid var(--theme-border);
+  padding: var(--space-2-5) var(--space-3);
 }

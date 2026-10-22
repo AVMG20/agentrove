@@ -4,7 +4,6 @@ import { lazyNamed } from '@/utils/lazyNamed';
 import { useMountEffect } from '@/hooks/useMountEffect';
 import { useDesktopZoom } from '@/hooks/useDesktopZoom';
 import { useAppBadge } from '@/hooks/useAppBadge';
-import { Layout } from '@/components/layout/Layout/Layout';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useCloudSettingsStore } from '@/store/cloudSettingsStore';
@@ -21,6 +20,7 @@ import { usePageResumeRefresh } from '@/hooks/usePageResumeRefresh';
 import { authService } from '@/services/authService';
 import { toasterConfig } from '@/config/toaster';
 import { AuthRoute } from '@/components/routes/AuthRoute/AuthRoute';
+import { AppShellRoute } from '@/components/routes/AppShellRoute/AppShellRoute';
 import { setApiPort } from '@/lib/api';
 import { isTauri, invoke } from '@tauri-apps/api/core';
 import { isDesktopApp, isMobileApp } from '@/utils/platform';
@@ -52,6 +52,7 @@ const ResetPasswordPage = lazyNamed(
   'ResetPasswordPage',
 );
 const SettingsPage = lazyNamed(() => import('@/pages/SettingsPage/SettingsPage'), 'SettingsPage');
+const ArtifactPage = lazyNamed(() => import('@/pages/ArtifactPage/ArtifactPage'), 'ArtifactPage');
 
 function AppContent() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -101,6 +102,8 @@ function AppContent() {
           }
         />
         <Route path="/verify-email" element={<EmailVerificationPage />} />
+        {/* Outside the app shell and auth gate: public artifacts open signed out. */}
+        <Route path="/artifacts/:artifactId" element={<ArtifactPage />} />
         <Route
           path="/forgot-password"
           element={
@@ -117,54 +120,33 @@ function AppContent() {
             </AuthRoute>
           }
         />
-        <Route
-          path="/"
-          element={
-            showLoading ? (
-              <LoadingScreen />
-            ) : (
-              <Layout>
-                <LandingPage />
-              </Layout>
-            )
-          }
-        />
-        <Route
-          path="/chat/:chatId"
-          element={
-            <AuthRoute
-              isAuthenticated={isSessionAuthenticated}
-              requireAuth={true}
-              showLoading={showLoading}
-            >
-              <ChatPage />
-            </AuthRoute>
-          }
-        />
-        <Route
-          path="/channels/:channelId"
-          element={
-            <AuthRoute
-              isAuthenticated={isSessionAuthenticated}
-              requireAuth={true}
-              showLoading={showLoading}
-            >
-              <ChannelPage />
-            </AuthRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <AuthRoute
-              isAuthenticated={isSessionAuthenticated}
-              requireAuth={true}
-              showLoading={showLoading}
-            >
-              <SettingsPage />
-            </AuthRoute>
-          }
-        />
+        <Route element={<AppShellRoute showLoading={showLoading} />}>
+          <Route path="/" element={<LandingPage />} />
+          <Route
+            path="/chat/:chatId"
+            element={
+              <AuthRoute isAuthenticated={isSessionAuthenticated} requireAuth={true}>
+                <ChatPage />
+              </AuthRoute>
+            }
+          />
+          <Route
+            path="/channels/:channelId"
+            element={
+              <AuthRoute isAuthenticated={isSessionAuthenticated} requireAuth={true}>
+                <ChannelPage />
+              </AuthRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <AuthRoute isAuthenticated={isSessionAuthenticated} requireAuth={true}>
+                <SettingsPage />
+              </AuthRoute>
+            }
+          />
+        </Route>
       </Routes>
     </Suspense>
   );
@@ -221,7 +203,7 @@ export default function App() {
         theme === 'light' || theme === 'dark' || theme === 'system' ? null : PALETTES[theme];
       metaThemeColor.setAttribute(
         'content',
-        palette?.surface ?? (resolvedTheme === 'dark' ? '#111111' : '#f5f5f5'),
+        palette?.surface ?? (resolvedTheme === 'dark' ? '#0a0a0b' : '#ffffff'),
       );
     }
   }, [resolvedTheme, theme]);

@@ -10,6 +10,7 @@ from typing import Any, Literal
 
 from app.models.types import AgentKind
 from app.services.acp.session import AcpSession, AcpSessionConfig
+from app.services.background_monitor import BackgroundTaskMonitor
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,14 @@ class ChatSession:
     active_generation_task: asyncio.Task[Any] | None = None
     cancel_event: asyncio.Event = field(default_factory=asyncio.Event)
     last_used_at: float = field(default_factory=time.monotonic)
+    monitor: BackgroundTaskMonitor | None = None
+
+
+async def _start_followup(chat_id: str) -> None:
+    # Deferred: the runtime imports this registry.
+    from app.services.streaming.runtime import ChatStreamRuntime
+
+    await ChatStreamRuntime.start_followup(chat_id)
 
 
 # In-process ACP sessions by chat_id. Fingerprint changes (model/env/MCP/etc.) tear down and recreate.
@@ -74,11 +83,47 @@ class SessionRegistry:
                 # the next turn doesn't re-send the same config option.
                 current_fast_mode=config.fast_mode,
             )
+            session.monitor = BackgroundTaskMonitor(
+                chat_id=chat_id,
+                user_id=config.user_id,
+                acp_session=acp_session,
+                start_followup=_start_followup,
+            )
             self._sessions[chat_id] = session
 
         assert session is not None
         session.last_used_at = time.monotonic()
         return session, created
+
+    def get(self, chat_id: str) -> ChatSession | None:
+        session = self._sessions.get(chat_id)
+        if session is None or not session.acp_session.is_alive():
+            return None
+        return session
+
+    def background_tasks(self, chat_id: str) -> list[dict[str, Any]]:
+        session = self.get(chat_id)
+        if session is None or session.monitor is None:
+            return []
+        return session.monitor.snapshot()
+
+    def background_tasks_for_user(
+        self, user_id: str
+    ) -> dict[str, list[dict[str, Any]]]:
+        return {
+            chat_id: session.monitor.snapshot()
+            for chat_id, session in self._sessions.items()
+            if session.monitor is not None
+            and session.monitor.user_id == user_id
+            and session.acp_session.is_alive()
+            and session.monitor.tasks
+        }
+
+    async def stop_background_task(self, chat_id: str, task_id: str) -> bool:
+        session = self.get(chat_id)
+        if session is None or session.monitor is None:
+            return False
+        return await session.monitor.stop(task_id)
 
     async def cancel_generation(self, chat_id: str) -> None:
         self._pending_cancels[chat_id] = time.monotonic()
@@ -163,6 +208,9 @@ class SessionRegistry:
             task = session.active_generation_task
             if task is not None and not task.done():
                 continue
+            # Closing the agent would kill a build still running in the background.
+            if session.monitor is not None and session.monitor.has_running_shells():
+                continue
             if (now - session.last_used_at) >= ttl_seconds:
                 expired.append(chat_id)
 
@@ -186,7 +234,12 @@ class SessionRegistry:
                 for k, v in server.get("env", {}).items()
                 if k != "AGENTROVE_ACCESS_TOKEN"
             }
-            redacted.append({**server, "env": env})
+            headers = {
+                k: v
+                for k, v in server.get("headers", {}).items()
+                if k != "Authorization"
+            }
+            redacted.append({**server, "env": env, "headers": headers})
         return redacted
 
     @staticmethod
@@ -216,6 +269,8 @@ class SessionRegistry:
 
     @staticmethod
     async def _close_session(session: ChatSession) -> None:
+        if session.monitor is not None:
+            session.monitor.close()
         task = session.active_generation_task
         if task is not None and not task.done():
             task.cancel()

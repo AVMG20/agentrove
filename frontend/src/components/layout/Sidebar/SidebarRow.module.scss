@@ -11,9 +11,9 @@
   margin-inline: calc(var(--space-2) * -1);
   align-items: center;
   gap: var(--space-2);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding-inline: var(--space-2);
-  padding-block: 7px;
+  padding-block: var(--space-1-5);
   color: var(--theme-text-secondary);
 
   // Dark mode rests one step dimmer than light for inactive rows
@@ -24,7 +24,7 @@
   // Only inactive rows respond to hover — active rows keep a fixed fill/color
   &:not(:global(.#{state.$state-active})) {
     @include responsive.hover {
-      background-color: colors.theme-color('surface-hover', 0.5);
+      background-color: var(--theme-surface-hover);
       color: var(--theme-text-primary);
 
       :global([data-theme='dark']) & {
@@ -34,7 +34,7 @@
   }
 
   &:global(.#{state.$state-active}) {
-    background-color: colors.theme-color('surface-hover', 0.5);
+    background-color: var(--theme-surface-active);
     color: var(--theme-text-primary);
   }
 }
@@ -57,6 +57,7 @@
 }
 
 .title-btn {
+  @include type.type-body;
   // flex-1 keeps the whole row width as the open-chat hit target, not just the text
   display: flex;
   min-width: 0;
@@ -64,8 +65,6 @@
   align-items: center;
   gap: var(--space-1-5);
   text-align: left;
-  // TODO(refactor): no 13px type token exists — sidebar rows use a one-off text-[13px]
-  font-size: 16px;
 }
 
 .title-text {
@@ -74,6 +73,10 @@
 
   &--emphasis {
     font-weight: 500;
+  }
+
+  &--working {
+    @include anim.text-shimmer;
   }
 }
 

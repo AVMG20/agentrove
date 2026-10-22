@@ -12,10 +12,10 @@ export const toasterConfig: ToasterProps = {
   toastOptions: {
     className: '',
     style: {
-      padding: '12px 16px',
-      fontSize: '17px',
+      padding: '10px 14px',
+      fontSize: '14px',
       fontFamily: 'inherit',
-      maxWidth: '420px',
+      maxWidth: '380px',
     },
     duration: 4000,
     success: {

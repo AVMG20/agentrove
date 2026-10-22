@@ -218,12 +218,12 @@
 }
 
 .search-input {
-  @include type.type-meta;
+  @include type.type-default;
   @include anim.transition-colors;
-  height: var(--space-7);
+  height: var(--space-8);
   width: 100%;
   border: 1px solid var(--theme-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background-color: var(--theme-surface-tertiary);
   padding: var(--space-1) var(--space-7);
   color: var(--theme-text-primary);
@@ -271,8 +271,8 @@
 }
 
 .search-underline-input {
-  @include type.type-meta;
-  height: var(--space-6);
+  @include type.type-default;
+  height: var(--space-7);
   width: 100%;
   border: none;
   background: transparent;
@@ -368,7 +368,7 @@
 }
 
 .item-label {
-  @include type.type-meta(500);
+  @include type.type-default;
   @include type.type-overflow;
   display: block;
   color: var(--theme-text-secondary);

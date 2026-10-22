@@ -100,11 +100,29 @@ export interface Chat {
   last_persona_name: string | null;
 }
 
+// Work that keeps running past its tool call: a background shell, or a subagent.
+export interface BackgroundTask {
+  id: string;
+  kind: 'shell' | 'agent';
+  title: string;
+  tool_id: string;
+  // Unix seconds.
+  started_at: number;
+  // Shells stop on their own; a subagent only stops with its turn.
+  stoppable: boolean;
+}
+
+export interface ChatBackgroundTasks {
+  chat_id: string;
+  tasks: BackgroundTask[];
+}
+
 // /chat/chats/events SSE — useChatEvents (local) / useCloudChatEvents (VPS).
 export type ChatEvent =
   | { kind: 'chat_created'; chat: Chat }
   | { kind: 'stream_started'; chat_id: string; message_id: string }
-  | { kind: 'title_updated'; chat_id: string; title: string };
+  | { kind: 'title_updated'; chat_id: string; title: string }
+  | { kind: 'background_tasks'; chat_id: string; tasks: BackgroundTask[] };
 
 export interface ChatRequest {
   prompt: string;

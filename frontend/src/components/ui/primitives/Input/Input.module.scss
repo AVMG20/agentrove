@@ -2,7 +2,7 @@
 
 .input {
   @include controls.input-base;
-  height: var(--space-10);
+  height: var(--space-9);
 
   &--error {
     @include controls.input-error;

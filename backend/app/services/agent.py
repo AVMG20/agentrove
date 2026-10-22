@@ -11,8 +11,8 @@ from uuid import UUID
 from sqlalchemy import update
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.config import get_settings
-from app.core.security import create_mcp_access_token
+from app.core.config import agent_global_env, get_settings
+from app.core.security import create_artifact_agent_token, create_mcp_access_token
 from app.db.session import SessionLocal
 from app.models.db_models.chat import Chat
 from app.models.db_models.user import User, UserSettings
@@ -36,7 +36,7 @@ from app.services.acp.adapters import (
 from app.services.acp.client import AcpClientHandler
 from app.services.acp.session import AcpSession, AcpSessionConfig
 from app.services.exceptions import AgentException, ChatException, ErrorCode
-from app.constants import MODELS
+from app.constants import ARTIFACTS_MCP_CHAT_HEADER, ARTIFACTS_MCP_PATH, MODELS
 from app.services.git import GitService
 from app.services.sandbox import SandboxService
 from app.services.sandbox_providers import SandboxProviderType
@@ -49,6 +49,9 @@ logger = logging.getLogger(__name__)
 
 # MCP server ships next to the backend (bundled into the sidecar by run_build.mjs),
 # so its path derives from this file: app/services/agent.py -> ../../mcp-server/server.py
+# A follow-up cycle that goes quiet this long without its result is abandoned.
+FOLLOWUP_IDLE_TIMEOUT_SECONDS = 900.0
+
 MCP_SERVER_PATH = Path(__file__).resolve().parents[2] / "mcp-server" / "server.py"
 BROWSER_MCP_CLOUD_PATH = Path(__file__).resolve().parents[1] / "browser_mcp_cloud.py"
 BROWSER_USE_PYTHON_PATH = (
@@ -211,6 +214,31 @@ class AgentService:
         except BaseException:
             await self._cancel_prompt_task(prompt_task)
             raise
+
+    async def stream_followup(
+        self,
+        session: AcpSession,
+        result: StreamResult,
+    ) -> AsyncIterator[StreamEvent]:
+        # The handler queues the cycle's output and a sentinel at its result.
+        handler = session.handler
+        try:
+            while True:
+                try:
+                    item = await asyncio.wait_for(
+                        handler.event_queue.get(),
+                        timeout=FOLLOWUP_IDLE_TIMEOUT_SECONDS,
+                    )
+                except TimeoutError:
+                    break
+                if AcpClientHandler.is_sentinel(item):
+                    break
+                yield cast(StreamEvent, item)
+            result.total_cost_usd = handler.total_cost_usd
+            result.usage = handler.usage
+        finally:
+            if handler.followup_active and not handler.prompt_active:
+                handler.finish(prompt_completed=False)
 
     @staticmethod
     async def _consume_events(
@@ -480,7 +508,41 @@ class AgentService:
         current_chat_id: str | None,
     ) -> list[dict[str, Any]]:
         servers: list[dict[str, Any]] = []
-        if settings.AGENTROVE_MCP_ENABLED and agentrove_mcp:
+        full_mcp = settings.AGENTROVE_MCP_ENABLED and agentrove_mcp
+        # With the full server off, chat agents still get one exposing only the
+        # artifact tools, holding a token the artifacts API alone accepts. Host
+        # sessions only: the sandbox image doesn't ship the server script.
+        artifacts_only = (
+            not full_mcp
+            and agentrove_mcp
+            and chat_id is not None
+            and settings.AGENTROVE_ARTIFACTS_ENABLED
+            and sandbox_provider is SandboxProviderType.HOST
+        )
+        # A Docker sandbox can't run the stdio server, so its agents reach the
+        # artifact tools over HTTP at the public URL instead.
+        artifacts_over_http = (
+            not full_mcp
+            and agentrove_mcp
+            and chat_id is not None
+            and settings.AGENTROVE_ARTIFACTS_ENABLED
+            and sandbox_provider is SandboxProviderType.DOCKER
+        )
+        if artifacts_over_http:
+            headers = {
+                "Authorization": f"Bearer {create_artifact_agent_token(user_id)}"
+            }
+            if current_chat_id:
+                headers[ARTIFACTS_MCP_CHAT_HEADER] = current_chat_id
+            servers.append(
+                {
+                    "name": "agentrove",
+                    "type": "http",
+                    "url": f"{settings.BASE_URL}{settings.API_V1_STR}{ARTIFACTS_MCP_PATH}/",
+                    "headers": headers,
+                }
+            )
+        if full_mcp or artifacts_only:
             if sandbox_provider is SandboxProviderType.HOST:
                 # Host-provider agents share this process's network namespace, but the
                 # public BASE_URL is often unreachable from inside the deployment
@@ -495,8 +557,16 @@ class AgentService:
                 api_base = settings.BASE_URL
             env = {
                 "AGENTROVE_API_URL": f"{api_base}{settings.API_V1_STR}",
-                "AGENTROVE_ACCESS_TOKEN": create_mcp_access_token(user_id),
+                "AGENTROVE_ACCESS_TOKEN": (
+                    create_mcp_access_token(user_id)
+                    if full_mcp
+                    else create_artifact_agent_token(user_id)
+                ),
+                # Public origin for the artifact links the agent shares.
+                "AGENTROVE_APP_URL": settings.FRONTEND_URL,
             }
+            if artifacts_only:
+                env["AGENTROVE_MCP_TOOLSET"] = "artifacts"
             # The chat this session runs in — lets the agent create sub-threads under it
             if current_chat_id:
                 env["AGENTROVE_CURRENT_CHAT_ID"] = current_chat_id
@@ -565,6 +635,9 @@ class AgentService:
             env["GIT_COMMITTER_NAME"] = settings.GIT_AUTHOR_NAME
             env["GIT_COMMITTER_EMAIL"] = settings.GIT_AUTHOR_EMAIL
 
+        # Deployment-wide agent env (e.g. a Claude proxy), then the user's own
+        # env vars on top so they can override it per key.
+        env.update(agent_global_env(settings))
         env.update(self._build_custom_env(user_settings))
 
         adapter = AGENT_ADAPTERS[agent_kind]

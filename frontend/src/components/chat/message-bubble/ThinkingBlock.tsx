@@ -54,7 +54,12 @@ export const ThinkingBlock = memo(function ThinkingBlock({
         className={styles['thinking-toggle']}
       >
         <Brain className={styles['thinking-icon']} />
-        <span className={styles['thinking-label']}>
+        <span
+          className={clsx(
+            styles['thinking-label'],
+            isActiveThinking && styles['thinking-label--active'],
+          )}
+        >
           {isActiveThinking ? 'Thinking' : 'Thought process'}
         </span>
         {isActiveThinking && (

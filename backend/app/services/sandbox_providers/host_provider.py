@@ -220,6 +220,7 @@ class LocalHostProvider(SandboxProvider):
         on_data: PtyDataCallbackType,
         on_exit: PtyExitCallbackType,
         user_id: str = "",
+        envs: dict[str, str] | None = None,
     ) -> str:
         # tmux for reconnect persistence; default shell if missing.
         session_id = str(uuid.uuid4())
@@ -242,9 +243,12 @@ class LocalHostProvider(SandboxProvider):
             Path(host_home).mkdir(parents=True, exist_ok=True)
             env["HOME"] = host_home
             session_env["HOME"] = host_home
+        env.update(envs or {})
         env["TERM"] = TERMINAL_TYPE
         shell = env.get("SHELL", "/bin/bash")
-        cmd = self.build_pty_shell_command(tmux_session, shell, session_env)
+        cmd = self.build_pty_shell_command(
+            tmux_session, shell, session_env, inherit_env_names=list(envs or {})
+        )
         process = await asyncio.to_thread(
             subprocess.Popen,
             ["bash", "-lc", cmd],

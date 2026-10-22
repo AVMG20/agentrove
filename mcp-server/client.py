@@ -251,3 +251,26 @@ class AgentroveClient:
     async def run_automation(self, automation_id: str) -> dict[str, Any]:
         resp = await self.request("POST", f"/automations/{automation_id}/run")
         return resp.json()
+
+    async def list_artifacts(self) -> list[dict[str, Any]]:
+        resp = await self.request("GET", "/artifacts")
+        return resp.json()
+
+    async def get_artifact(self, artifact_id: str) -> dict[str, Any]:
+        resp = await self.request("GET", f"/artifacts/{artifact_id}")
+        return resp.json()
+
+    async def create_artifact(
+        self, title: str, html: str, chat_id: str | None = None
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"title": title, "html": html}
+        if chat_id:
+            body["chat_id"] = chat_id
+        resp = await self.request("POST", "/artifacts", json=body, expected=(201,))
+        return resp.json()
+
+    async def update_artifact(
+        self, artifact_id: str, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        resp = await self.request("PATCH", f"/artifacts/{artifact_id}", json=body)
+        return resp.json()

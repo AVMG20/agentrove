@@ -4,6 +4,8 @@ import asyncio
 import json
 import logging
 import re
+import time
+from collections.abc import Callable
 from typing import Any, Literal, cast
 
 from acp.connection import StreamDirection
@@ -40,6 +42,11 @@ from acp.schema import (
 
 from app.models.types import AgentKind, PermissionMode
 from app.models.db_models.enums import ToolStatus
+from app.services.acp.background import (
+    BackgroundTask,
+    background_launch,
+    foreground_agent,
+)
 from app.services.streaming.types import StreamEvent, StreamEventType, ToolPayload
 
 logger = logging.getLogger(__name__)
@@ -92,6 +99,16 @@ PERMISSION_MODE_BY_OPTION_NAME: dict[str, PermissionMode] = {
 # tool with "missing field `outcome`".
 GROK_ASK_USER_QUESTION_METHOD = "x.ai/ask_user_question"
 
+# Result origins claude-agent-acp stamps on the usage_update that ends a model
+# cycle Claude Code ran on its own, e.g. after a background shell finished.
+_AUTONOMOUS_ORIGINS = frozenset(
+    {"task-notification", "peer", "coordinator", "observer", "observer-activity"}
+)
+# Updates that show the agent producing output, as opposed to bookkeeping.
+_OUTPUT_EVENT_TYPES = frozenset(
+    {"assistant_text", "assistant_thinking", "tool_started", "tool_completed"}
+)
+
 # OpenCode v2 renamed these tools; older sessions replay the v1 names.
 _OPENCODE_TOOL_ALIASES = {"bash": "shell", "task": "subagent", "apply_patch": "patch"}
 
@@ -124,6 +141,16 @@ class AcpClientHandler:
         self.usage: dict[str, int] | None = None
         # Suppress replayed history events during load_session.
         self.muted: bool = False
+        # A prompt's turn is streaming; output outside one is Claude Code
+        # following up on its own (a background task finished).
+        self.prompt_active: bool = False
+        self.followup_active: bool = False
+        self.on_unprompted_output: Callable[[], None] | None = None
+        # Work that keeps running past its tool call: background shells and
+        # subagents, keyed by Claude Code's task id.
+        self.background_tasks: dict[str, BackgroundTask] = {}
+        self.on_background_tasks_changed: Callable[[], None] | None = None
+        self._tool_started_at: dict[str, float] = {}
 
     def on_connect(self, conn: Any) -> None:
         pass
@@ -187,6 +214,13 @@ class AcpClientHandler:
             self._active_tools.clear()
         self._resolved_permissions.clear()
         self._permission_option_modes.clear()
+        self._tool_started_at.clear()
+        self.prompt_active = False
+        self.followup_active = False
+        # Subagents settle before the adapter ends their turn; shells live on.
+        self._drop_background_tasks(
+            [t.id for t in self.background_tasks.values() if not t.outlives_turn]
+        )
         # Unanswered client prompts must not outlive the turn.
         self.dismiss_pending_permissions()
         self.dismiss_pending_elicitations()
@@ -242,7 +276,76 @@ class AcpClientHandler:
                 data = event.get("data")
                 if isinstance(data, dict):
                     data.setdefault("session_id", session_id)
+            tool = event.get("tool")
+            if tool is not None:
+                self._track_background_work(tool)
+            if (
+                not self.prompt_active
+                and not self.followup_active
+                and event.get("type") in _OUTPUT_EVENT_TYPES
+            ):
+                # Claude Code woke up without a prompt; whoever owns the
+                # session streams this cycle as its own assistant message.
+                self.followup_active = True
+                if self.on_unprompted_output is not None:
+                    self.on_unprompted_output()
             self.event_queue.put_nowait(event)
+        if (
+            self.followup_active
+            and not self.prompt_active
+            and self._ends_autonomous_cycle(update)
+        ):
+            self.finish(prompt_completed=True)
+
+    @staticmethod
+    def _ends_autonomous_cycle(update: Any) -> bool:
+        if not isinstance(update, UsageUpdate):
+            return False
+        meta = getattr(update, "field_meta", None) or {}
+        origin = meta.get("_claude/origin")
+        return isinstance(origin, dict) and origin.get("kind") in _AUTONOMOUS_ORIGINS
+
+    def _add_background_task(self, task: BackgroundTask) -> None:
+        self.background_tasks[task.id] = task
+        if self.on_background_tasks_changed is not None:
+            self.on_background_tasks_changed()
+
+    def _drop_background_tasks(self, task_ids: list[str]) -> None:
+        removed = [
+            task_id
+            for task_id in task_ids
+            if self.background_tasks.pop(task_id, None) is not None
+        ]
+        if removed and self.on_background_tasks_changed is not None:
+            self.on_background_tasks_changed()
+
+    def background_tasks_ended(self, task_ids: list[str]) -> None:
+        self._drop_background_tasks(task_ids)
+
+    def _track_background_work(self, payload: ToolPayload) -> None:
+        tool_id = payload.get("id", "")
+        name = payload.get("name", "")
+        status = payload.get("status")
+        started_at = self._tool_started_at.get(tool_id, time.time())
+        if status == ToolStatus.STARTED.value:
+            self._tool_started_at.setdefault(tool_id, started_at)
+            if payload.get("parent_id"):
+                return
+            agent = foreground_agent(name, tool_id, payload.get("input"), started_at)
+            known = self.background_tasks.get(tool_id)
+            # Re-sent starts carry the input (and so the title) later.
+            if agent is not None and (known is None or known.title != agent.title):
+                self._add_background_task(agent)
+            return
+        self._tool_started_at.pop(tool_id, None)
+        self._drop_background_tasks([tool_id])
+        if status != ToolStatus.COMPLETED.value:
+            return
+        launched = background_launch(
+            name, tool_id, payload.get("input"), payload.get("result"), started_at
+        )
+        if launched is not None:
+            self._add_background_task(launched)
 
     async def request_permission(
         self,

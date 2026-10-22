@@ -1,4 +1,4 @@
-import { type ReactNode, createContext, use, useEffect } from 'react';
+import { type ReactNode, createContext, use, useLayoutEffect } from 'react';
 
 export interface LayoutContextValue {
   sidebar: ReactNode | null;
@@ -18,7 +18,9 @@ export function useLayoutContext() {
 export function useLayoutSidebar(sidebar: ReactNode | null) {
   const { setSidebar } = useLayoutContext();
 
-  useEffect(() => {
+  // Layout effect: the outgoing page's cleanup and the incoming page's set land in
+  // the same commit, so no frame ever paints the shell without its sidebar.
+  useLayoutEffect(() => {
     setSidebar(sidebar);
     return () => {
       setSidebar(null);

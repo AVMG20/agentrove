@@ -24,7 +24,14 @@ export interface ChatRowProps {
   onToggleSubThreads: (chatId: string) => void;
 }
 
-export function SidebarChatRow({ chat, rowProps }: { chat: Chat; rowProps: ChatRowProps }) {
+interface SidebarChatRowProps {
+  chat: Chat;
+  rowProps: ChatRowProps;
+  // Inside a workspace folder the subtitle would repeat the folder name
+  hideWorkspace?: boolean;
+}
+
+export function SidebarChatRow({ chat, rowProps, hideWorkspace = false }: SidebarChatRowProps) {
   const {
     selectedChatId,
     splitChatIds,
@@ -57,7 +64,7 @@ export function SidebarChatRow({ chat, rowProps }: { chat: Chat; rowProps: ChatR
         isChatStreaming={streamingChatIdSet.has(chat.id)}
         isChatBlocked={blockedChatIdSet.has(chat.id)}
         isChatCompleted={completedChatIdSet.has(chat.id)}
-        workspaceBadge={workspaceBadgeById.get(chat.workspace_id)}
+        workspaceBadge={hideWorkspace ? undefined : workspaceBadgeById.get(chat.workspace_id)}
         onSelect={onChatSelect}
         onOpenInSplit={onOpenInSplit}
         canOpenInSplit={canOpenChatInSplit(chat.id)}

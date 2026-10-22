@@ -6,8 +6,8 @@ import { CUSTOM_PALETTE_TOKENS, DARK_PALETTES } from '@/utils/theme';
 // xterm paints its own canvas, so it can't read surface-secondary CSS vars.
 // Light/dark shades mirrored from globals.css; custom palettes use shared tokens.
 const BASE_SURFACE = {
-  light: { background: '#f9f9f9', foreground: '#27272a' },
-  dark: { background: '#141414', foreground: '#e4e4e7' },
+  light: { background: '#fafafa', foreground: '#27272a' },
+  dark: { background: '#121214', foreground: '#e4e4e7' },
 } as const;
 
 function paletteSurface(palette: Palette): { background: string; foreground: string } {

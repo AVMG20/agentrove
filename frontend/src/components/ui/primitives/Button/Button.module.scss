@@ -3,7 +3,7 @@
 
 .button {
   @include controls.button-base;
-  @include controls.focus-ring($offset: 2px);
+  @include controls.focus-ring;
 
   &--sm {
     @include controls.button-size('sm');

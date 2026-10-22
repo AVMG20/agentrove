@@ -25,17 +25,13 @@
   display: inline-block;
   max-width: 100%;
   overflow: hidden;
-  border-radius: var(--radius-xl);
-  padding: var(--space-1-5) var(--space-3);
-  background-color: colors.theme-color('surface-hover', 0.6);
-
-  :global([data-theme='dark']) & {
-    background-color: colors.theme-color('surface-tertiary', 0.8);
-  }
+  border-radius: var(--radius-2xl);
+  padding: var(--space-2) var(--space-3-5);
+  background-color: var(--theme-surface-tertiary);
 }
 
 .message-text {
-  @include type.type-body;
+  @include type.type-prose;
   max-width: none;
   overflow-wrap: break-word;
   color: var(--theme-text-primary);

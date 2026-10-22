@@ -51,6 +51,15 @@ class Workspace(BaseModel):
     last_chat_at: datetime | None = None
 
 
+class WorkspaceDiskUsage(BaseModel):
+    workspace_id: UUID
+    # The workspace's files on disk; null when they couldn't be measured.
+    files_bytes: int | None
+    # What a Docker sandbox wrote outside the workspace (toolchains, caches).
+    sandbox_bytes: int | None
+    total_bytes: int | None
+
+
 class WorkspaceResources(BaseModel):
     skills: list[CustomSkill] = Field(default_factory=list)
     builtin_slash_commands: dict[str, list[BuiltinSlashCommand]] = Field(

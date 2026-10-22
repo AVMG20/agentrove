@@ -1,11 +1,16 @@
+@use '@/styles/globals/colors' as colors;
 @use '@/styles/globals/animations' as anim;
 @use '@/styles/globals/responsive' as responsive;
 
 .send-button {
   @include anim.transition-colors;
-  padding: var(--space-1-5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--space-8);
+  width: var(--space-8);
   border-radius: var(--radius-full);
-  transform: scale(0.9);
+  transform: scale(0.94);
 
   &:active {
     transform: scale(0.95);
@@ -22,14 +27,15 @@
 
   &--primary {
     background-color: var(--theme-text-primary);
+    box-shadow: var(--shadow-xs);
 
     @include responsive.hover {
-      background-color: var(--theme-text-secondary);
+      background-color: colors.theme-color('text-primary', 0.85);
     }
   }
 
   &--idle {
-    background-color: var(--theme-surface-tertiary);
+    background-color: var(--theme-surface-active);
   }
 }
 
@@ -48,10 +54,10 @@
 }
 
 .icon-send {
-  height: var(--space-3-5);
-  width: var(--space-3-5);
+  height: var(--space-4);
+  width: var(--space-4);
   transition: transform var(--duration-base);
-  color: var(--theme-text-quaternary);
+  color: var(--theme-text-tertiary);
 
   &--active {
     color: var(--theme-text-inverse);

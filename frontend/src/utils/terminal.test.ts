@@ -13,7 +13,7 @@ describe('buildTerminalTheme', () => {
   it('uses the light base surface and light-mode accents for light', () => {
     const theme = buildTerminalTheme('light');
     expect(theme).toMatchObject({
-      background: '#f9f9f9',
+      background: '#fafafa',
       foreground: '#27272a',
       cursor: '#27272a',
       cursorAccent: '#ffffff',
@@ -28,7 +28,7 @@ describe('buildTerminalTheme', () => {
   it('uses the dark base surface and dark-mode accents for dark', () => {
     const theme = buildTerminalTheme('dark');
     expect(theme).toMatchObject({
-      background: '#141414',
+      background: '#121214',
       foreground: '#e4e4e7',
       cursorAccent: '#0a0a0a',
       selectionBackground: 'rgba(255, 255, 255, 0.2)',

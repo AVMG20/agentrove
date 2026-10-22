@@ -24,6 +24,19 @@ settings = get_settings()
 GIT_LS_FILES_CMD = "git ls-files --cached --others --exclude-standard -z"
 
 
+# tmux's built-in update-environment list, re-stated so overriding it keeps them.
+TMUX_DEFAULT_UPDATE_ENV = (
+    "DISPLAY",
+    "KRB5CCNAME",
+    "SSH_ASKPASS",
+    "SSH_AUTH_SOCK",
+    "SSH_AGENT_PID",
+    "SSH_CONNECTION",
+    "WINDOWID",
+    "XAUTHORITY",
+)
+
+
 class SandboxProvider:
     _pty_sessions: dict[str, dict[str, Any]]
 
@@ -137,9 +150,11 @@ class SandboxProvider:
         on_data: PtyDataCallbackType,
         on_exit: PtyExitCallbackType,
         user_id: str = "",
+        envs: dict[str, str] | None = None,
     ) -> str:
         # cwd workspace-relative ("" = default). on_exit is natural exit only, not kill_pty.
         # user_id keys per-user agent HOME in web host mode (unused by Docker).
+        # envs: the user's sandbox env (tokens, custom/global agent vars).
         raise NotImplementedError
 
     @staticmethod
@@ -147,6 +162,7 @@ class SandboxProvider:
         tmux_session: str,
         fallback_shell: str,
         session_env: dict[str, str] | None = None,
+        inherit_env_names: list[str] | None = None,
     ) -> str:
         # Shared tmux launch for every provider's PTY, falling back to a bare
         # shell when tmux isn't installed. session_env entries are passed with
@@ -167,13 +183,25 @@ class SandboxProvider:
         # forwards mouse-mode requests from inner TUIs. set-clipboard plus the
         # Ms override forward inner-app/copy-mode copies as OSC 52 to the
         # frontend clipboard addon.
+        # inherit_env_names: vars the client process already carries (secrets
+        # like ANTHROPIC_AUTH_TOKEN) — tmux copies them into the session via
+        # update-environment by name, so values never land in argv / `ps`.
         env_flags = "".join(
             f" -e {shlex.quote(key + '=' + value)}"
             for key, value in (session_env or {}).items()
         )
+        # Assigned (not appended) with tmux's defaults kept, so reopening
+        # terminals doesn't grow the server-wide list.
+        inherit = ""
+        if inherit_env_names:
+            names = shlex.quote(
+                " ".join([*TMUX_DEFAULT_UPDATE_ENV, *inherit_env_names])
+            )
+            inherit = f" \\; set -g update-environment {names}"
         return (
             "command -v tmux >/dev/null && "
             "tmux set -g history-limit 10000"
+            f"{inherit}"
             " \\; set -as terminal-overrides ',xterm-256color:smcup@:rmcup@:indn@'"
             f" \\; new -A{env_flags} -s {shlex.quote(tmux_session)}"
             " \\; set -g status off"

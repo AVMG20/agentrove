@@ -70,6 +70,8 @@ interface SidebarRowTitleProps {
   label: string;
   isEmphasized: boolean;
   isCurrent: boolean;
+  // An agent turn is running in this thread.
+  isWorking?: boolean;
   onClick: (e: MouseEvent<HTMLButtonElement>) => void;
   trailing?: ReactNode;
 }
@@ -78,6 +80,7 @@ export function SidebarRowTitle({
   label,
   isEmphasized,
   isCurrent,
+  isWorking = false,
   onClick,
   trailing,
 }: SidebarRowTitleProps) {
@@ -88,7 +91,13 @@ export function SidebarRowTitle({
       variant="unstyled"
       className={styles['title-btn']}
     >
-      <span className={clsx(styles['title-text'], isEmphasized && styles['title-text--emphasis'])}>
+      <span
+        className={clsx(
+          styles['title-text'],
+          isEmphasized && styles['title-text--emphasis'],
+          isWorking && styles['title-text--working'],
+        )}
+      >
         {label}
       </span>
       {trailing}

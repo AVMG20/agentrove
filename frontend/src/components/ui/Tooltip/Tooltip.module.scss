@@ -7,19 +7,17 @@
 }
 
 .bubble {
-  @include type.type-default(500);
+  @include type.type-meta(500);
   @include z.z('tooltip');
   pointer-events: none;
   position: absolute;
   white-space: nowrap;
-  // TODO(refactor): bare "rounded" (4px) has no exact token; radius-sm is closest
-  border-radius: var(--radius-sm);
-  background-color: var(--theme-surface-tertiary);
-  padding: var(--space-1) var(--space-2);
-  color: var(--theme-text-primary);
+  border-radius: var(--radius-md);
+  background-color: var(--theme-surface-inverse);
+  padding: var(--space-1-5) var(--space-2-5);
+  color: var(--theme-text-inverse);
   opacity: 0;
-  // TODO(refactor): shadow-lg had no token, using medium
-  box-shadow: var(--shadow-medium);
+  box-shadow: var(--shadow-sm);
   transition: opacity var(--duration-fast);
 
   // group-hover/tooltip reveal — plain :hover is fine for this pure CSS reveal
@@ -73,33 +71,33 @@
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    border-top-color: var(--theme-surface-tertiary);
+    border-top-color: var(--theme-surface-inverse);
   }
 
   &--right {
     right: 100%;
     top: 50%;
     transform: translateY(-50%);
-    border-right-color: var(--theme-surface-tertiary);
+    border-right-color: var(--theme-surface-inverse);
   }
 
   &--bottom {
     bottom: 100%;
     left: 50%;
     transform: translateX(-50%);
-    border-bottom-color: var(--theme-surface-tertiary);
+    border-bottom-color: var(--theme-surface-inverse);
   }
 
   &--bottom-end {
     bottom: 100%;
     right: var(--space-2);
-    border-bottom-color: var(--theme-surface-tertiary);
+    border-bottom-color: var(--theme-surface-inverse);
   }
 
   &--left {
     left: 100%;
     top: 50%;
     transform: translateY(-50%);
-    border-left-color: var(--theme-surface-tertiary);
+    border-left-color: var(--theme-surface-inverse);
   }
 }

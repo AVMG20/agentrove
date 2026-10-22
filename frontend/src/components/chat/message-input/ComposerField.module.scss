@@ -1,3 +1,4 @@
+@use '@/styles/globals/colors' as colors;
 @use '@/styles/globals/responsive' as responsive;
 @use '@/styles/globals/state-classes' as state;
 
@@ -14,8 +15,22 @@
   position: relative;
   border: 1px solid var(--theme-border);
   border-radius: var(--radius-2xl);
-  background-color: var(--theme-surface-secondary);
-  transition: border-color var(--duration-slow);
+  background-color: var(--theme-surface);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--duration-base),
+    box-shadow var(--duration-base);
+
+  :global([data-theme='dark']) & {
+    background-color: var(--theme-surface-secondary);
+  }
+
+  &:focus-within {
+    border-color: var(--theme-border-secondary);
+    box-shadow:
+      var(--shadow-sm),
+      0 0 0 3px colors.theme-color('text-quaternary', 0.12);
+  }
 
   &:global(.#{state.$state-dragging}) {
     border-color: var(--theme-border-hover);
@@ -25,7 +40,7 @@
 
 .textarea-wrap {
   position: relative;
-  padding: var(--space-2-5) var(--space-4) 0;
+  padding: var(--space-3) var(--space-4) 0;
 }
 
 .actions {
@@ -33,5 +48,5 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-0-5);
-  padding: var(--space-0-5) var(--space-2) var(--space-2);
+  padding: var(--space-1) var(--space-2-5) var(--space-2-5);
 }

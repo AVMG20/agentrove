@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -77,3 +78,15 @@ class GenerateCommitMessageRequest(BaseModel):
 
 class GenerateCommitMessageResponse(BaseModel):
     message: str
+
+
+class GitHubActivityEvent(BaseModel):
+    # One new item in a watched repo, as handed to a GitHub-triggered automation.
+    event: str
+    repo: str
+    number: int | None = None
+    title: str
+    url: str
+    author: str
+    body: str | None = None
+    created_at: datetime

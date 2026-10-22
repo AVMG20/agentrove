@@ -157,6 +157,7 @@ class FakeSandboxProvider(SandboxProvider):
         on_data: PtyDataCallbackType,
         on_exit: PtyExitCallbackType,
         user_id: str = "",
+        envs: dict[str, str] | None = None,
     ) -> str:
         return "pty-1"
 

@@ -5,7 +5,8 @@
 .scroll {
   flex: 1;
   overflow-y: auto;
-  padding-inline: var(--space-6);
+  padding-inline: var(--space-5);
+  padding-bottom: var(--space-3);
 }
 
 .empty {
@@ -19,14 +20,11 @@
   margin-bottom: var(--space-1);
 }
 
-.section-header {
-  padding-top: var(--space-2-5);
-  padding-bottom: var(--space-2);
-}
-
-.section-title {
-  @include type.type-meta;
-  color: var(--theme-text-quaternary);
+// Rows are 1px apart so adjacent hover/active fills don't fuse into one block
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .group-label {

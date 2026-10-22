@@ -6,6 +6,7 @@ import { markCloudChats, markCloudSandboxes } from '@/utils/chatOrigin';
 import { useCloudSettingsStore } from '@/store/cloudSettingsStore';
 import { useUIStore } from '@/store/uiStore';
 import { useStreamStore } from '@/store/streamStore';
+import { useBackgroundTasksStore } from '@/store/backgroundTasksStore';
 import { queryKeys } from '@/hooks/queries/queryKeys';
 import { subscribeChatEventsFeed } from '@/utils/chatEventsFeed';
 import { resyncActiveStreams } from '@/utils/activeStreams';
@@ -67,6 +68,12 @@ export function useCloudChatEvents(options?: { enabled?: boolean }) {
           title: parsed.title,
         }));
         void queryClient.invalidateQueries({ queryKey: queryKeys.cloudChatsAll });
+        return;
+      }
+
+      if (parsed.kind === 'background_tasks') {
+        markCloudChats([parsed.chat_id]);
+        useBackgroundTasksStore.getState().setChatTasks(parsed.chat_id, parsed.tasks);
         return;
       }
 

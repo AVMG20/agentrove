@@ -29,13 +29,18 @@ from acp.schema import (
 )
 
 from app.constants import SANDBOX_HOME_DIR, SANDBOX_WORKSPACE_DIR, TERMINAL_TYPE
-from app.core.config import get_settings
+from app.core.config import agent_env_passthrough_keys, get_settings
 from app.models.types import AgentKind
 from app.services.acp.adapters import (
     AGENT_ADAPTERS,
     NATIVE_FILE_TYPES,
     LaunchConfig,
     unsupported_effort_error,
+)
+from app.services.acp.background import (
+    parse_probe_output,
+    probe_command,
+    stop_command,
 )
 from app.services.acp.client import AcpClientHandler
 from app.services.exceptions import AgentException
@@ -49,6 +54,7 @@ ConfigOptions = list[SessionConfigOptionSelect | SessionConfigOptionBoolean] | N
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+AGENT_ENV_PASSTHROUGH_KEYS = agent_env_passthrough_keys(settings)
 
 ACP_PROTOCOL_VERSION = 1
 # 100 MB — large enough for long-running agent sessions that produce extensive
@@ -72,6 +78,8 @@ NON_IMAGE_MIME: dict[str, str] = {
 EMPTY_FROZENSET: frozenset[str] = frozenset()
 
 MODEL_CONFIG_ID = "model"
+
+BACKGROUND_PROBE_TIMEOUT = 20
 
 # codex-acp advertises Fast mode as a session config option (select on/off, or
 # boolean when the client supports it). Values match FastModeConfig.ts.
@@ -122,6 +130,7 @@ class AcpSession:
         exit_watch_task: asyncio.Task[None] | None = None,
         supports_steering: bool = False,
         effort_levels: tuple[str, ...] | None = None,
+        sandbox: tuple[SandboxProvider, str] | None = None,
     ) -> None:
         self._handler = handler
         self._conn = conn
@@ -134,6 +143,8 @@ class AcpSession:
         # Effort values the live session advertises for the current model;
         # None when the agent reports no config options to check against.
         self.effort_levels = effort_levels
+        # Where the agent runs — its background shells are probed and stopped there.
+        self._sandbox = sandbox
 
     @property
     def handler(self) -> AcpClientHandler:
@@ -149,6 +160,7 @@ class AcpSession:
         agent_kind: AgentKind = AgentKind.CLAUDE,
     ) -> None:
         self._handler.prepare_for_prompt()
+        self._handler.prompt_active = True
 
         prompt_blocks = self._build_prompt_blocks(content, attachments, agent_kind)
         try:
@@ -293,6 +305,24 @@ class AcpSession:
                     )
                 )
         return blocks
+
+    async def probe_background_shells(self, task_ids: list[str]) -> dict[str, bool]:
+        # Which shells still run; an empty answer means the probe itself failed.
+        if self._sandbox is None or not task_ids:
+            return {}
+        provider, sandbox_id = self._sandbox
+        result = await provider.execute_command(
+            sandbox_id, probe_command(task_ids), timeout=BACKGROUND_PROBE_TIMEOUT
+        )
+        return parse_probe_output(result.stdout)
+
+    async def stop_background_shell(self, task_id: str) -> None:
+        if self._sandbox is None:
+            return
+        provider, sandbox_id = self._sandbox
+        await provider.execute_command(
+            sandbox_id, stop_command(task_id), timeout=BACKGROUND_PROBE_TIMEOUT
+        )
 
     async def cancel(self) -> None:
         try:
@@ -585,6 +615,7 @@ class AcpSession:
             stderr_task=stderr_task,
             exit_watch_task=exit_watch_task,
             effort_levels=effort_levels,
+            sandbox=(provider, config.sandbox_id),
             supports_steering=(
                 config.agent_kind in (AgentKind.CLAUDE, AgentKind.CODEX)
                 and isinstance(
@@ -758,8 +789,14 @@ class AcpSession:
     async def _spawn_host(config: AcpSessionConfig) -> asyncio.subprocess.Process:
         launch = AcpSession._build_launch_config(config)
 
-        # Inherit host env (auth, proxy, TLS, PATH).
-        env = dict(os.environ)
+        # Inherit host env (auth, proxy, TLS, PATH). Drop passthrough vars the
+        # deployment declares but leaves empty — an empty ANTHROPIC_BASE_URL
+        # would point the CLI at nothing instead of the default endpoint.
+        env = {
+            key: value
+            for key, value in os.environ.items()
+            if value or key not in AGENT_ENV_PASSTHROUGH_KEYS
+        }
         if config.sandbox_id and not settings.DESKTOP_MODE:
             # Web mode: HOME is the per-user agent home, shared by every
             # workspace of the user, so CLI logins/MCP/skills are configured

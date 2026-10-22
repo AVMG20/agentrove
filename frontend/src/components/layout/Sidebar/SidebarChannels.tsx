@@ -22,7 +22,7 @@ import type { Channel } from '@/types/channel.types';
 import { calculateDropdownPosition, mutateWithToast } from './sidebarHelpers';
 import { SidebarChannelItem } from './SidebarChannelItem';
 import { SidebarMenu, SidebarMenuItem } from './SidebarMenu';
-import { SidebarSectionHeader } from './SidebarSectionHeader';
+import { SidebarSection } from './SidebarSection';
 import styles from './SidebarChannels.module.scss';
 
 interface SidebarChannelsProps {
@@ -116,28 +116,35 @@ export function SidebarChannels({
 
   return (
     <div className={styles.channels}>
-      <SidebarSectionHeader title="Channels">
-        <Button
-          variant="unstyled"
-          onClick={() => setCreateOpen(true)}
-          className={styles['new-btn']}
-          aria-label="New channel"
-        >
-          <Plus className={styles['new-icon']} />
-        </Button>
-      </SidebarSectionHeader>
-      <div className={styles.list}>
-        {channels.map((channel) => (
-          <SidebarChannelItem
-            key={channel.id}
-            channel={channel}
-            isActive={channel.id === selectedChannelId}
-            isDropdownOpen={dropdown?.channel.id === channel.id}
-            onSelect={navigateToChannel}
-            onDropdownClick={handleDropdownClick}
-          />
-        ))}
-      </div>
+      <SidebarSection
+        sectionKey="channels"
+        title="Channels"
+        actions={
+          <Button
+            variant="unstyled"
+            onClick={() => setCreateOpen(true)}
+            className={styles['new-btn']}
+            aria-label="New channel"
+          >
+            <Plus className={styles['new-icon']} />
+          </Button>
+        }
+      >
+        {channels.length > 0 && (
+          <div className={styles.list}>
+            {channels.map((channel) => (
+              <SidebarChannelItem
+                key={channel.id}
+                channel={channel}
+                isActive={channel.id === selectedChannelId}
+                isDropdownOpen={dropdown?.channel.id === channel.id}
+                onSelect={navigateToChannel}
+                onDropdownClick={handleDropdownClick}
+              />
+            ))}
+          </div>
+        )}
+      </SidebarSection>
 
       {dropdown && (
         <SidebarMenu
