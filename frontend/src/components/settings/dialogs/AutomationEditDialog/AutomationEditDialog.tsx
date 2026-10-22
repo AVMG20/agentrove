@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
-import { Clock, Brain, Shield, Cloud, GitFork, Monitor } from 'lucide-react';
+import { Clock, Brain, Shield, Cloud, GitFork, Github, Monitor } from 'lucide-react';
 import type { Persona } from '@/types/user.types';
-import type { AutomationForm } from '@/types/automation.types';
+import type { AutomationForm, AutomationTriggerType } from '@/types/automation.types';
 import { Input } from '@/components/ui/primitives/Input/Input';
 import { Label } from '@/components/ui/primitives/Label/Label';
 import { Select } from '@/components/ui/primitives/Select/Select';
 import { Textarea } from '@/components/ui/primitives/Textarea/Textarea';
 import { Dropdown } from '@/components/ui/primitives/Dropdown/Dropdown';
+import { SegmentedControl } from '@/components/ui/primitives/SegmentedControl/SegmentedControl';
 import { BaseModal } from '@/components/ui/shared/BaseModal/BaseModal';
 import { DialogFooter } from '@/components/ui/shared/DialogFooter/DialogFooter';
 import { DialogError } from '@/components/ui/shared/DialogError/DialogError';
@@ -34,7 +35,15 @@ import {
   type ScheduleForm,
   type ScheduleFrequency,
 } from '@/utils/automationSchedule';
+import { GITHUB_EVENT_OPTIONS, GITHUB_POLL_OPTIONS } from '@/utils/automationGithub';
 import styles from './AutomationEditDialog.module.scss';
+
+const TRIGGER_OPTIONS: { value: AutomationTriggerType; label: string }[] = [
+  { value: 'schedule', label: 'Schedule' },
+  { value: 'github', label: 'GitHub event' },
+];
+
+const GITHUB_REPO_PATTERN = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
 
 const RUN_LOCATION_OPTIONS: readonly [ToggleDropdownOption, ToggleDropdownOption] = [
   { label: 'Local', icon: Monitor },
@@ -113,20 +122,39 @@ export function AutomationEditDialog({
   const setSchedule = (patch: Partial<ScheduleForm>) =>
     onChange('schedule', { ...schedule, ...patch });
   const cronPreview = buildCronExpression(schedule);
+  const isGithub = form.trigger_type === 'github';
+  const githubRepo = form.github_repo.trim().replace(/^https:\/\/github\.com\//, '');
+  const githubRepoValid = GITHUB_REPO_PATTERN.test(githubRepo.replace(/\/$/, ''));
+
+  const toggleGithubEvent = (event: (typeof GITHUB_EVENT_OPTIONS)[number]['value']) =>
+    onChange(
+      'github_events',
+      form.github_events.includes(event)
+        ? form.github_events.filter((e) => e !== event)
+        : [...form.github_events, event],
+    );
+
+  const triggerValid = isGithub
+    ? githubRepoValid && form.github_events.length > 0
+    : schedule.frequency !== 'custom' || !!schedule.cron.trim();
 
   const canSave =
     !!form.name.trim() &&
     !!form.prompt.trim() &&
     !!form.model_id &&
     !!form.workspace_id &&
-    (schedule.frequency !== 'custom' || !!schedule.cron.trim());
+    triggerValid;
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} size="sm" className={styles.dialog}>
+    <BaseModal isOpen={isOpen} onClose={onClose} size="2xl" className={styles.dialog}>
       <div className={styles.body}>
         <div className={styles.header}>
           <div className={styles['icon-box']}>
-            <Clock className={styles['header-icon']} />
+            {isGithub ? (
+              <Github className={styles['header-icon']} />
+            ) : (
+              <Clock className={styles['header-icon']} />
+            )}
           </div>
           <h3 className={styles.title}>{isEditing ? 'Edit automation' : 'Add automation'}</h3>
         </div>
@@ -177,30 +205,32 @@ export function AutomationEditDialog({
             )}
           </div>
 
-          <div>
-            <Label className={styles.label}>Model</Label>
-            <ModelSelector
-              selectedModelId={form.model_id}
-              onModelChange={(modelId) => onChange('model_id', modelId)}
-              dropdownPosition="bottom"
-              compact={false}
-            />
-          </div>
+          <div className={styles.columns}>
+            <div>
+              <Label className={styles.label}>Model</Label>
+              <ModelSelector
+                selectedModelId={form.model_id}
+                onModelChange={(modelId) => onChange('model_id', modelId)}
+                dropdownPosition="bottom"
+                compact={false}
+              />
+            </div>
 
-          <div>
-            <Label className={styles.label}>Persona</Label>
-            <Select
-              value={form.persona_name}
-              onChange={(e) => onChange('persona_name', e.target.value)}
-              className={styles.select}
-            >
-              <option value={DEFAULT_PERSONA}>Default</option>
-              {personas.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
-            </Select>
+            <div>
+              <Label className={styles.label}>Persona</Label>
+              <Select
+                value={form.persona_name}
+                onChange={(e) => onChange('persona_name', e.target.value)}
+                className={styles.select}
+              >
+                <option value={DEFAULT_PERSONA}>Default</option>
+                {personas.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
 
           <div className={styles['control-row']}>
@@ -234,109 +264,181 @@ export function AutomationEditDialog({
           </div>
 
           <div>
-            <Label className={styles.label}>Schedule</Label>
-            <div className={styles['control-row']}>
-              {/* Width on a wrapper, not the Select — its chevron is positioned
-                  against the primitive's own w-full container */}
-              <div className={styles['select-w36']}>
-                <Select
-                  value={schedule.frequency}
-                  onChange={(e) => setSchedule({ frequency: e.target.value as ScheduleFrequency })}
-                  className={styles.select}
-                >
-                  <option value="hourly">Hourly interval</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="custom">Custom (cron)</option>
-                </Select>
+            <Label className={styles.label}>Trigger</Label>
+            <SegmentedControl
+              options={TRIGGER_OPTIONS}
+              value={form.trigger_type}
+              onChange={(value) => onChange('trigger_type', value)}
+              size="sm"
+              className={styles.trigger}
+            />
+          </div>
+
+          {isGithub ? (
+            <div className={styles['github-fields']}>
+              <div>
+                <Label className={styles.label}>Repository</Label>
+                <Input
+                  value={form.github_repo}
+                  onChange={(e) => onChange('github_repo', e.target.value)}
+                  placeholder="owner/repo"
+                  className={styles.input}
+                  hasError={!!form.github_repo.trim() && !githubRepoValid}
+                />
               </div>
-              {schedule.frequency === 'hourly' && (
-                <div className={styles['inline-field']}>
-                  every
-                  <Input
-                    type="number"
-                    min={1}
-                    max={23}
-                    value={schedule.everyHours}
-                    onChange={(e) =>
-                      // Cron's hour field only spans 0-23 — a */N step ≥ 24 silently
-                      // collapses to "daily at midnight", so clamp below that.
-                      setSchedule({
-                        everyHours: Math.min(23, Math.max(1, Number(e.target.value) || 1)),
-                      })
-                    }
-                    className={styles['num-input']}
-                  />
-                  hours
+              <div>
+                <Label className={styles.label}>Run when</Label>
+                <div className={styles['event-list']}>
+                  {GITHUB_EVENT_OPTIONS.map((option) => (
+                    <label key={option.value} className={styles['event-option']}>
+                      <input
+                        type="checkbox"
+                        checked={form.github_events.includes(option.value)}
+                        onChange={() => toggleGithubEvent(option.value)}
+                        className={styles['event-checkbox']}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
                 </div>
-              )}
-              {schedule.frequency === 'weekly' && (
-                <div className={styles['select-w32']}>
+              </div>
+              <div className={styles['inline-field']}>
+                Check every
+                <div className={styles['select-w28']}>
                   <Select
-                    value={schedule.dayOfWeek}
-                    onChange={(e) => setSchedule({ dayOfWeek: Number(e.target.value) })}
+                    value={form.github_poll_minutes}
+                    onChange={(e) => onChange('github_poll_minutes', Number(e.target.value))}
                     className={styles.select}
                   >
-                    {WEEKDAY_LABELS.map((label, day) => (
-                      <option key={label} value={day}>
-                        {label}
+                    {GITHUB_POLL_OPTIONS.map((minutes) => (
+                      <option key={minutes} value={minutes}>
+                        {minutes === 60 ? '1 hour' : `${minutes} min`}
                       </option>
                     ))}
                   </Select>
                 </div>
-              )}
-              {schedule.frequency === 'monthly' && (
-                <div className={styles['inline-field']}>
-                  day
-                  <Input
-                    type="number"
-                    min={1}
-                    max={31}
-                    value={schedule.dayOfMonth}
-                    onChange={(e) => setSchedule({ dayOfMonth: Number(e.target.value) || 1 })}
-                    className={styles['num-input']}
-                  />
-                </div>
-              )}
-              {(schedule.frequency === 'daily' ||
-                schedule.frequency === 'weekly' ||
-                schedule.frequency === 'monthly') && (
-                <div className={styles['inline-field']}>
-                  at
-                  <Input
-                    type="time"
-                    value={schedule.time}
-                    onChange={(e) => setSchedule({ time: e.target.value })}
-                    className={styles['time-input']}
-                  />
-                </div>
-              )}
-              {schedule.frequency === 'custom' && (
-                <Input
-                  value={schedule.cron}
-                  onChange={(e) => setSchedule({ cron: e.target.value })}
-                  placeholder="0 */6 * * *"
-                  className={styles['cron-input']}
-                />
-              )}
+              </div>
+              <p className={styles.hint}>
+                Uses the GitHub token from Settings → General. Each new item starts its own chat
+                with the item&apos;s details appended to the prompt, and the agent&apos;s gh CLI
+                acts as you (e.g. to comment). Your own activity is ignored so replies can&apos;t
+                re-trigger the automation.
+              </p>
             </div>
-            <p className={styles.hint}>
-              {describeCron(cronPreview)} · {form.timezone}
-            </p>
-          </div>
+          ) : (
+            <div>
+              <Label className={styles.label}>Schedule</Label>
+              <div className={styles['control-row']}>
+                {/* Width on a wrapper, not the Select — its chevron is positioned
+                  against the primitive's own w-full container */}
+                <div className={styles['select-w36']}>
+                  <Select
+                    value={schedule.frequency}
+                    onChange={(e) =>
+                      setSchedule({ frequency: e.target.value as ScheduleFrequency })
+                    }
+                    className={styles.select}
+                  >
+                    <option value="hourly">Hourly interval</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="custom">Custom (cron)</option>
+                  </Select>
+                </div>
+                {schedule.frequency === 'hourly' && (
+                  <div className={styles['inline-field']}>
+                    every
+                    <Input
+                      type="number"
+                      min={1}
+                      max={23}
+                      value={schedule.everyHours}
+                      onChange={(e) =>
+                        // Cron's hour field only spans 0-23 — a */N step ≥ 24 silently
+                        // collapses to "daily at midnight", so clamp below that.
+                        setSchedule({
+                          everyHours: Math.min(23, Math.max(1, Number(e.target.value) || 1)),
+                        })
+                      }
+                      className={styles['num-input']}
+                    />
+                    hours
+                  </div>
+                )}
+                {schedule.frequency === 'weekly' && (
+                  <div className={styles['select-w32']}>
+                    <Select
+                      value={schedule.dayOfWeek}
+                      onChange={(e) => setSchedule({ dayOfWeek: Number(e.target.value) })}
+                      className={styles.select}
+                    >
+                      {WEEKDAY_LABELS.map((label, day) => (
+                        <option key={label} value={day}>
+                          {label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                )}
+                {schedule.frequency === 'monthly' && (
+                  <div className={styles['inline-field']}>
+                    day
+                    <Input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={schedule.dayOfMonth}
+                      onChange={(e) => setSchedule({ dayOfMonth: Number(e.target.value) || 1 })}
+                      className={styles['num-input']}
+                    />
+                  </div>
+                )}
+                {(schedule.frequency === 'daily' ||
+                  schedule.frequency === 'weekly' ||
+                  schedule.frequency === 'monthly') && (
+                  <div className={styles['inline-field']}>
+                    at
+                    <Input
+                      type="time"
+                      value={schedule.time}
+                      onChange={(e) => setSchedule({ time: e.target.value })}
+                      className={styles['time-input']}
+                    />
+                  </div>
+                )}
+                {schedule.frequency === 'custom' && (
+                  <Input
+                    value={schedule.cron}
+                    onChange={(e) => setSchedule({ cron: e.target.value })}
+                    placeholder="0 */6 * * *"
+                    className={styles['cron-input']}
+                  />
+                )}
+              </div>
+              <p className={styles.hint}>
+                {describeCron(cronPreview)} · {form.timezone}
+              </p>
+            </div>
+          )}
 
           <div>
             <Label className={styles.label}>Prompt</Label>
             <Textarea
               value={form.prompt}
               onChange={(e) => onChange('prompt', e.target.value)}
-              placeholder="Check my Gmail inbox and summarize anything that needs a reply."
+              placeholder={
+                isGithub
+                  ? 'Review this pull request and leave a short summary of risks as a PR comment.'
+                  : 'Check my Gmail inbox and summarize anything that needs a reply.'
+              }
               className={styles['prompt-textarea']}
               rows={5}
             />
             <p className={styles.hint}>
-              Each run starts a new chat in the selected workspace with this prompt.
+              {isGithub
+                ? 'Each event starts a new chat in the selected workspace with this prompt plus the event.'
+                : 'Each run starts a new chat in the selected workspace with this prompt.'}
             </p>
           </div>
         </div>

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Index, String, Text
+from sqlalchemy import JSON, Boolean, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base_class import Base
@@ -52,6 +52,15 @@ class Automation(Base):
     # Stored in UTC; the dispatch job fires rows where next_run_at <= now.
     next_run_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     last_run_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    # "schedule" fires the prompt on the cron; "github" uses the cron as the
+    # poll interval and fires once per new matching event in github_repo.
+    trigger_type: Mapped[str] = mapped_column(
+        String(16), default="schedule", server_default="schedule", nullable=False
+    )
+    github_repo: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    github_events: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # Events created at or before this instant were already handled (UTC).
+    github_cursor: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
 
     __table_args__ = (
         Index("idx_automations_user_id", "user_id"),

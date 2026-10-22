@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useMemo, useState } from 'react';
-import { Clock, Cloud, Play } from 'lucide-react';
+import { Clock, Cloud, Github, Play } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ListManagementTab } from '@/components/ui/ListManagementTab/ListManagementTab';
 import { Button } from '@/components/ui/primitives/Button/Button';
@@ -29,6 +29,12 @@ import {
   parseCronExpression,
   DEFAULT_SCHEDULE,
 } from '@/utils/automationSchedule';
+import {
+  buildGithubPollCron,
+  DEFAULT_GITHUB_POLL_MINUTES,
+  describeGithubTrigger,
+  parseGithubPollMinutes,
+} from '@/utils/automationGithub';
 import { lazyNamed } from '@/utils/lazyNamed';
 import type {
   Automation,
@@ -62,7 +68,11 @@ function createDefaultForm(): AutomationForm {
     prompt: '',
     model_id: '',
     workspace_id: '',
+    trigger_type: 'schedule',
     schedule: { ...DEFAULT_SCHEDULE },
+    github_repo: '',
+    github_events: ['pull_request_opened'],
+    github_poll_minutes: DEFAULT_GITHUB_POLL_MINUTES,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     permission_mode: DEFAULT_PERMISSION_MODE,
     thinking_mode: DEFAULT_THINKING_MODE,
@@ -79,7 +89,14 @@ function formFromItem(item: AutomationListItem): AutomationForm {
     prompt: automation.prompt,
     model_id: automation.model_id,
     workspace_id: automation.workspace_id,
-    schedule: parseCronExpression(automation.cron_expression),
+    trigger_type: automation.trigger_type,
+    schedule:
+      automation.trigger_type === 'schedule'
+        ? parseCronExpression(automation.cron_expression)
+        : { ...DEFAULT_SCHEDULE },
+    github_repo: automation.github_repo ?? '',
+    github_events: automation.github_events ?? ['pull_request_opened'],
+    github_poll_minutes: parseGithubPollMinutes(automation.cron_expression),
     // Keep the zone the schedule was authored in — editing from another
     // timezone must not silently shift the automation's wall-clock time.
     timezone: automation.timezone,
@@ -172,12 +189,18 @@ export function AutomationsSettingsTab() {
       },
       personas,
     );
+    const isGithub = form.trigger_type === 'github';
     const data: AutomationCreateRequest = {
       name: form.name.trim(),
       prompt: form.prompt,
       model_id: form.model_id,
       workspace_id: form.workspace_id,
-      cron_expression: buildCronExpression(form.schedule),
+      trigger_type: form.trigger_type,
+      github_repo: isGithub ? form.github_repo.trim() : null,
+      github_events: isGithub ? form.github_events : null,
+      cron_expression: isGithub
+        ? buildGithubPollCron(form.github_poll_minutes)
+        : buildCronExpression(form.schedule),
       timezone: form.timezone,
       permission_mode: agentFields.permission_mode,
       thinking_mode: agentFields.thinking_mode || null,
@@ -231,7 +254,7 @@ export function AutomationsSettingsTab() {
     <>
       <ListManagementTab<AutomationListItem>
         title="Automations"
-        description="Scheduled prompts that start a new chat with your chosen model, workspace, and settings — e.g. check email daily or triage errors every 6 hours."
+        description="Prompts that start a new chat with your chosen model, workspace, and settings — on a schedule (e.g. check email daily) or when something happens on GitHub (e.g. review every new PR)."
         items={items}
         emptyIcon={Clock}
         emptyText="No automations configured yet"
@@ -258,10 +281,20 @@ export function AutomationsSettingsTab() {
             </div>
             <div className={styles['item-meta']}>
               <span className={styles.chip}>{item.automation.model_id}</span>
-              <span className={styles.chip}>{describeCron(item.automation.cron_expression)}</span>
+              {item.automation.trigger_type === 'github' ? (
+                <span className={styles.chip}>
+                  <Github className={styles['chip-icon']} />
+                  {describeGithubTrigger(
+                    item.automation.github_repo,
+                    item.automation.github_events,
+                  )}
+                </span>
+              ) : (
+                <span className={styles.chip}>{describeCron(item.automation.cron_expression)}</span>
+              )}
               {item.automation.enabled && (
                 <span className={styles['next-run']}>
-                  Next run{' '}
+                  {item.automation.trigger_type === 'github' ? 'Next check' : 'Next run'}{' '}
                   {new Date(item.automation.next_run_at).toLocaleString([], NEXT_RUN_FORMAT)}
                 </span>
               )}
@@ -276,7 +309,11 @@ export function AutomationsSettingsTab() {
               disabled={runMutation.isPending}
               className={styles['run-button']}
               aria-label="Run now"
-              title="Run now"
+              title={
+                item.automation.trigger_type === 'github'
+                  ? 'Run now with the latest matching GitHub event'
+                  : 'Run now'
+              }
             >
               <Play className={styles['run-icon']} />
             </Button>

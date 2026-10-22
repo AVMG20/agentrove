@@ -1,12 +1,48 @@
+import re
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from croniter import croniter
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.types import PermissionMode
 from app.prompts.system_prompt import DEFAULT_PERSONA_NAME
+
+
+AutomationTriggerType = Literal["schedule", "github"]
+GitHubTriggerEvent = Literal[
+    "pull_request_opened",
+    "issue_opened",
+    "issue_comment_created",
+    "release_published",
+]
+
+_GITHUB_REPO_RE = re.compile(r"^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$")
+
+
+def validate_github_repo(value: str) -> str:
+    value = value.strip().removeprefix("https://github.com/").rstrip("/")
+    if not _GITHUB_REPO_RE.match(value):
+        raise ValueError("GitHub repository must look like owner/name")
+    return value
+
+
+def validate_github_events(
+    value: list[GitHubTriggerEvent],
+) -> list[GitHubTriggerEvent]:
+    # Order-preserving dedupe so the stored list reads like the user's picks.
+    return list(dict.fromkeys(value))
+
+
+def validate_trigger_config(
+    trigger_type: str,
+    github_repo: str | None,
+    github_events: list[GitHubTriggerEvent] | None,
+) -> None:
+    if trigger_type == "github" and not (github_repo and github_events):
+        raise ValueError("GitHub triggers need a repository and at least one event")
 
 
 def validate_cron_expression(value: str) -> str:
@@ -38,11 +74,32 @@ class AutomationBase(BaseModel):
     worktree: bool = False
     selected_persona_name: str = Field(DEFAULT_PERSONA_NAME, max_length=100)
     enabled: bool = True
+    # For "github", cron_expression is the poll interval.
+    trigger_type: AutomationTriggerType = "schedule"
+    github_repo: str | None = Field(None, max_length=255)
+    github_events: list[GitHubTriggerEvent] | None = Field(None, max_length=10)
 
     @field_validator("cron_expression")
     @classmethod
     def check_cron_expression(cls, value: str) -> str:
         return validate_cron_expression(value)
+
+    @field_validator("github_repo")
+    @classmethod
+    def check_github_repo(cls, value: str | None) -> str | None:
+        return None if value is None else validate_github_repo(value)
+
+    @field_validator("github_events")
+    @classmethod
+    def check_github_events(
+        cls, value: list[GitHubTriggerEvent] | None
+    ) -> list[GitHubTriggerEvent] | None:
+        return None if value is None else validate_github_events(value)
+
+    @model_validator(mode="after")
+    def check_trigger(self) -> "AutomationBase":
+        validate_trigger_config(self.trigger_type, self.github_repo, self.github_events)
+        return self
 
     @field_validator("timezone")
     @classmethod
@@ -66,6 +123,10 @@ class AutomationUpdate(BaseModel):
     worktree: bool | None = None
     selected_persona_name: str | None = Field(None, min_length=1, max_length=100)
     enabled: bool | None = None
+    # Combination with stored values is checked by the service after merging.
+    trigger_type: AutomationTriggerType | None = None
+    github_repo: str | None = Field(None, max_length=255)
+    github_events: list[GitHubTriggerEvent] | None = Field(None, max_length=10)
 
     @field_validator(
         "name",
@@ -78,6 +139,7 @@ class AutomationUpdate(BaseModel):
         "worktree",
         "selected_persona_name",
         "enabled",
+        "trigger_type",
         mode="before",
     )
     @classmethod
@@ -97,6 +159,18 @@ class AutomationUpdate(BaseModel):
     @classmethod
     def check_timezone(cls, value: str | None) -> str | None:
         return None if value is None else validate_timezone_name(value)
+
+    @field_validator("github_repo")
+    @classmethod
+    def check_github_repo(cls, value: str | None) -> str | None:
+        return None if value is None else validate_github_repo(value)
+
+    @field_validator("github_events")
+    @classmethod
+    def check_github_events(
+        cls, value: list[GitHubTriggerEvent] | None
+    ) -> list[GitHubTriggerEvent] | None:
+        return None if value is None else validate_github_events(value)
 
 
 class Automation(BaseModel):
@@ -119,6 +193,9 @@ class Automation(BaseModel):
     enabled: bool
     next_run_at: datetime
     last_run_at: datetime | None = None
+    trigger_type: str = "schedule"
+    github_repo: str | None = None
+    github_events: list[str] | None = None
     created_at: datetime
     updated_at: datetime
 

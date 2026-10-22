@@ -42,9 +42,18 @@
 }
 
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   border: 1px solid colors.theme-color('border', 0.5);
   border-radius: var(--radius-md);
   padding: var(--space-0-5) var(--space-1-5);
+}
+
+.chip-icon {
+  height: var(--space-3);
+  width: var(--space-3);
+  flex-shrink: 0;
 }
 
 .next-run {

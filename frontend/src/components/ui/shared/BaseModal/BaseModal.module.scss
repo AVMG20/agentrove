@@ -11,8 +11,9 @@
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  // Scrolls when a dialog is taller than the viewport; the container's auto
+  // margins center it otherwise (flex centering would clip the top instead).
+  overflow-y: auto;
   padding: var(--space-4);
   // Pure-black scrim — not a theme surface, an overlay
   background-color: rgb(0 0 0 / 0.45);
@@ -22,6 +23,7 @@
 
 .container {
   width: 100%;
+  margin: auto;
   overflow: hidden;
   border: 1px solid var(--theme-border);
   border-radius: var(--radius-2xl);

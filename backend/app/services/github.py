@@ -1,10 +1,13 @@
 import logging
-from typing import Literal
+from collections.abc import Collection
+from datetime import datetime
+from typing import Any, Literal
 
 import httpx
 
 from app.models.schemas.github import (
     CreatePullRequestRequest,
+    GitHubActivityEvent,
     CreatePullRequestResponse,
     GitHubCollaborator,
     GitHubPRListResponse,
@@ -17,6 +20,13 @@ from app.services.exceptions import ErrorCode, GitHubException
 logger = logging.getLogger(__name__)
 
 GITHUB_API_BASE = "https://api.github.com"
+# Per-endpoint page for activity polling — more than one poll interval's worth
+# of new items on any sane repo; the dispatcher caps runs per poll anyway.
+ACTIVITY_PAGE_SIZE = 50
+
+
+def _parse_github_time(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 class GitHubService:
@@ -240,3 +250,127 @@ class GitHubService:
             GitHubCollaborator(login=c["login"], avatar_url=c.get("avatar_url", ""))
             for c in response.json()
         ]
+
+    async def get_authenticated_login(self) -> str:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{GITHUB_API_BASE}/user", headers=self._headers
+            )
+        self._check_response(response)
+        login: str = response.json()["login"]
+        return login
+
+    async def list_activity(
+        self,
+        repo: str,
+        events: Collection[str],
+        since: datetime,
+        exclude_author: str | None = None,
+    ) -> list[GitHubActivityEvent]:
+        # Polling (not webhooks): works with a plain PAT, no public URL or repo
+        # admin rights needed. Returns items created strictly after `since`,
+        # oldest first; exclude_author drops our own activity so an automation
+        # that comments on issues can't trigger itself.
+        found: list[GitHubActivityEvent] = []
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            if {"pull_request_opened", "issue_opened"} & set(events):
+                items = await self._get_json(
+                    client,
+                    f"/repos/{repo}/issues",
+                    {
+                        "state": "all",
+                        "sort": "created",
+                        "direction": "desc",
+                        "since": since.isoformat(),
+                        "per_page": ACTIVITY_PAGE_SIZE,
+                    },
+                )
+                for item in items:
+                    kind = (
+                        "pull_request_opened"
+                        if "pull_request" in item
+                        else "issue_opened"
+                    )
+                    if kind in events:
+                        found.append(self._activity(kind, repo, item, item))
+            if "issue_comment_created" in events:
+                comments = await self._get_json(
+                    client,
+                    f"/repos/{repo}/issues/comments",
+                    {
+                        "sort": "created",
+                        "direction": "desc",
+                        "since": since.isoformat(),
+                        "per_page": ACTIVITY_PAGE_SIZE,
+                    },
+                )
+                for comment in comments:
+                    number = int(comment["issue_url"].rsplit("/", 1)[-1])
+                    found.append(
+                        self._activity(
+                            "issue_comment_created",
+                            repo,
+                            comment,
+                            {"number": number, "title": f"Comment on #{number}"},
+                        )
+                    )
+            if "release_published" in events:
+                releases = await self._get_json(
+                    client, f"/repos/{repo}/releases", {"per_page": 20}
+                )
+                for release in releases:
+                    if release.get("draft") or not release.get("published_at"):
+                        continue
+                    found.append(
+                        self._activity(
+                            "release_published",
+                            repo,
+                            {**release, "created_at": release["published_at"]},
+                            {"title": release.get("name") or release["tag_name"]},
+                        )
+                    )
+        return sorted(
+            (
+                e
+                for e in found
+                if e.created_at > since
+                and (exclude_author is None or e.author != exclude_author)
+            ),
+            key=lambda e: e.created_at,
+        )
+
+    async def _get_json(
+        self, client: httpx.AsyncClient, path: str, params: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        response = await client.get(
+            f"{GITHUB_API_BASE}{path}", params=params, headers=self._headers
+        )
+        self._check_auth(response)
+        if response.status_code == 404:
+            raise GitHubException(
+                "Repository not found or the GitHub token can't access it",
+                status_code=404,
+            )
+        self._check_response(response)
+        data: list[dict[str, Any]] = response.json()
+        return data
+
+    @staticmethod
+    def _activity(
+        event: str,
+        repo: str,
+        item: dict[str, Any],
+        summary: dict[str, Any],
+    ) -> GitHubActivityEvent:
+        return GitHubActivityEvent(
+            event=event,
+            repo=repo,
+            number=summary.get("number"),
+            title=summary.get("title") or "",
+            url=item["html_url"],
+            author=(item.get("user") or item.get("author") or {}).get(
+                "login", "unknown"
+            ),
+            body=item.get("body"),
+            created_at=_parse_github_time(item["created_at"]),
+        )
