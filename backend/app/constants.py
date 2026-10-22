@@ -18,6 +18,10 @@ class ModelInfo(NamedTuple):
 
 REDIS_KEY_USER_STREAMS_LIVE: Final[str] = "user:{user_id}:streams:live"
 REDIS_KEY_USER_CHATS_LIVE: Final[str] = "user:{user_id}:chats:live"
+# Streamable-HTTP MCP server with the artifact tools (under API_V1_STR), for
+# agents in Docker sandboxes; the header names the chat the session runs in.
+ARTIFACTS_MCP_PATH: Final[str] = "/mcp/artifacts"
+ARTIFACTS_MCP_CHAT_HEADER: Final[str] = "X-Agentrove-Chat-Id"
 REDIS_KEY_USER_SETTINGS: Final[str] = "user_settings:{user_id}"
 REDIS_KEY_CHAT_CONTEXT_USAGE: Final[str] = "chat:{chat_id}:context_usage"
 REDIS_KEY_CHAT_QUEUE: Final[str] = "chat:{queue_id}:queue"

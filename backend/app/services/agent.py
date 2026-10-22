@@ -36,7 +36,7 @@ from app.services.acp.adapters import (
 from app.services.acp.client import AcpClientHandler
 from app.services.acp.session import AcpSession, AcpSessionConfig
 from app.services.exceptions import AgentException, ChatException, ErrorCode
-from app.constants import MODELS
+from app.constants import ARTIFACTS_MCP_CHAT_HEADER, ARTIFACTS_MCP_PATH, MODELS
 from app.services.git import GitService
 from app.services.sandbox import SandboxService
 from app.services.sandbox_providers import SandboxProviderType
@@ -519,6 +519,29 @@ class AgentService:
             and settings.AGENTROVE_ARTIFACTS_ENABLED
             and sandbox_provider is SandboxProviderType.HOST
         )
+        # A Docker sandbox can't run the stdio server, so its agents reach the
+        # artifact tools over HTTP at the public URL instead.
+        artifacts_over_http = (
+            not full_mcp
+            and agentrove_mcp
+            and chat_id is not None
+            and settings.AGENTROVE_ARTIFACTS_ENABLED
+            and sandbox_provider is SandboxProviderType.DOCKER
+        )
+        if artifacts_over_http:
+            headers = {
+                "Authorization": f"Bearer {create_artifact_agent_token(user_id)}"
+            }
+            if current_chat_id:
+                headers[ARTIFACTS_MCP_CHAT_HEADER] = current_chat_id
+            servers.append(
+                {
+                    "name": "agentrove",
+                    "type": "http",
+                    "url": f"{settings.BASE_URL}{settings.API_V1_STR}{ARTIFACTS_MCP_PATH}/",
+                    "headers": headers,
+                }
+            )
         if full_mcp or artifacts_only:
             if sandbox_provider is SandboxProviderType.HOST:
                 # Host-provider agents share this process's network namespace, but the

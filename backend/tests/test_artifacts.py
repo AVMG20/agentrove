@@ -1,3 +1,4 @@
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
@@ -337,9 +338,9 @@ async def test_deleting_the_chat_keeps_its_artifacts(
     assert response.json()["chat_id"] is None
 
 
-def _agentrove_env(
+def _agentrove_server(
     sandbox_provider: SandboxProviderType, *, agentrove_mcp: bool = True
-) -> dict[str, str] | None:
+) -> dict[str, Any] | None:
     servers = AgentService._build_mcp_server_configs(
         "chat-1",
         str(uuid4()),
@@ -348,7 +349,14 @@ def _agentrove_env(
         current_chat_id="chat-1",
     )
     agentrove = [s for s in servers if s["name"] == "agentrove"]
-    return agentrove[0]["env"] if agentrove else None
+    return agentrove[0] if agentrove else None
+
+
+def _agentrove_env(
+    sandbox_provider: SandboxProviderType, *, agentrove_mcp: bool = True
+) -> dict[str, str] | None:
+    server = _agentrove_server(sandbox_provider, agentrove_mcp=agentrove_mcp)
+    return server["env"] if server else None
 
 
 def test_artifact_tools_reach_host_agents_without_the_full_mcp_server(
@@ -364,15 +372,132 @@ def test_artifact_tools_reach_host_agents_without_the_full_mcp_server(
     assert env["AGENTROVE_MCP_TOOLSET"] == "artifacts"
     assert env["AGENTROVE_APP_URL"] == "https://ai.example.com"
     assert env["AGENTROVE_CURRENT_CHAT_ID"] == "chat-1"
-    # Docker sandboxes don't ship the server; restricted channel members
-    # don't get AgentRove tools at all.
-    assert _agentrove_env(SandboxProviderType.DOCKER) is None
+    # Docker sandboxes don't ship the server, so they get the tools over HTTP;
+    # restricted channel members don't get AgentRove tools at all.
+    monkeypatch.setattr(settings, "BASE_URL", "https://ai.example.com")
+    docker = _agentrove_server(SandboxProviderType.DOCKER)
+    assert docker is not None
+    assert docker["type"] == "http"
+    assert docker["url"] == "https://ai.example.com/api/v1/mcp/artifacts/"
+    assert docker["headers"]["X-Agentrove-Chat-Id"] == "chat-1"
+    assert docker["headers"]["Authorization"].startswith("Bearer ")
     assert _agentrove_env(SandboxProviderType.HOST, agentrove_mcp=False) is None
+    assert _agentrove_server(SandboxProviderType.DOCKER, agentrove_mcp=False) is None
 
     monkeypatch.setattr(settings, "AGENTROVE_ARTIFACTS_ENABLED", False)
     assert _agentrove_env(SandboxProviderType.HOST) is None
+    assert _agentrove_server(SandboxProviderType.DOCKER) is None
 
     monkeypatch.setattr(settings, "AGENTROVE_MCP_ENABLED", True)
     env = _agentrove_env(SandboxProviderType.DOCKER)
     assert env is not None
     assert "AGENTROVE_MCP_TOOLSET" not in env
+
+
+async def test_artifact_tools_work_over_http_for_sandboxed_agents(
+    app: Any,
+    db_session: AsyncSession,
+    create_user: UserFactory,
+    login: LoginClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import httpx
+    from mcp import ClientSession
+    from mcp.client.streamable_http import streamablehttp_client
+
+    monkeypatch.setattr(get_settings(), "FRONTEND_URL", "https://ai.example.com")
+    headers, user, _workspace = await create_authenticated_workspace(
+        db_session, create_user, login
+    )
+    url = "http://testserver/api/v1/mcp/artifacts/"
+
+    def asgi_client(
+        headers: dict[str, str] | None = None,
+        timeout: httpx.Timeout | None = None,
+        auth: httpx.Auth | None = None,
+    ) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            headers=headers,
+            timeout=timeout,
+            auth=auth,
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as raw:
+        denied = await raw.post(
+            "/api/v1/mcp/artifacts/",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            headers={
+                "Authorization": f"Bearer {create_mcp_access_token(str(user.id))}"
+            },
+        )
+    assert denied.status_code == 401
+
+    agent_headers = {
+        "Authorization": f"Bearer {create_artifact_agent_token(str(user.id))}",
+        "X-Agentrove-Chat-Id": str(uuid4()),
+    }
+    async with streamablehttp_client(
+        url, headers=agent_headers, httpx_client_factory=asgi_client
+    ) as (read, write, _session_id):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            tools = await session.list_tools()
+            assert {tool.name for tool in tools.tools} == {
+                "create_artifact",
+                "update_artifact",
+                "list_artifacts",
+                "get_artifact",
+            }
+            created = await session.call_tool(
+                "create_artifact", {"title": "Chart", "html": PAGE}
+            )
+            assert not created.isError, created.content
+            artifact = created.structuredContent["artifact"]  # type: ignore[index]
+            assert (
+                artifact["url"] == f"https://ai.example.com/artifacts/{artifact['id']}"
+            )
+            updated = await session.call_tool(
+                "update_artifact",
+                {"artifact_id": artifact["id"], "html": PAGE + "<p>v2</p>"},
+            )
+            assert updated.structuredContent["artifact"]["version"] == 2  # type: ignore[index]
+            missing = await session.call_tool(
+                "get_artifact", {"artifact_id": str(uuid4())}
+            )
+            assert missing.isError
+
+    # The owner sees what the agent published, unlinked from the unknown chat.
+    listed = await raw_list(app, headers)
+    assert [a["title"] for a in listed] == ["Chart"]
+    assert listed[0]["chat_id"] is None
+
+
+async def raw_list(app: Any, headers: dict[str, str]) -> list[dict[str, Any]]:
+    import httpx
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as raw:
+        response = await raw.get("/api/v1/artifacts", headers=headers)
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_fresh_http_tool_tokens_do_not_respawn_the_agent() -> None:
+    from app.services.session_registry import SessionRegistry
+
+    def server(token: str) -> dict[str, Any]:
+        return {
+            "name": "agentrove",
+            "type": "http",
+            "url": "https://ai.example.com/api/v1/mcp/artifacts/",
+            "headers": {"Authorization": f"Bearer {token}", "X-Agentrove-Chat-Id": "c"},
+        }
+
+    # Each turn mints a new token; the session fingerprint must not change.
+    assert SessionRegistry._redact_mcp_tokens(
+        [server("one")]
+    ) == SessionRegistry._redact_mcp_tokens([server("two")])
