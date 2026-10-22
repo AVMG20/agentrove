@@ -2,6 +2,7 @@ import { apiClient, resolveChatClient } from '@/lib/api';
 import { ensureResponse, serviceCall, buildQueryString } from '@/services/base/BaseService';
 import type {
   Workspace,
+  WorkspaceDiskUsage,
   WorkspaceResources,
   CreateWorkspaceRequest,
   UpdateWorkspaceRequest,
@@ -54,7 +55,17 @@ async function getWorkspaceResources(
   });
 }
 
+async function getDiskUsage(refresh = false): Promise<WorkspaceDiskUsage[]> {
+  return serviceCall(async () => {
+    const response = await apiClient.get<WorkspaceDiskUsage[]>(
+      `/workspaces/disk-usage${refresh ? '?refresh=true' : ''}`,
+    );
+    return response ?? [];
+  });
+}
+
 export const workspaceService = {
+  getDiskUsage,
   listWorkspaces,
   createWorkspace,
   updateWorkspace,

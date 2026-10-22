@@ -39,6 +39,15 @@ export const useWorkspacesQuery = (
   });
 };
 
+// Sizing walks every workspace on disk, so the backend caches it for minutes too.
+export const useWorkspaceDiskUsageQuery = () => {
+  return useQuery({
+    queryKey: queryKeys.workspaceDiskUsage,
+    queryFn: () => workspaceService.getDiskUsage(),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
 // Stable [] when data is missing — avoids new-ref churn for downstream deps.
 export const useWorkspacesList = (
   options?: Partial<UseQueryOptions<PaginatedResponse<Workspace>>>,

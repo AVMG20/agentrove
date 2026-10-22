@@ -11,6 +11,7 @@ from app.models.schemas.pagination import PaginatedResponse
 from app.models.schemas.workspace import (
     Workspace as WorkspaceSchema,
     WorkspaceCreate,
+    WorkspaceDiskUsage,
     WorkspaceResources,
     WorkspaceUpdate,
 )
@@ -49,6 +50,15 @@ async def list_workspaces(
     workspace_service: WorkspaceService = Depends(get_workspace_service),
 ) -> PaginatedResponse[WorkspaceSchema]:
     return await workspace_service.get_user_workspaces(current_user)
+
+
+@router.get("/disk-usage", response_model=list[WorkspaceDiskUsage])
+async def get_workspaces_disk_usage(
+    refresh: bool = False,
+    current_user: User = Depends(get_current_user),
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+) -> list[WorkspaceDiskUsage]:
+    return await workspace_service.get_disk_usage(current_user, refresh=refresh)
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceSchema)

@@ -1,11 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Box, Cloud, FolderGit2, HardDrive } from 'lucide-react';
+import { Box, Cloud, Database, FolderGit2, HardDrive } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ListManagementTab } from '@/components/ui/ListManagementTab/ListManagementTab';
 import { RenameModal } from '@/components/ui/RenameModal/RenameModal';
+import { FloatingTooltip } from '@/components/ui/FloatingTooltip/FloatingTooltip';
 import {
   useDeleteWorkspaceMutation,
   useUpdateWorkspaceMutation,
+  useWorkspaceDiskUsageQuery,
   useWorkspacesQuery,
 } from '@/hooks/queries/useWorkspaceQueries';
 import {
@@ -14,8 +16,9 @@ import {
   useCloudWorkspacesQuery,
 } from '@/hooks/queries/useCloudQueries';
 import { useCloudSettingsStore } from '@/store/cloudSettingsStore';
-import type { Workspace } from '@/types/workspace.types';
+import type { Workspace, WorkspaceDiskUsage } from '@/types/workspace.types';
 import { formatRelativeTime } from '@/utils/date';
+import { formatBytes } from '@/utils/format';
 import styles from './WorkspacesSettingsTab.module.scss';
 
 // onCloud tags origin so renames/deletes hit the owning backend.
@@ -32,12 +35,26 @@ function describeSource(workspace: Workspace): string {
   return 'Empty workspace';
 }
 
+function describeDiskUsage(usage: WorkspaceDiskUsage): string {
+  const parts = [
+    usage.files_bytes != null && `Files ${formatBytes(usage.files_bytes)}`,
+    usage.sandbox_bytes != null && `Sandbox ${formatBytes(usage.sandbox_bytes)}`,
+  ].filter(Boolean);
+  return `${parts.join(' · ')} — freed when the workspace is deleted`;
+}
+
 export function WorkspacesSettingsTab() {
   const cloudUrl = useCloudSettingsStore((state) => state.cloudUrl);
   const cloudConnected = !!cloudUrl;
   const { data: localWorkspaces } = useWorkspacesQuery();
   const { data: cloudWorkspaces, isLoading: cloudLoading } =
     useCloudWorkspacesQuery(cloudConnected);
+  // Local backend only; a cloud workspace's disk is the VPS's.
+  const { data: diskUsage } = useWorkspaceDiskUsageQuery();
+  const diskUsageById = useMemo(
+    () => new Map((diskUsage ?? []).map((usage) => [usage.workspace_id, usage])),
+    [diskUsage],
+  );
 
   const deleteWorkspace = useDeleteWorkspaceMutation();
   const cloudDeleteWorkspace = useCloudDeleteWorkspaceMutation();
@@ -108,6 +125,7 @@ export function WorkspacesSettingsTab() {
         renderItem={(item) => {
           const SourceIcon =
             SOURCE_ICONS[item.workspace.source_type as keyof typeof SOURCE_ICONS] ?? Box;
+          const usage = item.onCloud ? undefined : diskUsageById.get(item.workspace.id);
           return (
             <>
               <div className={styles['item-header']}>
@@ -127,6 +145,12 @@ export function WorkspacesSettingsTab() {
                   {item.workspace.chat_count === 1 ? 'thread' : 'threads'}
                 </span>
                 <span>{item.workspace.sandbox_provider === 'docker' ? 'Docker' : 'Host'}</span>
+                {usage?.total_bytes != null && (
+                  <FloatingTooltip content={describeDiskUsage(usage)} className={styles.size}>
+                    <Database className={styles['size-icon']} aria-hidden="true" />
+                    {formatBytes(usage.total_bytes)}
+                  </FloatingTooltip>
+                )}
                 <span className={styles.muted}>
                   {item.workspace.last_chat_at
                     ? `Active ${formatRelativeTime(item.workspace.last_chat_at)}`

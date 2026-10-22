@@ -71,6 +71,7 @@ export const queryKeys = {
     searchAll: (sandboxId?: string) => ['sandbox', sandboxId, 'search'] as const,
   },
   workspaces: ['workspaces'] as const,
+  workspaceDiskUsage: ['workspaces', 'disk-usage'] as const,
   workspaceResources: (workspaceId?: string, chatId?: string) =>
     ['workspaces', workspaceId, 'resources', chatId] as const,
   cloudWorkspaces: (cloudUrl?: string, connectedEmail?: string | null) =>

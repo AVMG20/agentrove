@@ -54,6 +54,19 @@
   font-family: var(--font-mono);
 }
 
+.size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.size-icon {
+  height: var(--space-3);
+  width: var(--space-3);
+  color: var(--theme-text-tertiary);
+}
+
 .muted {
   color: var(--theme-text-quaternary);
 }

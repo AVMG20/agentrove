@@ -205,6 +205,16 @@ class LocalDockerProvider(SandboxProvider):
                 return None
             raise
 
+    async def container_disk_usage(self, sandbox_id: str) -> int | None:
+        # Bytes the container wrote outside the workspace bind mount: installed
+        # toolchains, caches in $HOME, build output written there.
+        container = await self._get_container_by_id(sandbox_id)
+        if container is None:
+            return None
+        info = await container.show(size=1)
+        size = info.get("SizeRw")
+        return size if isinstance(size, int) else None
+
     async def connect_sandbox(self, sandbox_id: str) -> bool:
         async with self._docker_operation("connect to Docker sandbox"):
             if sandbox_id in self._containers:

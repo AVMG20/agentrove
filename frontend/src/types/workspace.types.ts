@@ -31,6 +31,14 @@ export interface UpdateWorkspaceRequest {
   name?: string;
 }
 
+export interface WorkspaceDiskUsage {
+  workspace_id: string;
+  files_bytes: number | null;
+  // What a Docker sandbox wrote outside the workspace: toolchains, caches.
+  sandbox_bytes: number | null;
+  total_bytes: number | null;
+}
+
 export interface WorkspaceResources {
   skills: CustomSkill[];
   builtin_slash_commands: Record<AgentKind, SlashCommand[]>;

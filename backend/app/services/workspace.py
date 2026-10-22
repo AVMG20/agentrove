@@ -20,6 +20,7 @@ from app.models.db_models.user import User
 from app.models.db_models.workspace import Workspace
 from app.models.schemas.pagination import PaginatedResponse, PaginationParams
 from app.models.schemas.workspace import (
+    WorkspaceDiskUsage as WorkspaceDiskUsageSchema,
     BuiltinSlashCommand,
     CustomSkill,
     Workspace as WorkspaceSchema,
@@ -38,6 +39,7 @@ from app.services.session_registry import session_registry
 from app.services.skill import SkillService
 from app.services.terminal import teardown_workspace_sandbox
 from app.services.user import UserService
+from app.services.workspace_disk_usage import workspace_disk_usage
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -277,6 +279,27 @@ class WorkspaceService(BaseDbService[Workspace]):
         )
 
         return await asyncio.to_thread(self._build_workspace_resources, skill_service)
+
+    async def get_disk_usage(
+        self, user: User, *, refresh: bool = False
+    ) -> list[WorkspaceDiskUsageSchema]:
+        async with self._session_factory() as db:
+            result = await db.execute(
+                select(Workspace).filter(
+                    Workspace.user_id == user.id, Workspace.deleted_at.is_(None)
+                )
+            )
+            workspaces = list(result.scalars())
+        usage = await workspace_disk_usage(workspaces, refresh=refresh)
+        return [
+            WorkspaceDiskUsageSchema(
+                workspace_id=UUID(workspace_id),
+                files_bytes=entry.files_bytes,
+                sandbox_bytes=entry.sandbox_bytes,
+                total_bytes=entry.total_bytes,
+            )
+            for workspace_id, entry in usage.items()
+        ]
 
     async def delete_workspace(self, workspace_id: UUID, user: User) -> None:
         # DB commit lands before the session/sandbox teardown tasks so the DB
