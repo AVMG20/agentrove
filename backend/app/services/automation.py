@@ -1,7 +1,12 @@
+import asyncio
+import hashlib
+import hmac
 import logging
+import secrets
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
+from urllib.parse import urlparse
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -10,6 +15,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.constants import MODELS
+from app.core.config import get_settings
 from app.models.db_models.automation import Automation
 from app.models.db_models.chat import Chat
 from app.models.db_models.user import User, UserSettings
@@ -24,10 +30,16 @@ from app.models.schemas.github import GitHubActivityEvent
 from app.models.types import PermissionMode
 from app.services.chat import ChatService
 from app.services.db import BaseDbService, SessionFactoryType
-from app.services.exceptions import AutomationException, ErrorCode, ServiceException
+from app.services.exceptions import (
+    AutomationException,
+    ErrorCode,
+    GitHubException,
+    ServiceException,
+)
 from app.services.github import GitHubService
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 # Changing these invalidates the cached next_run_at.
 SCHEDULE_FIELDS = frozenset({"cron_expression", "timezone", "enabled"})
@@ -44,6 +56,52 @@ GITHUB_EVENT_LABELS = {
     "issue_comment_created": "Comment",
     "release_published": "Release",
 }
+# Trigger event -> (webhook event, action) GitHub delivers for it.
+GITHUB_WEBHOOK_EVENTS = {
+    "pull_request_opened": ("pull_request", "opened"),
+    "issue_opened": ("issues", "opened"),
+    "issue_comment_created": ("issue_comment", "created"),
+    "release_published": ("release", "published"),
+}
+# With a webhook, the cron poll only catches deliveries missed while we were down.
+GITHUB_WEBHOOK_CATCHUP = timedelta(hours=1)
+# Give GitHub's REST listings a moment to include the item a delivery is about.
+GITHUB_WEBHOOK_SETTLE_SECONDS = 3.0
+# Changing these re-registers the repo webhook.
+GITHUB_WEBHOOK_FIELDS = frozenset({"trigger_type", "github_repo", "github_events"})
+
+
+def _is_public_url(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return (
+        bool(host)
+        and host not in {"localhost", "127.0.0.1", "::1"}
+        and not (host.endswith(".local") or host.endswith(".localhost"))
+    )
+
+
+def github_webhook_url(
+    automation_id: UUID, request_base_url: str | None = None
+) -> str | None:
+    # GitHub must reach the API; desktop installs and localhost never can.
+    # The address the user reached us on wins over BASE_URL, which may be
+    # unset or plain http behind the TLS proxy (GitHub won't follow redirects).
+    if settings.DESKTOP_MODE:
+        return None
+    for base in (request_base_url, settings.BASE_URL):
+        if base and _is_public_url(base):
+            return (
+                f"{base.rstrip('/')}{settings.API_V1_STR}"
+                f"/automations/{automation_id}/github-webhook"
+            )
+    return None
+
+
+def verify_github_signature(secret: str, body: bytes, signature: str | None) -> bool:
+    if not signature or not signature.startswith("sha256="):
+        return False
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(f"sha256={expected}", signature)
 
 
 class AutomationService(BaseDbService[Automation]):
@@ -152,7 +210,9 @@ class AutomationService(BaseDbService[Automation]):
             )
             return list(result.scalars().all())
 
-    async def create_automation(self, user: User, data: AutomationCreate) -> Automation:
+    async def create_automation(
+        self, user: User, data: AutomationCreate, request_base_url: str | None = None
+    ) -> Automation:
         self._validate_model(data.model_id)
         async with self.session_factory() as db:
             await self._validate_workspace(db, data.workspace_id, user.id)
@@ -171,16 +231,26 @@ class AutomationService(BaseDbService[Automation]):
             db.add(automation)
             await db.commit()
             await db.refresh(automation)
-            return automation
+        if automation.trigger_type == "github":
+            return await self._sync_github_webhook(
+                automation, None, None, request_base_url
+            )
+        return automation
 
     async def update_automation(
-        self, automation_id: UUID, user: User, data: AutomationUpdate
+        self,
+        automation_id: UUID,
+        user: User,
+        data: AutomationUpdate,
+        request_base_url: str | None = None,
     ) -> Automation:
         changes = data.model_dump(exclude_unset=True)
         if "model_id" in changes:
             self._validate_model(changes["model_id"])
         async with self.session_factory() as db:
             automation = await self._get_owned(db, automation_id, user.id)
+            old_repo = automation.github_repo
+            old_hook_id = automation.github_webhook_id
             if "workspace_id" in changes:
                 await self._validate_workspace(db, changes["workspace_id"], user.id)
             for field, value in changes.items():
@@ -207,13 +277,139 @@ class AutomationService(BaseDbService[Automation]):
                 )
             await db.commit()
             await db.refresh(automation)
-            return automation
+        # Re-register when what the hook watches changed, or retry a failed
+        # setup on any save (e.g. after the token gained the webhook scope).
+        if GITHUB_WEBHOOK_FIELDS & changes.keys() or (
+            automation.trigger_type == "github" and old_hook_id is None
+        ):
+            return await self._sync_github_webhook(
+                automation, old_repo, old_hook_id, request_base_url
+            )
+        return automation
 
     async def delete_automation(self, automation_id: UUID, user: User) -> None:
         async with self.session_factory() as db:
             automation = await self._get_owned(db, automation_id, user.id)
+            repo, hook_id = automation.github_repo, automation.github_webhook_id
             await db.delete(automation)
             await db.commit()
+            if repo and hook_id is not None:
+                await self._delete_github_webhook(db, user.id, repo, hook_id)
+
+    async def _delete_github_webhook(
+        self, db: AsyncSession, user_id: UUID, repo: str, hook_id: int
+    ) -> None:
+        # Best effort: a hook left behind only delivers to a 404.
+        github = await self._github_for(db, user_id)
+        if github is None:
+            return
+        try:
+            await github.delete_repo_webhook(repo, hook_id)
+        except GitHubException as e:
+            logger.warning(
+                "Could not remove GitHub webhook %s on %s: %s", hook_id, repo, e
+            )
+
+    async def _sync_github_webhook(
+        self,
+        automation: Automation,
+        old_repo: str | None,
+        old_hook_id: int | None,
+        request_base_url: str | None = None,
+    ) -> Automation:
+        # Never fails the save: without a webhook the cron poll still works.
+        async with self.session_factory() as db:
+            if old_repo and old_hook_id is not None:
+                await self._delete_github_webhook(
+                    db, automation.user_id, old_repo, old_hook_id
+                )
+            hook_id: int | None = None
+            secret: str | None = None
+            error: str | None = None
+            url = github_webhook_url(automation.id, request_base_url)
+            github = await self._github_for(db, automation.user_id)
+            if automation.trigger_type != "github" or not automation.github_repo:
+                pass
+            elif url is None:
+                error = "No public URL for GitHub to deliver to; checking on a schedule"
+            elif github is None:
+                error = "Add a GitHub token in Settings to use GitHub triggers"
+            else:
+                secret = secrets.token_hex(32)
+                webhook_events = sorted(
+                    {
+                        GITHUB_WEBHOOK_EVENTS[e][0]
+                        for e in automation.github_events or []
+                        if e in GITHUB_WEBHOOK_EVENTS
+                    }
+                )
+                try:
+                    hook_id = await github.create_repo_webhook(
+                        automation.github_repo, url, secret, webhook_events
+                    )
+                except GitHubException as e:
+                    secret = None
+                    error = str(e)[:255]
+            await db.execute(
+                update(Automation)
+                .where(Automation.id == automation.id)
+                .values(
+                    github_webhook_id=hook_id,
+                    github_webhook_secret=secret,
+                    github_webhook_error=error,
+                )
+            )
+            await db.commit()
+            refreshed = await db.get_one(Automation, automation.id)
+            return refreshed
+
+    async def handle_github_webhook(
+        self,
+        automation_id: UUID,
+        body: bytes,
+        signature: str | None,
+        event_name: str | None,
+        action: str | None,
+    ) -> bool:
+        # Returns whether the delivery should trigger a check. Unknown ids and
+        # bad signatures look the same to the caller (no oracle for valid ids).
+        async with self.session_factory() as db:
+            automation = await db.get(Automation, automation_id)
+            if (
+                automation is None
+                or automation.trigger_type != "github"
+                or not automation.github_webhook_secret
+            ):
+                raise AutomationException("Webhook not found", status_code=404)
+            if not verify_github_signature(
+                automation.github_webhook_secret, body, signature
+            ):
+                raise AutomationException("Webhook not found", status_code=404)
+            if not automation.enabled:
+                return False
+            wanted = {
+                GITHUB_WEBHOOK_EVENTS[e]
+                for e in automation.github_events or []
+                if e in GITHUB_WEBHOOK_EVENTS
+            }
+            return (event_name, action) in wanted
+
+    async def check_github_now(self, automation_id: UUID) -> None:
+        # A webhook delivery: run the same cursor-guarded poll the schedule
+        # uses, so a delivery and a poll racing never fire an event twice.
+        await asyncio.sleep(GITHUB_WEBHOOK_SETTLE_SECONDS)
+        async with self.session_factory() as db:
+            automation = await db.get(Automation, automation_id)
+            if (
+                automation is None
+                or not automation.enabled
+                or automation.trigger_type != "github"
+            ):
+                return
+            user = await db.get(User, automation.user_id)
+            if user is None:
+                return
+        await self._dispatch(automation, user)
 
     async def run_automation(self, automation_id: UUID, user: User) -> Chat:
         # Manual "run now" — records last_run_at but leaves next_run_at alone so
@@ -329,6 +525,8 @@ class AutomationService(BaseDbService[Automation]):
                     next_run = self.compute_next_run(
                         automation.cron_expression, automation.timezone
                     )
+                    if automation.github_webhook_id is not None:
+                        next_run = max(next_run, now + GITHUB_WEBHOOK_CATCHUP)
                 except Exception:
                     logger.exception(
                         "Automation %s (%s) schedule is uncomputable; disabling",
@@ -377,25 +575,28 @@ class AutomationService(BaseDbService[Automation]):
             await db.commit()
 
         for automation in to_fire:
-            try:
-                if automation.trigger_type == "github":
-                    await self._poll_github(automation, users[automation.user_id])
-                    continue
-                await self._fire(automation, users[automation.user_id])
-            except ServiceException as exc:
-                if exc.error_code == ErrorCode.WORKSPACE_NOT_FOUND:
-                    # Soft-deleted workspace: the run can never succeed again.
-                    await self._disable_for_missing_workspace(automation)
-                logger.exception(
-                    "Automation %s (%s) failed to start",
-                    automation.id,
-                    automation.name,
-                )
-            except Exception:
-                logger.exception(
-                    "Automation %s (%s) failed to start", automation.id, automation.name
-                )
+            await self._dispatch(automation, users[automation.user_id])
         return {}
+
+    async def _dispatch(self, automation: Automation, user: User) -> None:
+        try:
+            if automation.trigger_type == "github":
+                await self._poll_github(automation, user)
+                return
+            await self._fire(automation, user)
+        except ServiceException as exc:
+            if exc.error_code == ErrorCode.WORKSPACE_NOT_FOUND:
+                # Soft-deleted workspace: the run can never succeed again.
+                await self._disable_for_missing_workspace(automation)
+            logger.exception(
+                "Automation %s (%s) failed to start",
+                automation.id,
+                automation.name,
+            )
+        except Exception:
+            logger.exception(
+                "Automation %s (%s) failed to start", automation.id, automation.name
+            )
 
     async def _disable_for_missing_workspace(self, automation: Automation) -> None:
         async with self.session_factory() as db:

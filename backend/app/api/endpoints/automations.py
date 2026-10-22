@@ -1,7 +1,16 @@
+import json
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Request,
+    status,
+)
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.deps import get_automation_service
@@ -27,11 +36,14 @@ logger = logging.getLogger(__name__)
 )
 async def create_automation(
     data: AutomationCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     automation_service: AutomationService = Depends(get_automation_service),
 ) -> AutomationSchema:
     try:
-        return await automation_service.create_automation(current_user, data)
+        return await automation_service.create_automation(
+            current_user, data, str(request.base_url)
+        )
     except AutomationException as e:
         raise HTTPException(status_code=e.status_code, detail=str(e)) from e
     except SQLAlchemyError as e:
@@ -54,12 +66,13 @@ async def list_automations(
 async def update_automation(
     automation_id: UUID,
     data: AutomationUpdate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     automation_service: AutomationService = Depends(get_automation_service),
 ) -> AutomationSchema:
     try:
         return await automation_service.update_automation(
-            automation_id, current_user, data
+            automation_id, current_user, data, str(request.base_url)
         )
     except AutomationException as e:
         raise HTTPException(status_code=e.status_code, detail=str(e)) from e
@@ -88,3 +101,33 @@ async def run_automation(
     except (AutomationException, ChatException) as e:
         raise HTTPException(status_code=e.status_code, detail=str(e)) from e
     return AutomationRunResponse(chat_id=chat.id)
+
+
+@router.post("/{automation_id}/github-webhook", status_code=status.HTTP_202_ACCEPTED)
+async def github_webhook(
+    automation_id: UUID,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    x_hub_signature_256: str | None = Header(default=None),
+    x_github_event: str | None = Header(default=None),
+    automation_service: AutomationService = Depends(get_automation_service),
+) -> dict[str, bool]:
+    # Called by GitHub, not the app: authenticated by the per-automation HMAC
+    # secret instead of a user session.
+    body = await request.body()
+    action: str | None = None
+    try:
+        payload = json.loads(body) if body else {}
+        if isinstance(payload, dict) and isinstance(payload.get("action"), str):
+            action = payload["action"]
+    except ValueError:
+        pass
+    try:
+        relevant = await automation_service.handle_github_webhook(
+            automation_id, body, x_hub_signature_256, x_github_event, action
+        )
+    except AutomationException as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e)) from e
+    if relevant:
+        background_tasks.add_task(automation_service.check_github_now, automation_id)
+    return {"queued": relevant}

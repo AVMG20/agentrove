@@ -29,6 +29,9 @@ export interface Automation {
   trigger_type: AutomationTriggerType;
   github_repo: string | null;
   github_events: GitHubTriggerEvent[] | null;
+  // A repo webhook delivers events instantly; otherwise the cron poll runs.
+  github_webhook_active: boolean;
+  github_webhook_error: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -196,6 +196,8 @@ class Automation(BaseModel):
     trigger_type: str = "schedule"
     github_repo: str | None = None
     github_events: list[str] | None = None
+    github_webhook_active: bool = False
+    github_webhook_error: str | None = None
     created_at: datetime
     updated_at: datetime
 

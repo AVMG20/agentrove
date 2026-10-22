@@ -2,12 +2,12 @@ import uuid
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Index, String, Text
+from sqlalchemy import JSON, BigInteger, Boolean, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base_class import Base
 from app.db.migration_helpers import uuid_server_default
-from app.db.types import GUID, UTCDateTime
+from app.db.types import GUID, EncryptedString, UTCDateTime
 
 
 class Automation(Base):
@@ -61,6 +61,18 @@ class Automation(Base):
     github_events: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     # Events created at or before this instant were already handled (UTC).
     github_cursor: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    # Repo webhook that makes GitHub push events instantly; without one (token
+    # can't manage hooks, no public URL) the cron poll is the only trigger.
+    github_webhook_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    github_webhook_secret: Mapped[str | None] = mapped_column(
+        EncryptedString, nullable=True
+    )
+    # Why the last webhook setup failed, shown next to the automation.
+    github_webhook_error: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    @property
+    def github_webhook_active(self) -> bool:
+        return self.github_webhook_id is not None
 
     __table_args__ = (
         Index("idx_automations_user_id", "user_id"),

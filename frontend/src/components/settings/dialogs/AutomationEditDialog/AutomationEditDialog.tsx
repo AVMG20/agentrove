@@ -302,7 +302,7 @@ export function AutomationEditDialog({
                 </div>
               </div>
               <div className={styles['inline-field']}>
-                Check every
+                Without a webhook, check every
                 <div className={styles['select-w28']}>
                   <Select
                     value={form.github_poll_minutes}
@@ -318,10 +318,12 @@ export function AutomationEditDialog({
                 </div>
               </div>
               <p className={styles.hint}>
-                Uses the GitHub token from Settings → General. Each new item starts its own chat
-                with the item&apos;s details appended to the prompt, and the agent&apos;s gh CLI
-                acts as you (e.g. to comment). Your own activity is ignored so replies can&apos;t
-                re-trigger the automation.
+                Uses the GitHub token from Settings → General. New items arrive instantly through a
+                repository webhook when the token can manage webhooks (admin:repo_hook, or Webhooks:
+                write for fine-grained tokens); otherwise the repo is checked on the interval above.
+                Each item starts its own chat with its details appended to the prompt, and the
+                agent&apos;s gh CLI acts as you (e.g. to comment). Your own activity is ignored so
+                replies can&apos;t re-trigger the automation.
               </p>
             </div>
           ) : (

@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useMemo, useState } from 'react';
-import { Clock, Cloud, Github, Play } from 'lucide-react';
+import { Clock, Cloud, Github, Play, TriangleAlert, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ListManagementTab } from '@/components/ui/ListManagementTab/ListManagementTab';
 import { Button } from '@/components/ui/primitives/Button/Button';
@@ -292,7 +292,26 @@ export function AutomationsSettingsTab() {
               ) : (
                 <span className={styles.chip}>{describeCron(item.automation.cron_expression)}</span>
               )}
-              {item.automation.enabled && (
+              {item.automation.trigger_type === 'github' &&
+                (item.automation.github_webhook_active ? (
+                  <span className={styles.chip} title="GitHub delivers new items via a webhook">
+                    <Zap className={styles['chip-icon']} />
+                    Instant
+                  </span>
+                ) : (
+                  <span
+                    className={styles.chip}
+                    title={
+                      item.automation.github_webhook_error
+                        ? `No webhook: ${item.automation.github_webhook_error}`
+                        : 'No webhook; checking on a schedule'
+                    }
+                  >
+                    <TriangleAlert className={styles['chip-icon']} />
+                    Polling
+                  </span>
+                ))}
+              {item.automation.enabled && !item.automation.github_webhook_active && (
                 <span className={styles['next-run']}>
                   {item.automation.trigger_type === 'github' ? 'Next check' : 'Next run'}{' '}
                   {new Date(item.automation.next_run_at).toLocaleString([], NEXT_RUN_FORMAT)}

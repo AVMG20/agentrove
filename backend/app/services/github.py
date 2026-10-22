@@ -339,6 +339,66 @@ class GitHubService:
             key=lambda e: e.created_at,
         )
 
+    async def create_repo_webhook(
+        self, repo: str, url: str, secret: str, events: list[str]
+    ) -> int:
+        # Needs admin:repo_hook (classic token) or Webhooks: write (fine-grained).
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{GITHUB_API_BASE}/repos/{repo}/hooks",
+                json={
+                    "name": "web",
+                    "active": True,
+                    "events": events,
+                    "config": {
+                        "url": url,
+                        "content_type": "json",
+                        "secret": secret,
+                        "insecure_ssl": "0",
+                    },
+                },
+                headers=self._headers,
+            )
+        self._check_auth(response)
+        if response.status_code in (403, 404):
+            raise GitHubException(
+                "GitHub token can't manage webhooks on this repository",
+                status_code=response.status_code,
+            )
+        if response.status_code != 201:
+            message = ""
+            try:
+                errors = response.json().get("errors") or []
+                message = "; ".join(
+                    str(e.get("message", "")) for e in errors if isinstance(e, dict)
+                )
+            except ValueError:
+                pass
+            logger.warning(
+                "GitHub webhook creation returned %d: %s",
+                response.status_code,
+                response.text[:200],
+            )
+            raise GitHubException(
+                message or "GitHub refused to create the webhook",
+                status_code=response.status_code,
+            )
+        hook_id: int = response.json()["id"]
+        return hook_id
+
+    async def delete_repo_webhook(self, repo: str, hook_id: int) -> None:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.delete(
+                f"{GITHUB_API_BASE}/repos/{repo}/hooks/{hook_id}",
+                headers=self._headers,
+            )
+        self._check_auth(response)
+        # 404: already removed on GitHub's side.
+        if response.status_code not in (204, 404):
+            raise GitHubException(
+                "Failed to remove the GitHub webhook", status_code=response.status_code
+            )
+
     async def _get_json(
         self, client: httpx.AsyncClient, path: str, params: dict[str, Any]
     ) -> list[dict[str, Any]]:
