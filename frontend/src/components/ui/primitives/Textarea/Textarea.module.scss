@@ -2,7 +2,7 @@
 
 .textarea {
   @include controls.input-base;
-  min-height: var(--space-32);
+  min-height: var(--space-20);
   resize: vertical;
 
   &--error {

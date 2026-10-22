@@ -3,6 +3,7 @@
 
 .label {
   @include type.type-body(500);
+  line-height: 1;
   display: flex;
   align-items: center;
   gap: var(--space-2);

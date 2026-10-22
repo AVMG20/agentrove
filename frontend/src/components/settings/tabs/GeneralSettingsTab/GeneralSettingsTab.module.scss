@@ -10,13 +10,15 @@
 .section-card {
   border: 1px solid var(--theme-border);
   border-radius: var(--radius-xl);
+  background-color: var(--theme-surface);
   padding: var(--space-5);
+  box-shadow: var(--shadow-xs);
 }
 
 .section-title {
-  @include type.type-default(500);
+  @include type.type-large(600);
   margin-bottom: var(--space-4);
-  color: var(--theme-text-tertiary);
+  color: var(--theme-text-primary);
 }
 
 .stack {
@@ -48,8 +50,8 @@
 }
 
 .theme-select {
-  @include type.type-default;
-  height: var(--space-8);
+  @include type.type-body;
+  height: var(--space-9);
 }
 
 .divided {

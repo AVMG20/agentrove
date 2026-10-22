@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--theme-border);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-5);
 }
 
 .title {
@@ -24,11 +24,12 @@
 .close-button {
   @include anim.transition-colors;
   padding: var(--space-1);
-  border-radius: var(--radius-lg);
-  color: var(--theme-text-quaternary);
+  border-radius: var(--radius-md);
+  color: var(--theme-text-tertiary);
 
   @include responsive.hover {
-    color: var(--theme-text-secondary);
+    background-color: var(--theme-surface-hover);
+    color: var(--theme-text-primary);
   }
 }
 

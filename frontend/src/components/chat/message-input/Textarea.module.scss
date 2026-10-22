@@ -5,7 +5,7 @@
 }
 
 .backdrop {
-  @include type.type-default;
+  @include type.type-prose;
   pointer-events: none;
   position: absolute;
   inset: 0;
@@ -30,7 +30,7 @@
 }
 
 .textarea-field {
-  @include type.type-default;
+  @include type.type-prose;
   position: relative;
   // Fixed viewport cap shared with the backdrop (no spacing-scale token for 180px)
   max-height: 180px;

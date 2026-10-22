@@ -16,9 +16,9 @@
   margin-top: var(--space-20);
   height: fit-content;
   width: 100%;
-  max-width: 50.4rem;
-  border: 1px solid colors.theme-color('border', 0.5);
-  border-radius: var(--radius-xl);
+  max-width: 40rem;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-2xl);
   background-color: colors.theme-color('surface', 0.95);
   box-shadow: var(--shadow-strong);
   backdrop-filter: blur(24px);
@@ -26,7 +26,7 @@
 }
 
 .panel {
-  height: 33.6rem;
+  height: 28rem;
 }
 
 .filters {

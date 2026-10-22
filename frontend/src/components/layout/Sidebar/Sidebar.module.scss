@@ -1,4 +1,3 @@
-@use '@/styles/globals/colors' as colors;
 @use '@/styles/globals/zlayer' as z;
 
 .sidebar {
@@ -10,7 +9,7 @@
   height: 100%;
   width: var(--sidebar-width);
   flex-direction: column;
-  border-right: 1px solid colors.theme-color('border', 0.5);
+  border-right: 1px solid var(--theme-border);
   background-color: var(--theme-surface-secondary);
   transform: translateX(-100%);
   transition-property: transform, width;
@@ -26,6 +25,6 @@
 // reachable even while the user query is loading or failed.
 .footer {
   flex-shrink: 0;
-  border-top: 1px solid colors.theme-color('border', 0.5);
-  padding: var(--space-2-5) var(--space-4);
+  border-top: 1px solid var(--theme-border);
+  padding: var(--space-2-5) var(--space-3);
 }

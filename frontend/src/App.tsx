@@ -219,7 +219,7 @@ export default function App() {
         theme === 'light' || theme === 'dark' || theme === 'system' ? null : PALETTES[theme];
       metaThemeColor.setAttribute(
         'content',
-        palette?.surface ?? (resolvedTheme === 'dark' ? '#111111' : '#f5f5f5'),
+        palette?.surface ?? (resolvedTheme === 'dark' ? '#0a0a0b' : '#ffffff'),
       );
     }
   }, [resolvedTheme, theme]);

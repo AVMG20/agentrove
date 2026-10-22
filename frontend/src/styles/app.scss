@@ -82,7 +82,8 @@
 // library's default inline background/color
 .app-toast {
   border: 1px solid var(--theme-border) !important;
-  background-color: var(--theme-surface-secondary) !important;
+  border-radius: var(--radius-lg) !important;
+  background-color: var(--theme-surface) !important;
   color: var(--theme-text-primary) !important;
   box-shadow: var(--shadow-medium) !important;
   overflow-wrap: anywhere;

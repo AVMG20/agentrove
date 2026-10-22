@@ -10,7 +10,7 @@ const LIGHT_THEME: monaco.editor.IStandaloneThemeData = {
   base: 'vs',
   inherit: true,
   rules: [
-    { token: '', foreground: '24292E', background: '#f9f9f9' },
+    { token: '', foreground: '24292E', background: '#fafafa' },
     { token: 'comment', foreground: '8B949E', fontStyle: 'italic' },
     { token: 'keyword', foreground: '6B4C9A' },
     { token: 'string', foreground: '4A6B3F' },
@@ -20,7 +20,7 @@ const LIGHT_THEME: monaco.editor.IStandaloneThemeData = {
     { token: 'function', foreground: '3D3D3D' },
   ],
   colors: {
-    'editor.background': '#f9f9f9',
+    'editor.background': '#fafafa',
     'editor.foreground': '#24292E',
     'editorLineNumber.foreground': '#C0C0C0',
     'editorLineNumber.activeForeground': '#8B8B8B',
@@ -71,7 +71,7 @@ const DARK_THEME: monaco.editor.IStandaloneThemeData = {
   base: 'vs-dark',
   inherit: true,
   rules: [
-    { token: '', foreground: 'B0B0B0', background: '#141414' },
+    { token: '', foreground: 'B0B0B0', background: '#121214' },
     { token: 'comment', foreground: '555555', fontStyle: 'italic' },
     { token: 'keyword', foreground: '9B8ABF' },
     { token: 'string', foreground: 'A3B38B' },
@@ -81,7 +81,7 @@ const DARK_THEME: monaco.editor.IStandaloneThemeData = {
     { token: 'function', foreground: 'C8C8C8' },
   ],
   colors: {
-    'editor.background': '#141414',
+    'editor.background': '#121214',
     'editor.foreground': '#B0B0B0',
     'editorLineNumber.foreground': '#3A3A3A',
     'editorLineNumber.activeForeground': '#606060',
