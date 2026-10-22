@@ -11,7 +11,7 @@ from uuid import UUID
 from sqlalchemy import update
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.config import get_settings
+from app.core.config import agent_global_env, get_settings
 from app.core.security import create_mcp_access_token
 from app.db.session import SessionLocal
 from app.models.db_models.chat import Chat
@@ -565,6 +565,9 @@ class AgentService:
             env["GIT_COMMITTER_NAME"] = settings.GIT_AUTHOR_NAME
             env["GIT_COMMITTER_EMAIL"] = settings.GIT_AUTHOR_EMAIL
 
+        # Deployment-wide agent env (e.g. a Claude proxy), then the user's own
+        # env vars on top so they can override it per key.
+        env.update(agent_global_env(settings))
         env.update(self._build_custom_env(user_settings))
 
         adapter = AGENT_ADAPTERS[agent_kind]

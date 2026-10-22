@@ -29,7 +29,7 @@ from acp.schema import (
 )
 
 from app.constants import SANDBOX_HOME_DIR, SANDBOX_WORKSPACE_DIR, TERMINAL_TYPE
-from app.core.config import get_settings
+from app.core.config import agent_env_passthrough_keys, get_settings
 from app.models.types import AgentKind
 from app.services.acp.adapters import (
     AGENT_ADAPTERS,
@@ -49,6 +49,7 @@ ConfigOptions = list[SessionConfigOptionSelect | SessionConfigOptionBoolean] | N
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+AGENT_ENV_PASSTHROUGH_KEYS = agent_env_passthrough_keys(settings)
 
 ACP_PROTOCOL_VERSION = 1
 # 100 MB — large enough for long-running agent sessions that produce extensive
@@ -758,8 +759,14 @@ class AcpSession:
     async def _spawn_host(config: AcpSessionConfig) -> asyncio.subprocess.Process:
         launch = AcpSession._build_launch_config(config)
 
-        # Inherit host env (auth, proxy, TLS, PATH).
-        env = dict(os.environ)
+        # Inherit host env (auth, proxy, TLS, PATH). Drop passthrough vars the
+        # deployment declares but leaves empty — an empty ANTHROPIC_BASE_URL
+        # would point the CLI at nothing instead of the default endpoint.
+        env = {
+            key: value
+            for key, value in os.environ.items()
+            if value or key not in AGENT_ENV_PASSTHROUGH_KEYS
+        }
         if config.sandbox_id and not settings.DESKTOP_MODE:
             # Web mode: HOME is the per-user agent home, shared by every
             # workspace of the user, so CLI logins/MCP/skills are configured

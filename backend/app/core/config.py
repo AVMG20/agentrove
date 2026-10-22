@@ -1,4 +1,5 @@
 import logging
+import os
 import platform
 import sys
 from datetime import datetime, timezone
@@ -156,6 +157,17 @@ class Settings(BaseSettings):
     BROWSER_USE_API_KEY: str = ""
     AGENTROVE_MCP_TOKEN_LIFETIME_SECONDS: int = 604800
 
+    # Deployment-wide env for every agent session and sandbox terminal, e.g. to
+    # point Claude at a proxy. KEY=VALUE per line; '#' lines are comments.
+    # A user's own Settings → Env Variables override these per key.
+    AGENT_ENV: str = ""
+    # Backend env vars forwarded to agents by name — so ANTHROPIC_BASE_URL set
+    # on the deployment reaches Docker sandboxes too. Empty values are skipped.
+    AGENT_ENV_PASSTHROUGH: str = (
+        "ANTHROPIC_BASE_URL,ANTHROPIC_AUTH_TOKEN,ANTHROPIC_API_KEY,"
+        "ANTHROPIC_CUSTOM_HEADERS"
+    )
+
     DOCKER_IMAGE: str = "ghcr.io/mng-dev-ai/agentrove-sandbox:latest"
     DOCKER_NETWORK: str = "agentrove-sandbox-net"
     DOCKER_HOST: str | None = None
@@ -260,6 +272,36 @@ def _setup_logging(log_level: str, use_json: bool = True) -> None:
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+
+def parse_env_lines(raw: str) -> dict[str, str]:
+    env: dict[str, str] = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, sep, value = line.partition("=")
+        key = key.strip()
+        if sep and key:
+            env[key] = value.strip()
+    return env
+
+
+def agent_env_passthrough_keys(settings: Settings) -> frozenset[str]:
+    return frozenset(
+        key.strip() for key in settings.AGENT_ENV_PASSTHROUGH.split(",") if key.strip()
+    )
+
+
+def agent_global_env(settings: Settings) -> dict[str, str]:
+    # Passthrough first so an explicit AGENT_ENV line wins for the same key.
+    env: dict[str, str] = {}
+    for key in agent_env_passthrough_keys(settings):
+        value = os.environ.get(key)
+        if value:
+            env[key] = value
+    env.update(parse_env_lines(settings.AGENT_ENV))
+    return env
 
 
 @lru_cache()
