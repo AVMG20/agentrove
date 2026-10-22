@@ -15,18 +15,21 @@
   align-items: center;
   border-radius: var(--radius-md);
   padding: var(--space-1);
-  color: var(--theme-text-quaternary);
+  color: var(--theme-text-tertiary);
 
   @include responsive.hover {
+    background-color: var(--theme-surface-hover);
     color: var(--theme-text-primary);
   }
 }
 
 .new-icon {
-  height: var(--space-3-5);
-  width: var(--space-3-5);
+  height: var(--space-4);
+  width: var(--space-4);
 }
 
 .list {
-  margin-bottom: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }

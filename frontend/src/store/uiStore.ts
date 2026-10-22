@@ -67,6 +67,9 @@ type UIStoreState = ThemeState &
     // Persisted so reload keeps the narrowed sidebar view.
     sidebarFilters: SidebarFilters;
     setSidebarFilters: (filters: SidebarFilters) => void;
+    // Keys of collapsed sidebar sections and workspace folders — persisted.
+    sidebarCollapsed: string[];
+    toggleSidebarCollapsed: (key: string) => void;
     commandMenuOpen: boolean;
     setCommandMenuOpen: (open: boolean) => void;
     // Mode-switch commands set this; CommandMenu consumes it on next open.
@@ -268,6 +271,15 @@ export const useUIStore = create<UIStoreState>()(
       },
       sidebarFilters: EMPTY_SIDEBAR_FILTERS,
       setSidebarFilters: (filters) => set({ sidebarFilters: filters }),
+      sidebarCollapsed: [],
+      toggleSidebarCollapsed: (key) => {
+        const current = get().sidebarCollapsed;
+        set({
+          sidebarCollapsed: current.includes(key)
+            ? current.filter((k) => k !== key)
+            : [...current, key],
+        });
+      },
 
       commandMenuOpen: false,
       setCommandMenuOpen: (open) => set({ commandMenuOpen: open }),
@@ -626,6 +638,7 @@ export const useUIStore = create<UIStoreState>()(
         sessionPanelOpen: state.sessionPanelOpen,
         // Status filters are session-only (empty at mount) — don't persist them.
         sidebarFilters: { ...state.sidebarFilters, statuses: [] },
+        sidebarCollapsed: state.sidebarCollapsed,
         splitChatIds: state.splitChatIds,
         // Live workspace + currentWorkspaceChatId so refresh doesn't reset layout.
         openTabs: state.openTabs,

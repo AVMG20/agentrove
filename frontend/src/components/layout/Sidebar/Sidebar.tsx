@@ -232,6 +232,11 @@ export function Sidebar({
           hasMore={hasMore}
           isFetchingMore={isFetchingMore}
           onLoadMore={loadMore}
+          onNewWorkspaceThread={(e, workspaceId) =>
+            workspaceBadgeById.get(workspaceId)?.isCloud
+              ? workspaceActions.handleNewCloudThread(e, workspaceId)
+              : workspaceActions.handleNewWorkspaceThread(e, workspaceId)
+          }
         />
 
         {/* Always render footer so settings/logout work even if the user query fails. */}
