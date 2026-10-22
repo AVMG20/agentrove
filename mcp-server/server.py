@@ -69,6 +69,17 @@ def _automation_summary(a: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _artifact_summary(artifact: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": artifact["id"],
+        "title": artifact["title"],
+        "url": f"{APP_URL}/artifacts/{artifact['id']}",
+        "is_public": artifact["is_public"],
+        "version": artifact["version"],
+        "updated_at": artifact["updated_at"],
+    }
+
+
 def _build_client() -> AgentroveClient:
     # The backend mints a per-user token for the chat's owner at session spawn.
     access_token = os.environ.get("AGENTROVE_ACCESS_TOKEN")
@@ -79,6 +90,16 @@ def _build_client() -> AgentroveClient:
 
 
 client = _build_client()
+# Origin the user opens artifact links on; the API may be a loopback address.
+APP_URL = (
+    os.environ.get("AGENTROVE_APP_URL")
+    or os.environ.get("AGENTROVE_API_URL", DEFAULT_API_URL).removesuffix("/api/v1")
+).rstrip("/")
+# The backend's default when the full server is off: only the artifact tools,
+# whose token the rest of the API rejects anyway.
+ARTIFACT_TOOLS = frozenset(
+    {"create_artifact", "update_artifact", "list_artifacts", "get_artifact"}
+)
 
 
 @mcp.tool()
@@ -315,6 +336,74 @@ async def render_ui(title: str, html: str) -> dict[str, Any]:
     nothing to act on. Returns {"rendered": true, "title": title}.
     """
     return {"rendered": True, "title": title}
+
+
+@mcp.tool()
+async def create_artifact(title: str, html: str) -> dict[str, Any]:
+    """Publish a self-contained HTML page as an artifact with its own shareable link.
+
+    Use an artifact when the user wants something to open, keep or share as a page:
+    a report, dashboard, chart, prototype, slide deck, game or document. Prefer it
+    over writing an .html file into the workspace for anything meant to be viewed;
+    for a small widget that belongs inline in the chat, use render_ui when available.
+
+    `html` is a complete single-file document (<!doctype html>...) with inline <style>
+    and <script>. Scripts, stylesheets and fonts from public CDNs (cdn.jsdelivr.net,
+    unpkg.com, cdnjs.cloudflare.com, Google Fonts) and fetch() to public CORS APIs
+    work. The page runs sandboxed with an opaque origin: cookies, localStorage,
+    sessionStorage and AgentRove's API are unavailable, so keep state in memory. Make
+    it responsive and readable on its own; it is shown full-screen.
+
+    Artifacts start private: only the user, signed in, can open the link; they can
+    make it public from the page. Returns the artifact's id, url, version and
+    visibility. Always give the user the url (as a markdown link) in your reply. To
+    revise it later, call update_artifact with its id instead of creating a new one.
+    """
+    artifact = await client.create_artifact(
+        title, html, chat_id=os.environ.get("AGENTROVE_CURRENT_CHAT_ID")
+    )
+    return {"artifact": _artifact_summary(artifact)}
+
+
+@mcp.tool()
+async def update_artifact(
+    artifact_id: str, html: str, title: str | None = None
+) -> dict[str, Any]:
+    """Replace an existing artifact's HTML, and optionally its title.
+
+    `html` is the complete new document, not a diff (read the current one with
+    get_artifact first when making targeted edits). The link stays the same and the
+    version increments; open viewers pick up the new version on reload. Visibility is
+    left unchanged. Returns the updated artifact's id, url, version and visibility;
+    share the url with the user again.
+    """
+    body: dict[str, Any] = {"html": html}
+    if title is not None:
+        body["title"] = title
+    artifact = await client.update_artifact(artifact_id, body)
+    return {"artifact": _artifact_summary(artifact)}
+
+
+@mcp.tool()
+async def list_artifacts() -> dict[str, Any]:
+    """List the user's artifacts, most recently updated first.
+
+    Returns each artifact's id, title, url, is_public, version and updated_at. Use an
+    id with get_artifact or update_artifact.
+    """
+    artifacts = await client.list_artifacts()
+    return {"artifacts": [_artifact_summary(a) for a in artifacts]}
+
+
+@mcp.tool()
+async def get_artifact(artifact_id: str) -> dict[str, Any]:
+    """Get an artifact's metadata and its full current HTML.
+
+    Use it to read the page before revising it with update_artifact. Returns id,
+    title, url, is_public, version, updated_at and html.
+    """
+    artifact = await client.get_artifact(artifact_id)
+    return {"artifact": {**_artifact_summary(artifact), "html": artifact["html"]}}
 
 
 @mcp.tool()
@@ -625,6 +714,12 @@ async def run_automation(automation_id: str) -> dict[str, Any]:
     """
     result = await client.run_automation(automation_id)
     return {"chat_id": result["chat_id"]}
+
+
+if os.environ.get("AGENTROVE_MCP_TOOLSET") == "artifacts":
+    for tool in mcp._tool_manager.list_tools():
+        if tool.name not in ARTIFACT_TOOLS:
+            mcp.remove_tool(tool.name)
 
 
 if __name__ == "__main__":

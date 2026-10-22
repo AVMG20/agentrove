@@ -13,6 +13,7 @@ from sqlalchemy import text
 from app.api.docs import custom_openapi
 from app.api.endpoints import (
     ai_model,
+    artifacts,
     attachments,
     auth,
     automations,
@@ -169,6 +170,11 @@ def create_application() -> FastAPI:
         automations.router,
         prefix=f"{settings.API_V1_STR}/automations",
         tags=["Automations"],
+    )
+    application.include_router(
+        artifacts.router,
+        prefix=f"{settings.API_V1_STR}/artifacts",
+        tags=["Artifacts"],
     )
     application.include_router(
         usage.router,

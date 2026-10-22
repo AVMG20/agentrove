@@ -12,7 +12,7 @@ from cryptography.fernet import Fernet
 from fastapi import Depends, HTTPException, Query, WebSocket, status
 from fastapi_users.jwt import generate_jwt
 from fastapi_users.password import PasswordHelper
-from jose import jwt
+from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -121,6 +121,61 @@ def create_mcp_access_token(user_id: str) -> str:
             lifetime_seconds=settings.AGENTROVE_MCP_TOKEN_LIFETIME_SECONDS,
             algorithm=settings.ALGORITHM,
         )
+    )
+
+
+ARTIFACT_AGENT_AUDIENCE = "agentrove:artifacts"
+ARTIFACT_VIEW_AUDIENCE = "agentrove:artifact-view"
+
+
+def _scoped_token_secret(audience: str) -> str:
+    # A key per scoped audience: get_user_from_token skips audience checks for
+    # ?token=, so sharing SECRET_KEY would let these pass as full sessions.
+    return hashlib.sha256(f"{settings.SECRET_KEY}:{audience}".encode()).hexdigest()
+
+
+def create_scoped_token(subject: str, audience: str, lifetime_seconds: int) -> str:
+    return str(
+        generate_jwt(
+            {"sub": subject, "aud": [audience]},
+            _scoped_token_secret(audience),
+            lifetime_seconds=lifetime_seconds,
+            algorithm=settings.ALGORITHM,
+        )
+    )
+
+
+def decode_scoped_token(token: str, audience: str) -> str | None:
+    # Returns the subject, or None when the token is invalid, expired or
+    # minted for another audience.
+    try:
+        payload = jwt.decode(
+            token,
+            _scoped_token_secret(audience),
+            algorithms=[settings.ALGORITHM],
+            audience=audience,
+        )
+    except JWTError:
+        return None
+    subject = payload.get("sub")
+    return subject if isinstance(subject, str) else None
+
+
+def create_artifact_agent_token(user_id: str) -> str:
+    # For the artifacts-only MCP server: lets the agent manage this user's
+    # artifacts and nothing else.
+    return create_scoped_token(
+        str(user_id),
+        ARTIFACT_AGENT_AUDIENCE,
+        settings.AGENTROVE_MCP_TOKEN_LIFETIME_SECONDS,
+    )
+
+
+def create_artifact_view_token(artifact_id: UUID) -> str:
+    return create_scoped_token(
+        str(artifact_id),
+        ARTIFACT_VIEW_AUDIENCE,
+        settings.ARTIFACT_VIEW_TOKEN_LIFETIME_SECONDS,
     )
 
 

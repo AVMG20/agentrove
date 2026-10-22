@@ -15,6 +15,7 @@ class ErrorCode(str, Enum):
     API_KEY_MISSING = "API_KEY_MISSING"
     WORKSPACE_NOT_FOUND = "WORKSPACE_NOT_FOUND"
     AUTOMATION_NOT_FOUND = "AUTOMATION_NOT_FOUND"
+    ARTIFACT_NOT_FOUND = "ARTIFACT_NOT_FOUND"
     VALIDATION_ERROR = "VALIDATION_ERROR"
     RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
     GITHUB_TOKEN_INVALID = "GITHUB_TOKEN_INVALID"
@@ -151,6 +152,17 @@ class AutomationException(ServiceException):
         self,
         message: str,
         error_code: ErrorCode = ErrorCode.AUTOMATION_NOT_FOUND,
+        details: dict[str, str] | None = None,
+        status_code: int = 400,
+    ):
+        super().__init__(message, error_code, details, status_code)
+
+
+class ArtifactException(ServiceException):
+    def __init__(
+        self,
+        message: str,
+        error_code: ErrorCode = ErrorCode.ARTIFACT_NOT_FOUND,
         details: dict[str, str] | None = None,
         status_code: int = 400,
     ):

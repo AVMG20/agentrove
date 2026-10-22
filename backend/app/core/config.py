@@ -156,6 +156,12 @@ class Settings(BaseSettings):
     AGENTROVE_MCP_ENABLED: bool = False
     BROWSER_USE_API_KEY: str = ""
     AGENTROVE_MCP_TOKEN_LIFETIME_SECONDS: int = 604800
+    # Artifact tools reach agents even with the MCP server above off: it is then
+    # spawned with only those tools and a token the artifacts API alone accepts.
+    AGENTROVE_ARTIFACTS_ENABLED: bool = True
+    # How long a private artifact's iframe URL stays loadable once the viewer
+    # page has fetched it.
+    ARTIFACT_VIEW_TOKEN_LIFETIME_SECONDS: int = 1800
 
     # Deployment-wide env for every agent session and sandbox terminal, e.g. to
     # point Claude at a proxy. KEY=VALUE per line; '#' lines are comments.

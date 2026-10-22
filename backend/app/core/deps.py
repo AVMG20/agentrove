@@ -1,5 +1,6 @@
 import logging
 from collections.abc import AsyncIterator, Callable, Coroutine
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 from uuid import UUID
@@ -8,12 +9,17 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_current_user
+from app.core.security import (
+    ARTIFACT_AGENT_AUDIENCE,
+    decode_scoped_token,
+    get_current_user,
+)
 from app.core.user_manager import optional_current_active_user
 from app.db.session import SessionLocal, get_db
 from app.models.db_models.chat import Chat
 from app.models.db_models.workspace import Workspace
 from app.models.db_models.user import User
+from app.services.artifact import ArtifactService
 from app.services.attachment import AttachmentService
 from app.services.automation import AutomationService
 from app.services.chat import ChatService
@@ -211,6 +217,51 @@ async def get_automation_service(
         ChatService(user_service, session_factory=SessionLocal),
         session_factory=SessionLocal,
     )
+
+
+def get_artifact_service() -> ArtifactService:
+    return ArtifactService(session_factory=SessionLocal)
+
+
+@dataclass(frozen=True)
+class ArtifactActor:
+    user: User
+    # Authenticated by the artifacts-only agent token: may publish and edit,
+    # but visibility and deletion stay with the user.
+    agent_scoped: bool = False
+
+
+async def get_artifact_actor(
+    request: Request,
+    user: User | None = Depends(optional_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> ArtifactActor:
+    if user is not None:
+        return ArtifactActor(user)
+    scheme, _, token = request.headers.get("Authorization", "").partition(" ")
+    if scheme.lower() == "bearer" and token:
+        user_id = decode_scoped_token(token, ARTIFACT_AGENT_AUDIENCE)
+        agent_user = await db.get(User, UUID(user_id)) if user_id else None
+        if agent_user is not None and agent_user.is_active:
+            return ArtifactActor(agent_user, agent_scoped=True)
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def get_optional_artifact_viewer(
+    request: Request,
+    user: User | None = Depends(optional_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    # Anonymous viewers see public artifacts only. Credentials that don't
+    # validate are a 401, not anonymous, so the app refreshes an expired
+    # session instead of showing the owner "not found".
+    if "Authorization" not in request.headers:
+        return None
+    return (await get_artifact_actor(request, user, db)).user
 
 
 def chat_access_dependency(
