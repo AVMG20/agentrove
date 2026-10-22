@@ -9,6 +9,9 @@ import toolIcon from './toolIcon.module.scss';
 import type { OpencodeReadInput, OpencodeOutput } from './opencodePayload';
 
 const ICON = <FileSearch className={toolIcon.icon} />;
+// v2 output: "Read file <path>, lines a-b" header, then "N: <line>" rows.
+const READ_HEADER = /^Read file .*\n/;
+const LINE_NUMBER_PREFIX = /^(\d+): /;
 
 export const ReadTool = memo(function ReadTool({ tool }: { tool: ToolAggregate }) {
   const input = tool.input as OpencodeReadInput | undefined;
@@ -16,7 +19,7 @@ export const ReadTool = memo(function ReadTool({ tool }: { tool: ToolAggregate }
 
   const filePath = input?.path ?? input?.filePath ?? '';
   const fileName = filePath ? extractFilename(filePath) : tool.title?.trim() || 'file';
-  const content = result?.output ?? '';
+  const content = (result?.output ?? '').replace(READ_HEADER, '');
 
   return (
     <ToolCard
@@ -36,7 +39,7 @@ export const ReadTool = memo(function ReadTool({ tool }: { tool: ToolAggregate }
       error={tool.error}
       actions={filePath ? <OpenInEditorButton filePath={filePath} /> : null}
     >
-      {content && <NumberedContent content={content} />}
+      {content && <NumberedContent content={content} prefixPattern={LINE_NUMBER_PREFIX} />}
     </ToolCard>
   );
 });
