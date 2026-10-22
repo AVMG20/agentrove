@@ -25,6 +25,10 @@
 .thinking-label {
   @include type.type-meta(500);
   color: var(--theme-text-tertiary);
+
+  &--active {
+    @include anim.text-shimmer;
+  }
 }
 
 .thinking-dots {

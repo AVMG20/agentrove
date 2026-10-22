@@ -141,3 +141,30 @@
   }
   animation: caret-blink 1.1s step-end infinite;
 }
+
+// "Working" text: a soft highlight sweeps across the glyphs, then rests.
+// Clipped to the text, so ellipsis truncation still works on the same element.
+@mixin text-shimmer($base: var(--theme-text-tertiary), $highlight: var(--theme-text-primary)) {
+  @keyframes text-shimmer {
+    0% {
+      background-position: 100% 0;
+    }
+    65%,
+    100% {
+      background-position: 0 0;
+    }
+  }
+  background-image: linear-gradient(
+    90deg,
+    $base 0%,
+    $base 44%,
+    $highlight 50%,
+    $base 56%,
+    $base 100%
+  );
+  background-size: 300% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: text-shimmer 2.6s ease-in-out infinite;
+}

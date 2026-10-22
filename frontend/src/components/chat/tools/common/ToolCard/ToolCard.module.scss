@@ -54,6 +54,10 @@
   @include type.type-default;
   @include type.type-overflow;
   color: var(--theme-text-tertiary);
+
+  &--running {
+    @include anim.text-shimmer;
+  }
 }
 
 .chevron {

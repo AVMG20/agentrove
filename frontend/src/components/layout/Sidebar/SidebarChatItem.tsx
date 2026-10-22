@@ -157,6 +157,7 @@ export const SidebarChatItem = memo(function SidebarChatItem({
             label={stripMarkdownTitle(chat.title)}
             isEmphasized={isActive || isUnread}
             isCurrent={isSelected}
+            isWorking={isChatStreaming}
             onClick={(e) => {
               if (e.shiftKey && onOpenInSplit && canOpenInSplit && !isActive) {
                 e.preventDefault();

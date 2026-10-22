@@ -74,6 +74,10 @@
   &--emphasis {
     font-weight: 500;
   }
+
+  &--working {
+    @include anim.text-shimmer;
+  }
 }
 
 .timestamp {
